@@ -469,6 +469,7 @@
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-result" checked> 判定結果</label>
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-logic" checked> 計算ロジック</label>
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-log" checked> 詳細計算ログ</label>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-detail" checked> 交点詳細計算</label>
                     </div>
                     <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="printReport()">計算書印刷プレビュー</button>
                 </div>
@@ -3195,6 +3196,7 @@ function printReport() {
     const showResult = document.getElementById('chk-rep-result').checked;
     const showLogic = document.getElementById('chk-rep-logic').checked;
     const showLog = document.getElementById('chk-rep-log').checked;
+    const showDetail = document.getElementById('chk-rep-detail').checked;
     const skipY = calcRes.skipY || false;
     
     // report-viewを一時的に表示（Chart.jsがcanvasサイズを取得するため）
@@ -3214,6 +3216,8 @@ function printReport() {
     document.getElementById('rep-page-log-x2').style.display = showLog ? 'block' : 'none';
     document.getElementById('rep-page-log-y1').style.display = (showLog && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-log-y2').style.display = (showLog && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-detail-x').style.display = showDetail ? 'block' : 'none';
+    document.getElementById('rep-page-detail-y').style.display = (showDetail && !skipY) ? 'block' : 'none';
     
     const charts = skipY ? ['chart-x'] : ['chart-x', 'chart-y']; 
     charts.forEach(id => {
