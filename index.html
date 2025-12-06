@@ -192,37 +192,37 @@
                     <div style="margin-top:5px; font-size:0.9em; color:#888;">※安全限界は損傷限界の5倍</div>
                 </div>
                 <div id="inp_Sa_custom_input" style="display:none; background:#eee; padding:10px; border-radius:5px;">
-                    <div style="font-size:0.85em; font-weight:bold; margin-bottom:8px;">自由入力データ (T-Sa)</div>
-                    <div style="font-size:0.8em; color:#666; margin-bottom:8px;">※損傷限界用・安全限界用をそれぞれ入力できます。片方のみの入力も可。</div>
-                    
-                    <!-- 損傷限界用 -->
-                    <div style="background:#e8f5e9; padding:8px; border-radius:3px; margin-bottom:8px;">
-                        <div style="font-size:0.85em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">▼ 損傷限界用 Sa(d)</div>
-                        <div style="display:flex; gap:5px; margin-bottom:5px;">
-                            <button class="btn-sheet" onclick="openSaSpreadsheet('d')" style="font-size:0.8em;">Excel貼付</button>
-                            <button class="btn-sm" onclick="clearSaData('d')" style="color:red; font-size:0.75em;">クリア</button>
-                        </div>
-                        <div id="sa-data-list-d" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
-                    </div>
-                    
-                    <!-- 安全限界用 -->
-                    <div style="background:#ffebee; padding:8px; border-radius:3px; margin-bottom:8px;">
-                        <div style="font-size:0.85em; font-weight:bold; color:#c62828; margin-bottom:5px;">▼ 安全限界用 Sa(s)</div>
-                        <div style="display:flex; gap:5px; margin-bottom:5px;">
-                            <button class="btn-sheet" onclick="openSaSpreadsheet('s')" style="font-size:0.8em;">Excel貼付</button>
-                            <button class="btn-sm" onclick="clearSaData('s')" style="color:red; font-size:0.75em;">クリア</button>
-                        </div>
-                        <div id="sa-data-list-s" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
-                    </div>
-                    
-                    <div style="padding:6px; background:#fff3cd; border:1px solid #ffc107; border-radius:3px; font-size:0.75em;">
-                        <div style="font-weight:bold; color:#856404;">減衰低減係数Fh（自由入力時）:</div>
-                        <div>ΔW/(4πWA) &lt; 0.05 → h = 0.05</div>
-                        <div>ΔW/(4πWA) ≧ 0.05 → h = ΔW/(4πWA)</div>
-                        <div>Fh = 1.5/(1+10h)</div>
-                        <div style="color:#666;">※片方のみ入力の場合、未入力側は告示値を使用</div>
-                    </div>
-                </div>
+    <div style="font-size:0.85em; font-weight:bold; margin-bottom:8px;">自由入力データ (T-Sa)</div>
+    <div style="font-size:0.8em; color:#666; margin-bottom:8px;">※損傷限界用・安全限界用をそれぞれ入力できます。片方のみの入力も可。</div>
+    
+    <div style="background:#e8f5e9; padding:8px; border-radius:3px; margin-bottom:8px;">
+        <div style="font-size:0.85em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">▼ 損傷限界用 Sa(d)</div>
+        <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+            <button class="btn-sheet" onclick="openSaSpreadsheet('d')" style="font-size:0.8em;">Excel貼付 (T-Sa)</button>
+            <button class="btn-sheet" onclick="openWaveModal('d')" style="font-size:0.8em; background:#fff; color:#2e7d32; border-color:#2e7d32;">地震波から計算</button>
+            <button class="btn-sm" onclick="clearSaData('d')" style="color:red; font-size:0.75em;">クリア</button>
+        </div>
+        <div id="sa-data-list-d" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+    </div>
+    
+    <div style="background:#ffebee; padding:8px; border-radius:3px; margin-bottom:8px;">
+        <div style="font-size:0.85em; font-weight:bold; color:#c62828; margin-bottom:5px;">▼ 安全限界用 Sa(s)</div>
+        <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+            <button class="btn-sheet" onclick="openSaSpreadsheet('s')" style="font-size:0.8em;">Excel貼付 (T-Sa)</button>
+            <button class="btn-sheet" onclick="openWaveModal('s')" style="font-size:0.8em; background:#fff; color:#c62828; border-color:#c62828;">地震波から計算</button>
+            <button class="btn-sm" onclick="clearSaData('s')" style="color:red; font-size:0.75em;">クリア</button>
+        </div>
+        <div id="sa-data-list-s" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+    </div>
+    
+    <div style="padding:6px; background:#fff3cd; border:1px solid #ffc107; border-radius:3px; font-size:0.75em;">
+        <div style="font-weight:bold; color:#856404;">減衰低減係数Fh（自由入力時）:</div>
+        <div>ΔW/(4πWA) &lt; 0.05 → h = 0.05</div>
+        <div>ΔW/(4πWA) ≧ 0.05 → h = ΔW/(4πWA)</div>
+        <div>Fh = 1.5/(1+10h)</div>
+        <div style="color:#666;">※片方のみ入力の場合、未入力側は告示値を使用</div>
+    </div>
+</div>
             </div>
             <div style="flex:1; min-width:400px; max-width:700px;">
                 <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">Saスペクトルグラフ</div>
@@ -4024,6 +4024,230 @@ function renderLogicSection() {
     </div>`;
     document.getElementById('report-logic').innerHTML = logicHtml;
 }
+
+// --- 地震波からの応答スペクトル計算機能 ---
+
+let hotWave = null;
+let currentWaveType = 'd'; // 'd' or 's'
+
+function openWaveModal(type) {
+    currentWaveType = type;
+    document.getElementById('wave-modal').style.display = 'flex';
+    document.getElementById('wave-modal-type').innerText = (type === 'd') ? '（損傷限界用）' : '（安全限界用）';
+    
+    // データ初期化（空の1000行）
+    let data = [];
+    for(let i=0; i<1000; i++) data.push([null, null]);
+    
+    if(hotWave) hotWave.destroy();
+    
+    // コンテナが表示されてからHandsontableを初期化するために微小遅延を入れる
+    setTimeout(() => {
+        const container = document.getElementById('wave-spreadsheet-container');
+        hotWave = new Handsontable(container, {
+            data: data,
+            colHeaders: ['時間 t(s)', '加速度 acc(gal)'],
+            columns: [{ type: 'numeric' }, { type: 'numeric' }],
+            rowHeaders: true,
+            contextMenu: true,
+            width: '100%',
+            height: '100%',
+            licenseKey: 'non-commercial-and-evaluation',
+            placeholder: 'Excelから貼付'
+        });
+    }, 100);
+}
+
+function closeWaveModal() {
+    document.getElementById('wave-modal').style.display = 'none';
+}
+
+function executeWaveCalc() {
+    if(!hotWave) return;
+    
+    const raw = hotWave.getData();
+    let waveData = []; // {t: time, a: acc(m/s^2)}
+    
+    // データの読み込みと単位変換 (gal -> m/s^2)
+    let lastT = -1;
+    let valid = true;
+    
+    for(let i=0; i<raw.length; i++) {
+        const t = parseFloat(raw[i][0]);
+        const gal = parseFloat(raw[i][1]);
+        
+        // 空行になったら終了
+        if (raw[i][0] === null && raw[i][1] === null) break;
+        
+        if(!isNaN(t) && !isNaN(gal)) {
+            // 単位変換: 1 gal = 0.01 m/s^2
+            waveData.push({ t: t, a: gal * 0.01 }); 
+            if(lastT >= 0 && t <= lastT) {
+                alert(`時間の並びが不正です（行 ${i+1}）。時間は昇順である必要があります。`);
+                valid = false;
+                break;
+            }
+            lastT = t;
+        }
+    }
+    
+    if(!valid || waveData.length < 10) {
+        if(valid) alert('データが少なすぎます。有効な波形データを入力してください。');
+        return;
+    }
+
+    // 計算実行
+    document.getElementById('wave-calc-status').style.display = 'block';
+    
+    // UIブロックを防ぐためにsetTimeoutを使用
+    setTimeout(() => {
+        const spectrum = calcResponseSpectrum(waveData);
+        
+        // 結果の反映
+        if(currentWaveType === 'd') {
+            saDataD = spectrum;
+            renderSaDataList('d');
+        } else {
+            saDataS = spectrum;
+            renderSaDataList('s');
+        }
+        updateSa0Chart();
+        
+        document.getElementById('wave-calc-status').style.display = 'none';
+        closeWaveModal();
+        alert('計算が完了し、Saスペクトルに反映しました。');
+    }, 50);
+}
+
+/**
+ * 線形加速度法（ニューマークβ法 β=1/4）による応答スペクトル計算
+ * h = 0.05 固定
+ * T = 0.02s ～ 3.0s (0.02s刻み)
+ */
+function calcResponseSpectrum(wave) {
+    const h = 0.05;
+    const beta = 0.25;
+    const gamma = 0.5;
+    
+    // 波形の時間刻み dt を推定 (平均)
+    let sumDt = 0;
+    for(let i=1; i<wave.length; i++) {
+        sumDt += (wave[i].t - wave[i-1].t);
+    }
+    const dt = sumDt / (wave.length - 1);
+    
+    const spectra = [];
+    
+    // 計算する周期のループ
+    for(let T = 0.02; T <= 3.01; T += 0.02) { // 3.0sまで
+        // 固有円振動数
+        const omega = 2 * Math.PI / T;
+        
+        // ニューマークβ法の係数
+        // M=1とする (単位質量あたり)
+        // C = 2hωM = 2hω
+        // K = ω^2 M = ω^2
+        
+        const M = 1.0;
+        const C = 2 * h * omega;
+        const K = Math.pow(omega, 2);
+        
+        const a0 = 1 / (beta * dt * dt);
+        const a1 = gamma / (beta * dt);
+        const a2 = 1 / (beta * dt);
+        const a3 = 1 / (2 * beta) - 1;
+        const a4 = gamma / beta - 1;
+        const a5 = dt * (gamma / (2 * beta) - 1); // ここでは使わないが定義上存在
+        
+        // 有効剛性
+        const K_hat = K + a0 * M + a1 * C;
+        
+        let x = 0;      // 変位
+        let v = 0;      // 速度
+        let a = 0;      // 加速度 (相対)
+        let maxAbsAcc = 0; // 最大絶対加速度
+        
+        // 時刻歴応答計算
+        // 初期加速度 (静止状態からスタートとする: wave[0].aが作用した瞬間の応答)
+        // a = (p - c*v - k*x) / m => a = - wave[0].a (地動加速度)
+        // 今回は全て0スタートとし、1ステップ目から入力が入るものとする
+        
+        for(let i = 0; i < wave.length - 1; i++) {
+            const acc_g_next = wave[i+1].a; // 次ステップの地動加速度
+            
+            // 有効荷重 dF_hat ではなく、全量形式で計算
+            // P_hat_next = -M * acc_g_next + M*(a0*x + a2*v + a3*a) + C*(a1*x + a4*v + a5*a)
+            // ※ Newmarkの標準的な実装
+            
+            const P = -1.0 * M * acc_g_next; // 外力項 (-m * z_ddot)
+            
+            const load_terms = M * (a0 * x + a2 * v + a3 * a) + C * (a1 * x + a4 * v + a5 * a); // a5項は微小項だが通常ニューマーク法の実装による
+            // 正確には:
+            // v_pred = v + (1-gamma)*dt*a
+            // x_next を求める形にする
+            
+            const P_hat = P + load_terms;
+            
+            const x_next = P_hat / K_hat;
+            const v_next = a1 * (x_next - x) - a4 * v - a5 * a; // a5の項定義注意。通常は v_next = (gamma/beta/dt)*(x_next-x) + (1-gamma/beta)*v + dt*(1-gamma/2beta)*a
+            
+            // シンプルな記述:
+            // a_next = a0 * (x_next - x) - a2 * v - a3 * a;
+            const a_next = a0 * (x_next - x) - a2 * v - a3 * a;
+            const v_next_simple = v + dt * ((1 - gamma) * a + gamma * a_next);
+            
+            // 絶対加速度 = 相対加速度 + 地動加速度
+            const abs_acc = a_next + acc_g_next;
+            if(Math.abs(abs_acc) > maxAbsAcc) maxAbsAcc = Math.abs(abs_acc);
+            
+            x = x_next;
+            v = v_next_simple;
+            a = a_next;
+        }
+        
+        spectra.push({ t: parseFloat(T.toFixed(3)), sa: maxAbsAcc });
+    }
+    
+    return spectra;
+}
 </script>
+
+<div id="wave-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:700px; height:85%;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="margin:0;">地震波から応答スペクトル計算 <span id="wave-modal-type" style="color:#005a9c;"></span></h3>
+            <button onclick="closeWaveModal()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
+        </div>
+        
+        <div style="display:flex; gap:20px; margin-bottom:10px; background:#f5f5f5; padding:10px; border-radius:4px; font-size:0.9em;">
+            <div style="flex:1;">
+                <strong>1. 解析条件設定</strong>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-top:5px;">
+                    <div><label>減衰定数 h</label> <input type="number" value="0.05" disabled style="width:60px; background:#eee;"> (固定)</div>
+                    <div><label>計算周期範囲</label> 0.02s ～ 3.0s</div>
+                    <div><label>周期刻み dT</label> 0.02s</div>
+                </div>
+            </div>
+            <div style="flex:1;">
+                 <strong>2. データ入力形式</strong>
+                 <div style="margin-top:5px; color:#666; font-size:0.9em;">
+                    ・1列目: 時間 t (s)<br>
+                    ・2列目: 加速度 acc (gal)<br>
+                    ※Excelからコピー＆ペーストしてください。<br>
+                    ※単位は <strong>gal (cm/s²)</strong> です。
+                 </div>
+            </div>
+        </div>
+
+        <div style="font-weight:bold; margin-bottom:5px; font-size:0.9em;">▼ 加速度時刻歴データ貼り付けエリア</div>
+        <div id="wave-spreadsheet-container" style="flex:1; border:1px solid #ccc;"></div>
+        
+        <div style="text-align:right; margin-top:10px; display:flex; justify-content:flex-end; gap:10px; align-items:center;">
+            <span id="wave-calc-status" style="color:#005a9c; font-weight:bold; display:none;">計算中...</span>
+            <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="executeWaveCalc()">スペクトル計算＆反映</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
