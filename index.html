@@ -1,0 +1,4025 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>木造限界耐力計算プログラム</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            messageStyle: "none",
+            showProcessingMessages: false
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
+    
+    <style>
+        :root { --primary: #005a9c; --secondary: #004080; --bg: #f4f5f7; --border: #ccc; }
+        body { font-family: 'Meiryo', sans-serif; margin: 0; padding: 20px; background: var(--bg); color: #333; font-size: 13px; }
+        .container { max-width: 1850px; margin: auto; background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { border-bottom: 2px solid var(--primary); padding-bottom: 5px; color: var(--primary); font-size: 1.4em; margin-top: 0; }
+        h2 { background: #eef4f9; padding: 6px 10px; border-left: 5px solid var(--primary); font-size: 1.1em; margin-top: 20px; }
+        
+        .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 15px; }
+        .tab-link { padding: 8px 25px; cursor: pointer; border: 1px solid #ddd; border-bottom: none; background: #f8f8f8; margin-right: 4px; font-weight: bold; color: #666; transition: 0.2s; }
+        .tab-link:hover { background: #eee; }
+        .tab-link.active { background: #fff; border-bottom: 2px solid #fff; color: var(--primary); border-top: 3px solid var(--primary); }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 10px; }
+        .input-group { background: #fff; padding: 8px; border: 1px solid var(--border); border-radius: 3px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9em; color: #555; }
+        .input-group input, .input-group select { width: 95%; padding: 4px; border: 1px solid #999; text-align: right; }
+        .input-group select { text-align: left; }
+
+        .force-editor { display: flex; gap: 10px; flex-wrap: wrap; }
+        .force-column { flex: 1; min-width: 300px; border: 1px solid var(--border); padding: 10px; border-radius: 3px; background: #fafafa; }
+        .force-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-weight: bold; color: var(--secondary); }
+        
+        /* Wall Selection Styles */
+        .wall-selector { margin-bottom: 10px; padding: 5px; background: #e8f0fe; border: 1px solid #b3d7ff; border-radius: 3px; }
+        .wall-selector-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; }
+        .wall-selector select { flex: 1; padding: 4px; font-size: 0.9em; }
+        .wall-selector input { width: 50px; text-align: right; padding: 4px; }
+        .btn-add-wall { background: var(--primary); color: white; border: none; cursor: pointer; padding: 2px 8px; border-radius: 3px; }
+        .wall-list { max-height: 100px; overflow-y: auto; background: #fff; border: 1px solid #ccc; margin-bottom: 5px; font-size: 0.85em; }
+        .wall-item { display: flex; justify-content: space-between; padding: 3px 5px; border-bottom: 1px solid #eee; align-items: center; }
+        .wall-item:last-child { border-bottom: none; }
+        .wall-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Free Input List Styles */
+        .free-input-list { max-height: 120px; overflow-y: auto; background: #fff; border: 1px solid #ccc; margin-bottom: 5px; font-size: 0.85em; }
+        .free-input-list:empty { display: none; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; font-size: 0.9em; background: #fff; }
+        .data-table th { background: #e0e0e0; border: 1px solid #999; padding: 4px; text-align: center; }
+        .data-table td { border: 1px solid #999; padding: 2px; text-align: center; }
+        .data-table input { width: 90%; border: none; text-align: right; font-family: inherit; }
+        
+        .btn-sm { padding: 1px 6px; cursor: pointer; font-size: 0.85em; background: #ddd; border: 1px solid #999; border-radius: 2px; }
+        .btn-calc { display: block; width: 200px; margin: 20px auto; padding: 12px; font-size: 1.2em; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; }
+        .btn-calc:hover { background: var(--secondary); transform: translateY(-1px); }
+        .btn-sheet { background: #fff; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; padding: 2px 8px; font-size: 0.85em; border-radius: 3px; }
+
+        .log-section { margin-top: 20px; border-top: 2px solid #ccc; padding-top: 10px; }
+        .log-wrapper { overflow: auto; border: 1px solid #999; max-height: 500px; background: #fff; position: relative; margin-bottom: 20px; }
+        .log-table { border-collapse: separate; border-spacing: 0; font-family: 'Consolas', 'Monaco', monospace; font-size: 11px; white-space: nowrap; width: 100%; }
+        .log-table thead { position: sticky; top: 0; z-index: 10; }
+        .log-table th { background: #f0f0f0; border: 1px solid #ccc; padding: 4px 6px; text-align: center; }
+        .log-table td { border: 1px solid #ccc; padding: 2px 6px; text-align: right; }
+        .log-table tr:nth-child(even) { background: #f9f9f9; }
+
+        .formula-box { background: #f8f9fa; border: 1px solid #ddd; padding: 20px; margin-top: 20px; border-radius: 5px; }
+        .formula-grid { display:grid; grid-template-columns: 1fr 1fr; gap:30px; }
+        .formula-item { margin-bottom: 20px; border-bottom: 1px dotted #ccc; padding-bottom: 10px; }
+        .formula-desc { color: #555; font-size: 0.9em; margin-top: 5px; line-height: 1.5; }
+        .formula-eq { font-family: "Times New Roman", serif; font-size: 1.15em; background: #fff; padding: 4px 8px; display: inline-block; border-radius: 3px; border:1px solid #eee; margin-top:5px; }
+
+        .result-box { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+        .result-panel { flex: 1; min-width: 450px; padding: 10px; border: 1px solid #ddd; border-top: 3px solid var(--primary); background: #fff; }
+        .chart-wrapper { height: 400px; position: relative; width: 100%; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; padding: 15px; width: 800px; height: 80%; display: flex; flex-direction: column; border-radius: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #spreadsheet-container { flex: 1; overflow: hidden; margin-bottom: 10px; border: 1px solid #ccc; }
+
+        .badge { padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 0.9em; color: white; }
+        .badge-ok { background: #28a745; }
+        .badge-warn { background: #ffc107; color:#333; }
+        .badge-ng { background: #dc3545; }
+        .rating-box { margin-top:5px; font-weight:bold; padding:5px; border:1px solid #ccc; background:#fafafa; text-align:center; }
+
+        .story-2-only { transition: all 0.3s; }
+        
+        /* Input Graph Styles */
+        .input-chart-wrapper { height: 180px; width: 100%; background: white; border: 1px solid #eee; margin-bottom: 5px; }
+
+        /* SVG Diagram Styles */
+        .diagram-container { text-align: center; margin: 15px 0; border: 1px solid #eee; padding: 10px; background: white; }
+        .diagram-svg { max-width: 100%; height: auto; }
+        .diagram-label { font-size: 10px; fill: #333; font-family: sans-serif; }
+
+        #report-view { display: none; }
+        @media print {
+            body { background: white; padding: 0; font-size: 9pt; margin:0; }
+            .no-print { display: none !important; }
+            #report-view { display: block !important; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; width: 100%; margin: 0; }
+            
+            .report-page { width: 100%; box-sizing: border-box; padding: 8mm; position: relative; page-break-after: always; }
+            .report-page:last-child { page-break-after: auto; }
+
+            .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
+            .report-header h1 { margin: 0; font-size: 14pt; color: #000; border: none; }
+            .report-header .report-title-box { flex: 1; }
+            .report-header .report-prop-name { font-size: 12pt; font-weight: bold; text-align: right; }
+            
+            .report-section { margin-bottom: 15px; break-inside: avoid; page-break-inside: avoid; }
+            .report-section h3 { font-size: 12pt; border-left: 4px solid #000; padding-left: 8px; background: #eee; margin: 10px 0 5px 0; break-after: avoid; page-break-after: avoid; }
+            
+            .report-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 5px; break-inside: avoid; page-break-inside: avoid; }
+            .report-table th { background: #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #000; border: 1px solid #000; padding: 3px; }
+            .report-table td { border: 1px solid #000; padding: 2px 4px; text-align: center; }
+
+            /* Chart Images in Print */
+            .report-chart-img { width: 100%; height: auto; border: 1px solid #ccc; object-fit: contain; }
+            
+            /* Log Table in Print - 2分割対応 */
+            .log-print-wrapper { font-size: 7pt; }
+            .log-print-wrapper table { border-collapse: collapse; width: 100%; }
+            .log-print-wrapper th, .log-print-wrapper td { border: 1px solid #666; padding: 2px 3px; text-align: center; }
+            .log-print-wrapper th { background: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; }
+            .log-print-wrapper .log-header-group th { background: #d0d0d0 !important; }
+            
+            /* Logic Section in Print */
+            .logic-print { font-size: 9pt; line-height: 1.4; }
+            .logic-print h4 { margin: 5px 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="no-print">
+        <h1>木造限界耐力計算プログラム</h1>
+        <div class="tabs">
+            <div class="tab-link active" onclick="switchTab('input')">1. データ入力</div>
+            <div class="tab-link" onclick="switchTab('force-x')">2. 復元力X方向</div>
+            <div class="tab-link" onclick="switchTab('force-y')">3. 復元力Y方向</div>
+            <div class="tab-link" onclick="switchTab('result')">4. 計算結果・ログ</div>
+            <div class="tab-link" onclick="switchTab('detail')">5. 交点詳細</div>
+        </div>
+    </div>
+
+    <div id="tab-input" class="tab-content active no-print">
+        <h2>1. 建物・地盤諸元</h2>
+        <div class="input-grid">
+            <div class="input-group">
+                <label>物件名</label>
+                <input type="text" id="inp_BuildingName" placeholder="例: 〇〇邸 新築工事">
+            </div>
+            <div class="input-group">
+                <label>階数 (Stories)</label>
+                <select id="inp_Stories" onchange="toggleStories()">
+                    <option value="1">1階建て (平屋)</option>
+                    <option value="2" selected>2階建て</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>地域係数 Z</label>
+                <input type="number" id="inp_Z" value="1.0" step="0.01">
+            </div>
+        </div>
+        
+        <h3>1-2. 応答スペクトル (Sa)</h3>
+        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="min-width:280px;">
+                <div class="input-group" style="margin-bottom:10px;">
+                    <label>応答スペクトル設定</label>
+                    <select id="inp_Sa_mode" onchange="toggleSaInput()">
+                        <option value="standard" selected>告示準拠 (Sa0)</option>
+                        <option value="custom">自由入力 (Saスペクトル)</option>
+                    </select>
+                </div>
+                <div id="sa-standard-desc" style="font-size:0.85em; color:#666; padding:8px; background:#f9f9f9; border-radius:3px; line-height:1.5;">
+                    <div><strong>加速度応答スペクトル Sa0(T)</strong></div>
+                    <div style="margin-top:5px;">● 損傷限界: 稀に発生する地震動</div>
+                    <div>● 安全限界: 極めて稀に発生する地震動</div>
+                    <div style="margin-top:5px; font-size:0.9em; color:#888;">※安全限界は損傷限界の5倍</div>
+                </div>
+                <div id="inp_Sa_custom_input" style="display:none; background:#eee; padding:10px; border-radius:5px;">
+                    <div style="font-size:0.85em; font-weight:bold; margin-bottom:8px;">自由入力データ (T-Sa)</div>
+                    <div style="font-size:0.8em; color:#666; margin-bottom:8px;">※損傷限界用・安全限界用をそれぞれ入力できます。片方のみの入力も可。</div>
+                    
+                    <!-- 損傷限界用 -->
+                    <div style="background:#e8f5e9; padding:8px; border-radius:3px; margin-bottom:8px;">
+                        <div style="font-size:0.85em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">▼ 損傷限界用 Sa(d)</div>
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <button class="btn-sheet" onclick="openSaSpreadsheet('d')" style="font-size:0.8em;">Excel貼付</button>
+                            <button class="btn-sm" onclick="clearSaData('d')" style="color:red; font-size:0.75em;">クリア</button>
+                        </div>
+                        <div id="sa-data-list-d" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+                    </div>
+                    
+                    <!-- 安全限界用 -->
+                    <div style="background:#ffebee; padding:8px; border-radius:3px; margin-bottom:8px;">
+                        <div style="font-size:0.85em; font-weight:bold; color:#c62828; margin-bottom:5px;">▼ 安全限界用 Sa(s)</div>
+                        <div style="display:flex; gap:5px; margin-bottom:5px;">
+                            <button class="btn-sheet" onclick="openSaSpreadsheet('s')" style="font-size:0.8em;">Excel貼付</button>
+                            <button class="btn-sm" onclick="clearSaData('s')" style="color:red; font-size:0.75em;">クリア</button>
+                        </div>
+                        <div id="sa-data-list-s" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+                    </div>
+                    
+                    <div style="padding:6px; background:#fff3cd; border:1px solid #ffc107; border-radius:3px; font-size:0.75em;">
+                        <div style="font-weight:bold; color:#856404;">減衰低減係数Fh（自由入力時）:</div>
+                        <div>ΔW/(4πWA) &lt; 0.05 → h = 0.05</div>
+                        <div>ΔW/(4πWA) ≧ 0.05 → h = ΔW/(4πWA)</div>
+                        <div>Fh = 1.5/(1+10h)</div>
+                        <div style="color:#666;">※片方のみ入力の場合、未入力側は告示値を使用</div>
+                    </div>
+                </div>
+            </div>
+            <div style="flex:1; min-width:400px; max-width:700px;">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">Saスペクトルグラフ</div>
+                <div style="height:200px; border:1px solid #ccc; background:#fff; padding:5px;">
+                    <canvas id="chart-sa0"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <h3>1-3. 地盤種別 (Gsスペクトル設定)</h3>
+        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="min-width:200px;">
+                <div class="input-group" style="margin-bottom:10px;">
+                    <label>地盤種別</label>
+                    <select id="inp_Tc_mode" onchange="toggleTcInput()">
+                        <option value="1">第1種 (岩盤・硬質砂礫等)</option>
+                        <option value="2" selected>第2種 (通常の地盤)</option>
+                        <option value="3">第3種 (軟弱地盤)</option>
+                        <option value="custom">Gsスペクトル自由入力</option>
+                    </select>
+                </div>
+                <div id="inp_Tc_custom_input" style="display:none; background:#eee; padding:10px; border-radius:5px;">
+                    <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">自由入力データ (T-Gs)</div>
+                    <div style="display:flex; gap:5px; margin-bottom:5px;">
+                        <button class="btn-sheet" onclick="openGsSpreadsheet()">Excel貼付</button>
+                        <button class="btn-sm" onclick="clearGsData()" style="color:red;">クリア</button>
+                    </div>
+                    <div id="gs-data-list" style="font-size:0.8em; max-height:150px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:5px;"></div>
+                </div>
+            </div>
+            <div style="flex:1; min-width:350px; max-width:600px;">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">Gsスペクトルグラフ</div>
+                <div style="height:200px; border:1px solid #ccc; background:#fff; padding:5px;">
+                    <canvas id="chart-gs"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <h3>1-4. p, q 調整係数</h3>
+        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="min-width:200px;">
+                <div class="input-group" style="margin-bottom:10px;">
+                    <label>p, q の考慮</label>
+                    <select id="inp_pq" onchange="togglePqInput()">
+                        <option value="yes" selected>考慮する (告示準拠)</option>
+                        <option value="no">考慮しない (p=1.0, q=1.0)</option>
+                    </select>
+                </div>
+                <div id="pq-desc" style="font-size:0.8em; color:#666; padding:5px; background:#f9f9f9; border-radius:3px;">
+                    <div><strong>p係数</strong>: 等価周期Teによる調整（地震応答の位相差考慮）</div>
+                    <div style="margin-top:3px;"><strong>q係数</strong>: 等価質量比による調整（高次モード影響考慮）</div>
+                </div>
+            </div>
+            <div id="pq-chart-area" style="flex:1; min-width:350px; max-width:600px;">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">p係数グラフ (Te-p)</div>
+                <div style="height:180px; border:1px solid #ccc; background:#fff; padding:5px;">
+                    <canvas id="chart-p"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <h3>2. 階データ (下階から入力)</h3>
+        <p style="font-size:0.9em; color:#666;">※重量Wは、当該階の地震力を負担する重量（積載荷重含む、多雪区域等は適切に割増）を入力してください。</p>
+        
+        <h4 style="margin: 10px 0 5px 0; color: #333;">重量</h4>
+        <div class="input-grid">
+            <div class="input-group"><label>1F 重量 W1 (kN)</label><input type="number" id="inp_W1" value="100"></div>
+            <div class="input-group story-2-only"><label>2F 重量 W2 (kN)</label><input type="number" id="inp_W2" value="80"></div>
+        </div>
+        
+        <h4 style="margin: 15px 0 5px 0; color: #333;">階高</h4>
+        <div class="input-grid">
+            <div class="input-group"><label>1F 階高 H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01"></div>
+            <div class="input-group story-2-only"><label>2F 階高 H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01"></div>
+        </div>
+
+        <h3>3. 判定基準 (層間変形角)</h3>
+        <div class="input-grid">
+            <div class="input-group">
+                <label>損傷限界 1/N</label>
+                <input type="number" id="inp_limit_d" value="120" step="1">
+            </div>
+            <div class="input-group">
+                <label>安全限界 1/N</label>
+                <input type="number" id="inp_limit_s" value="15" step="1">
+            </div>
+        </div>
+    </div>
+
+    <!-- 復元力特性 X方向タブ -->
+    <div id="tab-force-x" class="tab-content no-print">
+        <h2>復元力特性 X方向 (Q - δ)</h2>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <div class="force-editor">
+            <div class="force-column" id="col-x1">
+                <div class="force-header"><span>X方向 1階</span></div>
+                <div class="wall-selector">
+                    <div class="wall-selector-row">
+                        <select id="sel-wall-x1"></select>
+                        <input type="number" id="qty-wall-x1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <button class="btn-add-wall" onclick="addWall('x1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-wall-x1"></div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-x1"></canvas></div>
+                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-x1"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-x1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-x1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('x1')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('x1')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-x1" style="display:none;">
+                    <thead><tr><th width="30%">1/N</th><th width="35%">変位(mm)</th><th width="25%">Q(kN)</th><th width="10%"></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="force-column story-2-only" id="col-x2">
+                <div class="force-header"><span>X方向 2階</span></div>
+                <div class="wall-selector">
+                    <div class="wall-selector-row">
+                        <select id="sel-wall-x2"></select>
+                        <input type="number" id="qty-wall-x2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <button class="btn-add-wall" onclick="addWall('x2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-wall-x2"></div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-x2"></canvas></div>
+                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-x2"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-x2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-x2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('x2')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('x2')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-x2" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 復元力特性 Y方向タブ -->
+    <div id="tab-force-y" class="tab-content no-print">
+        <h2>復元力特性 Y方向 (Q - δ)</h2>
+        <div style="background:#fff3cd; border:1px solid #ffc107; padding:10px; margin-bottom:15px; border-radius:5px;">
+            <label style="cursor:pointer; font-weight:bold; color:#856404;">
+                <input type="checkbox" id="chk-skip-y" onchange="toggleSkipY()"> Y方向の入力を行わない（X方向のみ計算）
+            </label>
+        </div>
+        <div id="force-y-input-area">
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <div class="force-editor">
+            <div class="force-column" id="col-y1">
+                <div class="force-header"><span>Y方向 1階</span></div>
+                <div class="wall-selector">
+                    <div class="wall-selector-row">
+                        <select id="sel-wall-y1"></select>
+                        <input type="number" id="qty-wall-y1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <button class="btn-add-wall" onclick="addWall('y1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-wall-y1"></div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-y1"></canvas></div>
+                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-y1"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-y1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-y1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('y1')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('y1')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-y1" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div class="force-column story-2-only" id="col-y2">
+                <div class="force-header"><span>Y方向 2階</span></div>
+                <div class="wall-selector">
+                    <div class="wall-selector-row">
+                        <select id="sel-wall-y2"></select>
+                        <input type="number" id="qty-wall-y2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <button class="btn-add-wall" onclick="addWall('y2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-wall-y2"></div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-y2"></canvas></div>
+                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-y2"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-y2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-y2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('y2')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('y2')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-y2" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div id="tab-result" class="tab-content no-print">
+        <div style="text-align:center; margin:20px;">
+            <button class="btn-calc" onclick="executeCalculation()">計算実行</button>
+        </div>
+        
+        <div id="result-summary" style="display:none;">
+            <div class="result-box">
+                <div class="result-panel">
+                    <h3>X方向: Q - 変形角関係</h3>
+                    <div id="summary-x-table" style="margin-bottom:10px;"></div>
+                    <div class="chart-wrapper"><canvas id="chart-x"></canvas></div>
+                </div>
+                <div class="result-panel" id="result-panel-y">
+                    <h3>Y方向: Q - 変形角関係</h3>
+                    <div id="summary-y-table" style="margin-bottom:10px;"></div>
+                    <div class="chart-wrapper"><canvas id="chart-y"></canvas></div>
+                </div>
+            </div>
+
+            <div class="print-options-section" style="background:#f8f8f8; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                        <strong style="color:#333;">計算書出力項目:</strong>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-overview" checked> 建物概要</label>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-force" checked> 復元力特性</label>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-result" checked> 判定結果</label>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-logic" checked> 計算ロジック</label>
+                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-log" checked> 詳細計算ログ</label>
+                    </div>
+                    <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="printReport()">計算書印刷プレビュー</button>
+                </div>
+            </div>
+            
+            <div class="log-section">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <h3 style="margin:0;">詳細計算ログ</h3>
+                    <div>
+                        <button class="btn-sm" onclick="showLog('x')" style="padding:5px 15px; font-weight:bold;">X方向ログ</button>
+                        <button class="btn-sm" id="btn-log-y" onclick="showLog('y')" style="padding:5px 15px; font-weight:bold;">Y方向ログ</button>
+                    </div>
+                </div>
+                <div class="log-wrapper">
+                    <div id="log-container-x" style="display:block;"></div>
+                    <div id="log-container-y" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div class="formula-box">
+                <h3>計算ロジック・詳細項目の解説</h3>
+                <p style="font-size:0.9em; color:#666;">※本プログラムは「限界耐力計算（令第82条の6、平12建告1457号）」に基づき、木造建物の倒壊・損傷検証を行います。</p>
+                <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">1. 振動モデルの作成と固有値解析</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>\( m_i \) (各階質量)</strong><br>
+                            <span class="formula-eq">\( m_i = \frac{W_i}{g} \)</span><br>
+                            <div class="formula-desc">各階重量 \( W_i \) (kN) を重力加速度 \( g \approx 9.807 \, \text{m/s}^2 \) で除して質量化します。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( K_{i0} \) (初期剛性)</strong><br>
+                            <span class="formula-desc">復元力特性の原点付近（弾性域）の勾配。</span><br>
+                            <div class="formula-desc">建物の本来の硬さを表します。初期剛性が高いほど \( T_0 \) が短くなり、減衰効果が高まります。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( T_0 \) (第1次固有周期)</strong><br>
+                            <span class="formula-eq">\( |K_0 - \omega^2 M| = 0 \Rightarrow T_0 = \frac{2\pi}{\omega} \)</span><br>
+                            <div class="formula-desc">初期剛性と質量を用いた固有値解析により算出します。この \( T_0 \) は減衰定数 \( h \) の算定基準となります。<br>1階建ての場合: \( T_0 = 2\pi \sqrt{m_1/K_1} \)</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( u_i \) (振動モード)</strong><br>
+                            <span class="formula-eq">\( \frac{u_2}{u_1} = \frac{K_1 + K_2 - m_1 \omega^2}{K_2} \)</span><br>
+                            <div class="formula-desc">各ステップの剛性 \( K \) に応じて、建物がどのような形状で揺れるか（モード）を算出します。（1階建ての場合は省略）</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">2. 等価1自由度系への置換 (多質点 &to; 1質点)</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>\( M_e \) (有効質量)</strong><br>
+                            <span class="formula-eq">\( M_e = \frac{(\sum m_i u_i)^2}{\sum m_i u_i^2} \)</span><br>
+                            <div class="formula-desc">建物全体の揺れに関与する質量成分。PDF資料では \( M_{us} \) と表記。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( \Delta \) (等価変位)</strong><br>
+                            <span class="formula-eq">\( \Delta = \frac{\sum m_i u_i^2}{\sum m_i u_i} \)</span><br>
+                            <div class="formula-desc">等価1自由度系の代表変位量。PDF資料では \( \delta_s \) と表記。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( H_e \) (等価高さ)</strong><br>
+                            <span class="formula-eq">\( H_e = \frac{\sum m_i u_i h_i}{\sum m_i u_i} \)</span><br>
+                            <div class="formula-desc">等価1自由度系の重心高さ。グラフのX軸（変形角相当 \( \Delta/H_e \)）等に使用します。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( T_e \) (等価周期)</strong><br>
+                            <span class="formula-eq">\( T_e = 2\pi \sqrt{\frac{M_e}{K_e}} = 2\pi \sqrt{\frac{M_e \cdot \Delta}{Q_a}} \)</span><br>
+                            <div class="formula-desc">損傷が進み剛性が低下すると、周期は \( T_0 \) から \( T_e \) へと長くなります。安全限界時は \( T_s \) と表記。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">3. 減衰性能と要求スペクトル</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>\( W_A \) (ポテンシャルエネルギー)</strong><br>
+                            <span class="formula-eq">\( W_A = \frac{1}{2} Q_1 \delta_1 + \frac{1}{2} Q_2 \delta_2 \)</span><br>
+                            <div class="formula-desc">各階の層せん断力と変位の積の1/2を合計した全体のポテンシャルエネルギー。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( h_{eq1} \) (1階の等価減衰定数)</strong><br>
+                            <span class="formula-eq">\( h_{eq1} = \frac{\delta_{z1} - Q_1/K_{10}}{\delta_{z1}} \times \frac{2}{4\pi} \)</span><br>
+                            <div class="formula-desc">\( Q_1/K_{10} \): 弾性変形量、\( \delta_{z1} - Q_1/K_{10} \): 塑性変形量<br>塑性変形の割合からエネルギー吸収能力を評価します（負値は0）。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( h_{eq2} \) (2階の等価減衰定数)</strong><br>
+                            <span class="formula-eq">\( h_{eq2} = \frac{\delta_2 - Q_2/K_{20}}{\delta_2} \times \frac{2}{4\pi} \)</span><br>
+                            <div class="formula-desc">\( \delta_2 = \delta_{z2} - \delta_{z1} \): 2階の層間変位<br>\( Q_2/K_{20} \): 弾性変形量、\( \delta_2 - Q_2/K_{20} \): 塑性変形量</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( \Delta W \) (履歴減衰エネルギー)</strong><br>
+                            <span class="formula-eq">\( \Delta W = 4\pi (h_{eq1} \cdot W_1 + h_{eq2} \cdot W_2) \)</span><br>
+                            <div class="formula-desc">\( W_1 = \frac{1}{2} Q_1 \delta_1 \), \( W_2 = \frac{1}{2} Q_2 \delta_2 \): 各階のポテンシャルエネルギー</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( h \) (等価粘性減衰定数)</strong><br>
+                            <span class="formula-eq">\( h = 0.05 + \frac{\Delta W}{4\pi \cdot W_A} \)</span><br>
+                            <div class="formula-desc">初期減衰0.05に履歴減衰を加算（上限0.25）。塑性変形が進むほど大きくなりエネルギー吸収能力が高まります。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( F_h \) (減衰低減係数)</strong><br>
+                            <span class="formula-eq">\( F_h = \frac{1.5}{1 + 10h} \)</span><br>
+                            <div class="formula-desc">減衰 \( h \) が大きいほど地震力を低減できます。<br><strong>※安全限界（極稀地震）計算時に適用。損傷限界（稀地震）では原則 1.0 (h=0.05相当) とします。</strong></div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( Q_A \) (等価せん断力)</strong><br>
+                            <span class="formula-eq">\( Q_A = \frac{2 W_A}{\Delta} \)</span><br>
+                            <div class="formula-desc">エネルギー等価の関係 \( W_A = \frac{1}{2} Q_A \cdot \Delta \) より逆算。グラフの保有耐力曲線として表示されます。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">3-2. 複数耐力要素のheq合成（自由入力のheq直接入力対応）</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>heq直接入力がある場合</strong><br>
+                            <div class="formula-desc">自由入力の復元力特性で「heqを入力する」にチェックを入れた場合、各変形角に対応するheq値を直接設定できます。<br>この場合、計算式による算出ではなく、入力されたheq値を補間して使用します。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>heq直接入力がない場合</strong><br>
+                            <span class="formula-eq">\( h_{eq,i} = 0.2 \times \left(1 - \sqrt{\frac{K_i}{K_{i0}}}\right) \)</span><br>
+                            <div class="formula-desc">\( K_{i0} \): 要素の初期剛性、\( K_i \): 現在の割線剛性<br>従来通り、剛性低下率から自動計算されます。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>階全体のheq合成（加重平均）</strong><br>
+                            <span class="formula-eq">\( h_{eq,階} = \frac{\sum (h_{eq,i} \times Q_i)}{\sum Q_i} \)</span><br>
+                            <div class="formula-desc">各耐力要素（壁・自由入力）のheqを、その要素のせん断力\( Q_i \)で重み付けして合成します。<br>heq直接入力がある要素と、自動計算の要素が混在する場合も、同じ式で合成されます。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>混在時の計算例</strong><br>
+                            <div class="formula-desc">
+                                例：壁A（自動計算 heq=0.05, Q=50kN）+ 自由入力B（直接入力 heq=0.10, Q=30kN）<br>
+                                \( h_{eq,階} = \frac{0.05 \times 50 + 0.10 \times 30}{50 + 30} = \frac{2.5 + 3.0}{80} = 0.069 \)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                 <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">4. 要求せん断力と判定</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>\( Q_{req} \) (必要耐力)</strong><br>
+                            <span class="formula-eq">\( Q_{req} = M_e \cdot S_A \)</span><br>
+                            <div class="formula-desc">グラフ上の「必要耐力曲線（点線）」のY座標。<br>保有耐力 \( Q_a \) と交差する点が応答値（\( P_{si} \approx Q_a \)）。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>評点と判定</strong><br>
+                            <span class="formula-eq">\( \text{評点} = Q_{si} / Q_{sni} \)</span><br>
+                            <div class="formula-desc">
+                                <strong>\( Q_{si} \): 安全限界耐力</strong>（荷重変形曲線の最大荷重点）<br>
+                                <strong>\( Q_{sni} \): 作用する地震力</strong>（\( Q_{si} \) 時の必要耐力）<br>
+                                ※交点ではなく、最大耐力点における余裕度で判定します。<br>
+                                1.5以上：倒壊しない<br>1.0〜1.5：一応倒壊しない<br>0.7〜1.0：倒壊する可能性がある<br>0.7未満：倒壊する可能性が高い
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">5. 地域係数・p,q係数・地盤種別</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>\( Z \) (地域係数)</strong><br>
+                            <span class="formula-eq">\( Z = 0.7 \sim 1.0 \)</span><br>
+                            <div class="formula-desc">
+                                地震地域係数。地域による地震の強さの違いを考慮する係数。<br>
+                                <strong>・1.0：</strong>大部分の地域（東京、大阪、名古屋等）<br>
+                                <strong>・0.9：</strong>北海道の一部、沖縄の一部等<br>
+                                <strong>・0.8：</strong>北海道の一部等<br>
+                                <strong>・0.7：</strong>沖縄の一部等<br>
+                                建築基準法施行令第88条に定められています。
+                            </div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>地盤種別と特性周期 \( T_c \)</strong><br>
+                            <div class="formula-desc">
+                                地盤種別により加速度応答スペクトルの形が変わります。<br>
+                                <strong>・第1種地盤（\( T_c = 0.4s \)）：</strong>岩盤、硬質砂礫層、第三紀層など良好な地盤<br>
+                                <strong>・第2種地盤（\( T_c = 0.6s \)）：</strong>通常の地盤（第1種・第3種以外）<br>
+                                <strong>・第3種地盤（\( T_c = 0.8s \)）：</strong>軟弱地盤、沿岸埋立地、涼沢低地等<br>
+                                \( T_c \) は地盤の卓越周期に対応し、\( T_c \) 付近で応答が最大となります。
+                            </div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( G_s \) (地盤増幅率)</strong><br>
+                            <div class="formula-desc">
+                                地表面での地震動の増幅率。地盤調査結果から決定します。<br>
+                                第1種地盤では \( G_s \approx 1.0 \sim 1.5 \)、第3種地盤では \( G_s \approx 1.5 \sim 2.5 \) 程度。<br>
+                                自由入力では周期ごとの \( G_s(T) \) スペクトルを指定可能です。
+                            </div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>\( p, q \) (調整係数)</strong><br>
+                            <div class="formula-desc">
+                                平成12年建告第1457号に基づく調整係数。<br>
+                                <strong>\( p \)：地震地域係数等に関する調整係数</strong><br>
+                                ・\( T \leq T_c \) のとき：\( p = 1.0 \)<br>
+                                ・\( T > T_c \) のとき：\( p = T_c / T \)  (長周期側で低減)<br>
+                                <strong>\( q \)：構造特性等に関する調整係数</strong><br>
+                                ・\( T \leq T_c \) のとき：\( q = T / T_c \)  (短周期側で低減)<br>
+                                ・\( T > T_c \) のとき：\( q = 1.0 \)<br>
+                                これらにより短周期・長周期の建物で応答を適切に評価できます。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-detail" class="tab-content no-print">
+        <h2>5. 交点詳細計算</h2>
+        <p style="color:#666; font-size:0.9em;">損傷限界・安全限界の交点における詳細な計算過程を表示します。計算実行後に更新されます。</p>
+        <div id="detail-content" style="display:none;">
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button class="btn-sm" onclick="showDetailDir('x')" id="btn-detail-x" style="padding:8px 20px; font-weight:bold; background:#005a9c; color:#fff;">X方向</button>
+                <button class="btn-sm" onclick="showDetailDir('y')" id="btn-detail-y" style="padding:8px 20px; font-weight:bold;">Y方向</button>
+            </div>
+            <div id="detail-x" style="display:block;"></div>
+            <div id="detail-y" style="display:none;"></div>
+        </div>
+        <div id="detail-placeholder" style="padding:40px; text-align:center; color:#999; border:2px dashed #ddd; border-radius:8px;">
+            <p style="font-size:1.2em;">計算を実行すると、ここに交点詳細が表示されます。</p>
+            <p>「4. 計算結果・ログ」タブで計算を実行してください。</p>
+        </div>
+    </div>
+
+    <div id="report-view">
+        <!-- Page 1: 建物概要 -->
+        <div class="report-page" id="rep-page-overview">
+            <div class="report-header">
+                <div class="report-title-box">
+                    <h1>構造計算書：木造限界耐力計算</h1>
+                    <span id="report-date"></span>
+                </div>
+                <div id="rep-building-name" class="report-prop-name"></div>
+            </div>
+            
+            <div class="report-section">
+                <h3>1. 建物概要・諸元</h3>
+                <table class="report-table">
+                    <tr>
+                        <th width="15%">地域係数 Z</th><td id="rep-Z" width="15%"></td>
+                        <th width="15%">地盤種別</th><td id="rep-Tc"></td>
+                        <th width="15%">p, q考慮</th><td id="rep-PQ"></td>
+                    </tr>
+                    <tr>
+                         <th>損傷限界</th><td id="rep-lim-d"></td>
+                         <th>安全限界</th><td id="rep-lim-s"></td>
+                         <td colspan="2"></td>
+                    </tr>
+                </table>
+                <table class="report-table" style="margin-top:5px;">
+                    <thead><tr><th>階</th><th>階高H(m)</th><th>重量W(kN)</th><th>累計重量(kN)</th><th>初期剛性Ki(kN/m)</th></tr></thead>
+                    <tbody id="rep-bldg-tbody"></tbody>
+                </table>
+            </div>
+            
+            <div class="report-section">
+                <h3>1-2. 地盤種別・Gsスペクトル</h3>
+                <div style="display:flex; gap:15px; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <table class="report-table">
+                            <tr><th width="30%">地盤種別</th><td id="rep-Tc-detail"></td></tr>
+                            <tr><th>設定方法</th><td id="rep-Tc-mode"></td></tr>
+                        </table>
+                        <div id="rep-gs-data-table" style="margin-top:5px; font-size:7pt;"></div>
+                    </div>
+                    <div style="flex:1; max-width:350px;">
+                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">Gsスペクトルグラフ</div>
+                        <div style="height:150px; border:1px solid #ccc;">
+                            <canvas id="rep-chart-gs"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-section">
+                <h3>1-3. 応答スペクトル (Sa)</h3>
+                <table class="report-table" style="font-size:8pt; margin-bottom:5px;">
+                    <tr><th width="25%">入力モード</th><td id="rep-sa-mode"></td></tr>
+                </table>
+                <div style="display:flex; gap:15px; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div id="rep-sa-desc" style="font-size:7pt; line-height:1.4;">
+                            <p><strong>加速度応答スペクトル Sa0(T)</strong></p>
+                            <p>岩盤上の加速度応答スペクトルを表します。</p>
+                            <p>● 損傷限界: 稀に発生する地震動 (50年に1回程度)</p>
+                            <p>● 安全限界: 極めて稀に発生する地震動 (500年に1回程度)</p>
+                            <p>※安全限界は損傷限界の5倍</p>
+                        </div>
+                        <table class="report-table" style="font-size:7pt; margin-top:5px;">
+                            <thead><tr><th>T(s)</th><th>Sa0(損傷)</th><th>Sa0(安全)</th></tr></thead>
+                            <tbody id="rep-sa0-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div style="flex:1; max-width:350px;">
+                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">Saスペクトルグラフ</div>
+                        <div style="height:150px; border:1px solid #ccc;">
+                            <canvas id="rep-chart-sa0"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-section" id="rep-pq-section">
+                <h3>1-4. p, q 調整係数</h3>
+                <div style="display:flex; gap:15px; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <table class="report-table">
+                            <tr><th width="30%">p, q 考慮</th><td id="rep-pq-mode"></td></tr>
+                        </table>
+                        <div id="rep-pq-desc" style="margin-top:5px; font-size:7pt;"></div>
+                    </div>
+                    <div style="flex:1; max-width:350px;">
+                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">p係数グラフ (Te-p)</div>
+                        <div style="height:150px; border:1px solid #ccc;">
+                            <canvas id="rep-chart-p"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 2: 復元力特性 X方向 -->
+        <div class="report-page" id="rep-page-force-x">
+            <div class="report-header">
+                <h1>2. 復元力特性：X方向</h1>
+            </div>
+            <div id="rep-force-x-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
+            <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
+                <canvas id="rep-chart-force-x"></canvas>
+            </div>
+        </div>
+        
+        <!-- Page 2-2: 復元力特性 Y方向 -->
+        <div class="report-page" id="rep-page-force-y">
+            <div class="report-header">
+                <h1>2. 復元力特性：Y方向</h1>
+            </div>
+            <div id="rep-force-y-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
+            <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
+                <canvas id="rep-chart-force-y"></canvas>
+            </div>
+        </div>
+
+        <!-- Page 3: 判定結果 X方向 -->
+        <div class="report-page" id="rep-page-result-x">
+            <div class="report-header">
+                <h1>3. 判定結果サマリー：X方向</h1>
+            </div>
+            <div id="rep-res-x-table" style="margin-bottom:10px;"></div>
+            <div style="height:280px; border:1px solid #ccc;">
+                <img id="rep-img-x" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
+            </div>
+        </div>
+        
+        <!-- Page 3-2: 判定結果 Y方向 -->
+        <div class="report-page" id="rep-page-result-y">
+            <div class="report-header">
+                <h1>3. 判定結果サマリー：Y方向</h1>
+            </div>
+            <div id="rep-res-y-table" style="margin-bottom:10px;"></div>
+            <div style="height:280px; border:1px solid #ccc;">
+                <img id="rep-img-y" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
+            </div>
+        </div>
+        
+        <!-- Page 4: 計算ロジック -->
+        <div class="report-page" id="rep-page-logic">
+            <div class="report-header">
+                <h1>4. 計算ロジック・詳細項目の解説</h1>
+            </div>
+            <div id="report-logic" class="logic-print"></div>
+        </div>
+        
+        <!-- Page 5: 詳細計算ログ X方向 (2分割) -->
+        <div class="report-page" id="rep-page-log-x1">
+            <div class="report-header">
+                <h1>5. 詳細計算ログ：X方向 (1/2)</h1>
+            </div>
+            <div id="report-log-x1" class="log-print-wrapper"></div>
+        </div>
+        <div class="report-page" id="rep-page-log-x2">
+            <div class="report-header">
+                <h1>5. 詳細計算ログ：X方向 (2/2)</h1>
+            </div>
+            <div id="report-log-x2" class="log-print-wrapper"></div>
+        </div>
+
+        <!-- Page 6: 詳細計算ログ Y方向 (2分割) -->
+        <div class="report-page" id="rep-page-log-y1">
+            <div class="report-header">
+                <h1>6. 詳細計算ログ：Y方向 (1/2)</h1>
+            </div>
+            <div id="report-log-y1" class="log-print-wrapper"></div>
+        </div>
+        <div class="report-page" id="rep-page-log-y2">
+            <div class="report-header">
+                <h1>6. 詳細計算ログ：Y方向 (2/2)</h1>
+            </div>
+            <div id="report-log-y2" class="log-print-wrapper"></div>
+        </div>
+
+        <!-- Page 7: 交点詳細計算 -->
+        <div class="report-page" id="rep-page-detail-x">
+            <div class="report-header">
+                <h1>7. 交点詳細計算：X方向</h1>
+            </div>
+            <div id="rep-detail-x" class="logic-print" style="font-size:8pt;"></div>
+        </div>
+        <div class="report-page" id="rep-page-detail-y">
+            <div class="report-header">
+                <h1>7. 交点詳細計算：Y方向</h1>
+            </div>
+            <div id="rep-detail-y" class="logic-print" style="font-size:8pt;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="sheet-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="margin:0;">Excel貼り付け: <span id="sheet-target-name" style="color:var(--primary);"></span></h3>
+            <button onclick="closeSpreadsheet()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="cursor:pointer;">
+                <input type="checkbox" id="heq-input-checkbox" onchange="toggleHeqColumn()"> heqを入力する
+            </label>
+        </div>
+        <div id="spreadsheet-container"></div>
+        <div style="text-align:right; margin-top:10px;">
+            <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="applySheetData()">データ反映</button>
+        </div>
+    </div>
+</div>
+
+<div id="gs-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:500px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="margin:0;">Gsスペクトル入力</h3>
+            <button onclick="closeGsSpreadsheet()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
+        </div>
+        <p style="font-size:0.85em; color:#666; margin:0 0 10px 0;">ExcelからT(s)とGsの2列データを貼り付けてください。</p>
+        <div id="gs-spreadsheet-container" style="height:300px;"></div>
+        <div style="text-align:right; margin-top:10px;">
+            <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="applyGsData()">データ反映</button>
+        </div>
+    </div>
+</div>
+
+<div id="sa-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:600px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="margin:0;">Saスペクトル入力 <span id="sa-modal-type" style="color:#005a9c;"></span></h3>
+            <button onclick="closeSaSpreadsheet()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
+        </div>
+        <p style="font-size:0.85em; color:#666; margin:0 0 10px 0;">ExcelからT(s)、Sa(m/s²)の2列データを貼り付けてください。</p>
+        <div id="sa-spreadsheet-container" style="height:300px;"></div>
+        <div style="text-align:right; margin-top:10px;">
+            <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="applySaData()">データ反映</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Global Constants & State ---
+const G_ACC = 9.80665; 
+const DEF_GS = [ {t:0.1,g:2.5}, {t:0.6,g:2.5}, {t:0.7,g:2.14}, {t:1.0,g:1.5} ];
+
+// Gsスペクトルデータ
+let gsData = [];
+let hotGs = null;
+let chartGs = null;
+
+// Saスペクトル自由入力データ {t: 周期, sa: 加速度}
+let saDataD = []; // 損傷限界用
+let saDataS = []; // 安全限界用
+let hotSa = null;
+let currentSaType = 'd'; // 現在編集中のタイプ ('d' or 's')
+
+// Standard Wall Data from CSV
+const WALL_DATA = {
+    "筋かい45×90 2倍": [{r:0.00018315,q:0.49},{r:0.01098901,q:5.39},{r:0.04029304,q:7.84},{r:0.08058608,q:3.136},{r:0.10989011,q:3},{r:0.14652015,q:2.8}],
+    "たすき筋かい45×90 4倍": [{r:0.00018315,q:0.98},{r:0.01098901,q:10.78},{r:0.04029304,q:15.68},{r:0.08058608,q:6.272},{r:0.10989011,q:6},{r:0.14652015,q:5.6}],
+    "石膏ボード(大壁) 0.9倍": [{r:0.00334188,q:1.7},{r:0.0083547,q:2.45},{r:0.0167094,q:2.9},{r:0.0222792,q:3.05},{r:0.0334188,q:3.15},{r:0.05012821,q:2}],
+    "耐力面材0.5倍": [{r:0.00334188,q:0.74},{r:0.0083547,q:1.08},{r:0.0167094,q:1.4},{r:0.0222792,q:1.56},{r:0.0334188,q:1.58},{r:0.05012821,q:1.08}],
+    "耐力面材2.2倍": [{r:0.00334188,q:3.256},{r:0.0083547,q:4.752},{r:0.0167094,q:6.16},{r:0.0222792,q:6.864},{r:0.0334188,q:6.952},{r:0.05012821,q:4.752}],
+    "耐力面材2.3倍": [{r:0.00334188,q:3.404},{r:0.0083547,q:4.968},{r:0.0167094,q:6.44},{r:0.0222792,q:7.176},{r:0.0334188,q:7.268},{r:0.05012821,q:4.968}],
+    "耐力面材2.4倍": [{r:0.00334188,q:3.552},{r:0.0083547,q:5.184},{r:0.0167094,q:6.72},{r:0.0222792,q:7.488},{r:0.0334188,q:7.584},{r:0.05012821,q:5.184}],
+    "耐力面材2.5倍": [{r:0.00334188,q:3.7},{r:0.0083547,q:5.4},{r:0.0167094,q:7},{r:0.0222792,q:7.8},{r:0.0334188,q:7.9},{r:0.05012821,q:5.4}],
+    "耐力面材2.6倍": [{r:0.00334188,q:3.848},{r:0.0083547,q:5.616},{r:0.0167094,q:7.28},{r:0.0222792,q:8.112},{r:0.0334188,q:8.216},{r:0.05012821,q:5.616}],
+    "耐力面材2.7倍": [{r:0.00334188,q:3.996},{r:0.0083547,q:5.832},{r:0.0167094,q:7.56},{r:0.0222792,q:8.424},{r:0.0334188,q:8.532},{r:0.05012821,q:5.832}],
+    "耐力面材2.9倍": [{r:0.00334188,q:4.292},{r:0.0083547,q:6.264},{r:0.0167094,q:8.12},{r:0.0222792,q:9.048},{r:0.0334188,q:9.164},{r:0.05012821,q:6.264}],
+    "耐力面材3.0倍": [{r:0.00334188,q:4.44},{r:0.0083547,q:6.48},{r:0.0167094,q:8.4},{r:0.0222792,q:9.36},{r:0.0334188,q:9.48},{r:0.05012821,q:6.48}],
+    "耐力面材3.3倍": [{r:0.00334188,q:4.884},{r:0.0083547,q:7.128},{r:0.0167094,q:9.24},{r:0.0222792,q:10.296},{r:0.0334188,q:10.428},{r:0.05012821,q:7.128}],
+    "耐力面材3.6倍": [{r:0.00334188,q:5.328},{r:0.0083547,q:7.776},{r:0.0167094,q:10.08},{r:0.0222792,q:11.232},{r:0.0334188,q:11.376},{r:0.05012821,q:7.776}],
+    "耐力面材3.7倍": [{r:0.00334188,q:5.476},{r:0.0083547,q:7.992},{r:0.0167094,q:10.36},{r:0.0222792,q:11.544},{r:0.0334188,q:11.692},{r:0.05012821,q:7.992}],
+    "耐力面材3.8倍": [{r:0.00334188,q:5.624},{r:0.0083547,q:8.208},{r:0.0167094,q:10.64},{r:0.0222792,q:11.856},{r:0.0334188,q:12.008},{r:0.05012821,q:8.208}],
+    "耐力面材4.0倍": [{r:0.00334188,q:5.92},{r:0.0083547,q:8.64},{r:0.0167094,q:11.2},{r:0.0222792,q:12.48},{r:0.0334188,q:12.64},{r:0.05012821,q:8.64}],
+    "耐力面材4.3倍": [{r:0.00334188,q:6.364},{r:0.0083547,q:9.288},{r:0.0167094,q:12.04},{r:0.0222792,q:13.416},{r:0.0334188,q:13.588},{r:0.05012821,q:9.288}],
+    "耐力面材5.0倍": [{r:0.00334188,q:7.4},{r:0.0083547,q:10.8},{r:0.0167094,q:14},{r:0.0222792,q:15.6},{r:0.0334188,q:15.8},{r:0.05012821,q:10.8}],
+    "筋かい30×90 1.5倍": [{r:0.0003663,q:0.5},{r:0.00549451,q:2.5},{r:0.01831502,q:2.8},{r:0.09157509,q:0.3},{r:0.10989011,q:0.2},{r:0.14652015,q:0.1}],
+    "たすき筋かい30×90 3倍": [{r:0.0003663,q:1},{r:0.00549451,q:5},{r:0.01831502,q:5.6},{r:0.09157509,q:0.6},{r:0.10989011,q:0.4},{r:0.14652015,q:0.2}],
+    "土塗壁(両面塗り厚70mm以上)1.5倍相当": [{r:0.0018315,q:1.5},{r:0.00915751,q:5.6},{r:0.02197802,q:7.6},{r:0.10989011,q:0},{r:0.14652015,q:0},{r:0.18315018,q:0}],
+    "モルタル 2.8倍相当": [{r:0.0018315,q:0.5},{r:0.01098901,q:2.3},{r:0.03663004,q:3},{r:0.07326007,q:0},{r:0.10989011,q:0},{r:0.14652015,q:0}],
+    "木ずり 0.5倍相当": [{r:0.0018315,q:0.5},{r:0.01831502,q:1.7},{r:0.04029304,q:2.2},{r:0.10989011,q:0},{r:0.14652015,q:0},{r:0.18315018,q:0}],
+    "面格子 0.53倍相当": [{r:0.01262473,q:0.75},{r:0.02225597,q:2.0625},{r:0.03019523,q:4},{r:0.04529284,q:8.28125},{r:0.0562256,q:10.59375},{r:0.11245119,q:0}],
+    "落とし込み板壁 0.78倍相当": [{r:0.00232836,q:0.89449541},{r:0.00850746,q:1.10091743},{r:0.0320597,q:6.84633028},{r:0.04737313,q:9.90825688},{r:0.06107463,q:11.9036697},{r:0.12214925,q:0}],
+    "筋かい30×90端部釘打ち 0.97倍相当": [{r:0.003663,q:0.8},{r:0.00549451,q:4.15515152},{r:0.01831502,q:6.78638298},{r:0.09157509,q:0},{r:0.12820513,q:0},{r:0.16483516,q:0}],
+    "筋かい45×90端部釘打ち 1.33倍相当": [{r:0.003663,q:0.784},{r:0.01098901,q:11.309617},{r:0.04029304,q:14.2949333},{r:0.08058608,q:5.6448},{r:0.11721612,q:4.51584},{r:0.15384615,q:3.612672}]
+};
+
+// --- 各壁要素の初期剛性キャッシュ ---
+let WALL_K0 = {};
+
+// 初期剛性を算出してキャッシュ
+function initWallK0() {
+    for (let name in WALL_DATA) {
+        let data = WALL_DATA[name];
+        if (data.length > 0) {
+            // 原点から最初の点までの傾き
+            let p = data[0];
+            WALL_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+        } else {
+            WALL_K0[name] = 10000;
+        }
+    }
+}
+
+let calcRes = {}, chartObjs = {}, inputChartObjs = {}, currSheetTarget = '', hot = null;
+let addedWalls = { x1: [], x2: [], y1: [], y2: [] }; // Added state for walls
+let freeInputData = { x1: [], x2: [], y1: [], y2: [] }; // 複数の自由入力項目を管理
+let currentEditingFreeItem = null; // Excel貼付時に編集中の項目を追跡
+
+// デフォルトの復元力特性データ (1階用)
+const DEFAULT_FREE_DATA_1F = [
+    { r: 1/120, q: 60.00 },
+    { r: 1/60, q: 120.00 },
+    { r: 1/40, q: 130.00 },
+    { r: 1/30, q: 140.00 },
+    { r: 1/25, q: 120.00 },
+    { r: 1/20, q: 100.00 },
+    { r: 1/15, q: 90.00 }
+];
+
+// デフォルトの復元力特性データ (2階用)
+const DEFAULT_FREE_DATA_2F = [
+    { r: 1/120, q: 50.00 },
+    { r: 1/60, q: 80.00 },
+    { r: 1/40, q: 120.00 },
+    { r: 1/30, q: 140.00 },
+    { r: 1/25, q: 80.00 },
+    { r: 1/20, q: 60.00 },
+    { r: 1/15, q: 40.00 }
+];
+
+window.onload = function() {
+    toggleStories(); 
+    initWallSelectors();
+    initWallK0(); // 壁要素の初期剛性をキャッシュ
+    
+    // デフォルト値を設定
+    freeInputData = {
+        x1: [{ name: 'デフォルト', qty: 1, data: JSON.parse(JSON.stringify(DEFAULT_FREE_DATA_1F)) }],
+        x2: [{ name: 'デフォルト', qty: 1, data: JSON.parse(JSON.stringify(DEFAULT_FREE_DATA_2F)) }],
+        y1: [{ name: 'デフォルト', qty: 1, data: JSON.parse(JSON.stringify(DEFAULT_FREE_DATA_1F)) }],
+        y2: [{ name: 'デフォルト', qty: 1, data: JSON.parse(JSON.stringify(DEFAULT_FREE_DATA_2F)) }]
+    };
+    
+    // 初期化時は自由入力リストのみ初期化
+    ['x1','y1','x2','y2'].forEach(id => {
+        renderFreeInputList(id);
+        updateInputGraph(id);
+    });
+    
+    // Gsスペクトルグラフを初期化（第2種のデフォルト表示）
+    updateGsChart();
+    
+    // 応答スペクトルSa0グラフを初期化
+    updateSa0Chart();
+    
+    // p係数グラフを初期化
+    updatePChart();
+    
+    document.getElementById('report-date').innerText = "計算日: " + new Date().toLocaleDateString();
+};
+
+function initWallSelectors() {
+    const opts = '<option value="">--- 耐力壁を選択 ---</option>' + 
+        Object.keys(WALL_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+    ['x1','x2','y1','y2'].forEach(id => {
+        document.getElementById(`sel-wall-${id}`).innerHTML = opts;
+    });
+}
+
+// --- Wall Management ---
+function addWall(id) {
+    const sel = document.getElementById(`sel-wall-${id}`);
+    const name = sel.value;
+    const qtyInput = document.getElementById(`qty-wall-${id}`);
+    const qty = parseFloat(qtyInput.value);
+    
+    if(!name || name === '') {
+        alert('耐力壁を選択してください。');
+        return;
+    }
+    if(qty <= 0 || isNaN(qty)) {
+        alert('配置数量を入力してください。');
+        return;
+    }
+    
+    addedWalls[id].push({ name: name, qty: qty });
+    renderWallList(id);
+    updateInputGraph(id);
+    
+    // Reset inputs
+    qtyInput.value = "1";
+    sel.value = "";
+}
+
+function removeWall(id, idx) {
+    addedWalls[id].splice(idx, 1);
+    renderWallList(id);
+    updateInputGraph(id);
+}
+
+function renderWallList(id) {
+    const list = document.getElementById(`list-wall-${id}`);
+    list.innerHTML = '';
+    addedWalls[id].forEach((w, i) => {
+        const div = document.createElement('div');
+        div.className = 'wall-item';
+        div.innerHTML = `<span>${w.name} × ${w.qty}</span> <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>`;
+        list.appendChild(div);
+    });
+}
+
+// --- Free Input Item Management (複数自由入力対応) ---
+function addFreeInputItem(id) {
+    const nameInput = document.getElementById(`free-name-${id}`);
+    const qtyInput = document.getElementById(`free-qty-${id}`);
+    const name = nameInput.value.trim() || `自由入力${freeInputData[id].length + 1}`;
+    const qty = parseFloat(qtyInput.value) || 1;
+    
+    if(qty <= 0) {
+        alert('数量は0より大きい値を入力してください。');
+        return;
+    }
+    
+    freeInputData[id].push({ name: name, qty: qty, data: [] });
+    renderFreeInputList(id);
+    updateInputGraph(id);
+    
+    // Reset input
+    nameInput.value = '';
+    qtyInput.value = '1';
+}
+
+function removeFreeInputItem(id, idx) {
+    freeInputData[id].splice(idx, 1);
+    renderFreeInputList(id);
+    updateInputGraph(id);
+}
+
+function editFreeInputItem(id, idx) {
+    currentEditingFreeItem = { id: id, idx: idx };
+    const item = freeInputData[id][idx];
+    
+    document.getElementById('sheet-target-name').innerText = `${id.toUpperCase()} - ${item.name} (×${item.qty})`;
+    document.getElementById('sheet-modal').style.display = 'flex';
+    
+    // Prepare data for spreadsheet
+    let floor = id.includes('2') ? '2' : '1';
+    let h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
+    
+    // heqが入力されているかチェック
+    const hasHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
+    document.getElementById('heq-input-checkbox').checked = hasHeq;
+    
+    let data = item.data.map(p => {
+        let n = (p.r > 0) ? (1/p.r).toFixed(1) : '';
+        if(hasHeq) {
+            return [`1/${n}`, p.q, p.heq !== undefined ? p.heq : null];
+        } else {
+            return [`1/${n}`, p.q];
+        }
+    });
+    
+    // 100行まで拡張
+    const totalRows = 100;
+    while(data.length < totalRows) {
+        data.push(hasHeq ? [null, null, null] : [null, null]);
+    }
+    
+    if(hot) hot.destroy();
+    
+    if(hasHeq) {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: data, colHeaders: ['変形角(1/N) or rad', 'Q(kN)', 'heq'], 
+            columns: [{}, { type: 'numeric' }, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    } else {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: data, colHeaders: ['変形角(1/N) or rad', 'Q(kN)'], 
+            columns: [{}, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    }
+}
+
+function renderFreeInputList(id) {
+    const list = document.getElementById(`free-list-${id}`);
+    list.innerHTML = '';
+    freeInputData[id].forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'wall-item';
+        const pointCount = item.data.length;
+        const qtyStr = item.qty !== 1 ? ` ×${item.qty}` : '';
+        div.innerHTML = `<span>${item.name}${qtyStr} (${pointCount}点)</span> 
+            <span>
+                <button class="btn-sm" onclick="editFreeInputItem('${id}', ${i})">編集</button>
+                <button class="btn-sm" style="color:red;" onclick="removeFreeInputItem('${id}', ${i})">削除</button>
+            </span>`;
+        list.appendChild(div);
+    });
+}
+
+// --- Composite Force Logic (Combine Walls + Free Input) ---
+// 各変形角に対して、全要素の合計Q・合計heq (加重平均) を返す
+function getCompositeForce(id) {
+    // 1. Collect all radian points from all sources
+    let allRads = new Set();
+    allRads.add(0); // Ensure origin
+    
+    // Add free input item key points (複数の自由入力項目)
+    freeInputData[id].forEach(item => {
+        item.data.forEach(d => allRads.add(d.r));
+    });
+
+    // Add standard wall key points
+    addedWalls[id].forEach(w => {
+        let data = WALL_DATA[w.name];
+        if(data) {
+            data.forEach(d => allRads.add(d.r));
+        }
+    });
+    
+    // Sort radians
+    let sortedRads = Array.from(allRads).sort((a,b) => a - b);
+    
+    // 2. Calculate Sum Q and weighted heq at each radian
+    // heq_story = Σ(heq_i * Q_i) / ΣQ_i
+    let composite = sortedRads.map(rad => {
+        let totalQ = 0;
+        let sumHeqQ = 0; // heq_i * Q_i の合計
+        
+        // --- Free Input items の処理 ---
+        freeInputData[id].forEach(item => {
+            if(item.data.length > 0) {
+                const qty = item.qty || 1;
+                let q_elem = interpRadQ(item.data, rad) * qty;
+                
+                // heqが入力されているかチェック
+                const hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
+                
+                let heq_elem;
+                if(hasInputHeq) {
+                    // 入力されたheqを補間して取得
+                    heq_elem = interpRadHeq(item.data, rad);
+                } else {
+                    // 従来通りの計算方法
+                    // 自由入力の初期剛性 K0
+                    let K0_free = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 10000;
+                    // 現在の割線剛性 K
+                    let K_free = (rad > 0 && q_elem > 0) ? (q_elem / qty) / rad : K0_free;
+                    
+                    // heq = 0.2 * (1 - √(K/K0))
+                    let ratioK = (K0_free > 0) ? Math.sqrt(K_free / K0_free) : 1.0;
+                    if(ratioK > 1.0) ratioK = 1.0;
+                    heq_elem = 0.2 * (1.0 - ratioK);
+                }
+                
+                totalQ += q_elem;
+                sumHeqQ += heq_elem * q_elem;
+            }
+        });
+        
+        // --- Standard Wall items の処理 ---
+        addedWalls[id].forEach(w => {
+            let data = WALL_DATA[w.name];
+            if(data) {
+                let q_elem = interpRadQ(data, rad) * w.qty;
+                
+                // 壁要素の初期剛性 (キャッシュから取得)
+                let K0_wall = WALL_K0[w.name] || 10000;
+                // 現在の割線剛性 K
+                let K_wall = (rad > 0 && q_elem > 0) ? (q_elem / w.qty) / rad : K0_wall;
+                
+                // heq = 0.2 * (1 - √(K/K0))
+                let ratioK = (K0_wall > 0) ? Math.sqrt(K_wall / K0_wall) : 1.0;
+                if(ratioK > 1.0) ratioK = 1.0;
+                let heq_elem = 0.2 * (1.0 - ratioK);
+                
+                totalQ += q_elem;
+                sumHeqQ += heq_elem * q_elem;
+            }
+        });
+        
+        // 階全体の加重平均 heq
+        let heq_story = (totalQ > 0) ? sumHeqQ / totalQ : 0;
+        
+        return { r: rad, q: totalQ, heq: heq_story };
+    });
+    
+    return composite;
+}
+
+function interpRadQ(data, r) {
+    // data must be sorted by r
+    // ensure data has origin if needed, or assume linear from 0
+    if(data.length === 0) return 0;
+    
+    // sort data just in case
+    data.sort((a,b) => a.r - b.r);
+    
+    if(r <= 0) return 0;
+    if(r <= data[0].r) {
+        // Interpolate from 0
+        return (data[0].q / data[0].r) * r;
+    }
+    if(r >= data[data.length-1].r) {
+        // Extrapolate slope of last segment or flat?
+        // Usually degrading, let's extend last slope
+        let last = data[data.length-1];
+        let prev = data[data.length-2] || {r:0, q:0};
+        let slope = (last.q - prev.q) / (last.r - prev.r);
+        return last.q + (r - last.r) * slope;
+    }
+    
+    for(let i=0; i<data.length-1; i++) {
+        if(r >= data[i].r && r <= data[i+1].r) {
+            let ratio = (r - data[i].r) / (data[i+1].r - data[i].r);
+            return data[i].q + ratio * (data[i+1].q - data[i].q);
+        }
+    }
+    return 0;
+}
+
+// 自由入力のheqを補間取得
+function interpRadHeq(data, r) {
+    if(data.length === 0) return 0;
+    
+    // heqが入力されているデータポイントのみを抽出
+    let heqData = data.filter(p => p.heq !== undefined && p.heq !== null);
+    if(heqData.length === 0) return 0;
+    
+    heqData.sort((a,b) => a.r - b.r);
+    
+    if(r <= 0) return heqData[0].heq || 0;
+    if(r <= heqData[0].r) {
+        // 最初のheq値を使用
+        return heqData[0].heq || 0;
+    }
+    if(r >= heqData[heqData.length-1].r) {
+        // 最後のheq値を使用
+        return heqData[heqData.length-1].heq || 0;
+    }
+    
+    for(let i=0; i<heqData.length-1; i++) {
+        if(r >= heqData[i].r && r <= heqData[i+1].r) {
+            let ratio = (r - heqData[i].r) / (heqData[i+1].r - heqData[i].r);
+            let heq1 = heqData[i].heq || 0;
+            let heq2 = heqData[i+1].heq || 0;
+            return heq1 + ratio * (heq2 - heq1);
+        }
+    }
+    return 0;
+}
+
+// --- Modified Input Graphs ---
+function updateInputGraph(id) {
+    // Calculate composite data
+    let compositeData = getCompositeForce(id);
+    
+    // Use deformation angle (rad) for X-axis
+    let chartData = compositeData.map(p => ({ x: p.r, y: p.q }));
+
+    if (!inputChartObjs[id]) {
+        const ctx = document.getElementById(`chart-in-${id}`);
+        if(ctx) {
+            inputChartObjs[id] = new Chart(ctx.getContext('2d'), {
+                type: 'scatter',
+                data: { datasets: [{ label: 'Total Q-δ', data: chartData, borderColor: '#005a9c', showLine: true, borderWidth: 2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { title: {display:true, text:'変形角(rad)'}, min:0 }, y: { title: {display:true, text:'Q(kN)'}, min:0 } },
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } } }
+                }
+            });
+        }
+    } else {
+        inputChartObjs[id].data.datasets[0].data = chartData;
+        inputChartObjs[id].update();
+    }
+}
+
+function toggleStories() {
+    const s = document.getElementById('inp_Stories').value;
+    const els = document.querySelectorAll('.story-2-only');
+    els.forEach(e => {
+        e.style.display = (s === '1') ? 'none' : 'block';
+        if(e.tagName === 'TD' || e.tagName === 'TH') {
+             e.style.display = (s === '1') ? 'none' : 'table-cell';
+        }
+    });
+    // 階数変更時にp係数グラフも更新
+    if(document.getElementById('inp_pq').value === 'yes') {
+        updatePChart();
+    }
+}
+
+function toggleSkipY() {
+    const skip = document.getElementById('chk-skip-y').checked;
+    document.getElementById('force-y-input-area').style.display = skip ? 'none' : 'block';
+}
+
+// p,q入力切替
+function togglePqInput() {
+    const pqMode = document.getElementById('inp_pq').value;
+    document.getElementById('pq-chart-area').style.display = (pqMode === 'yes') ? 'block' : 'none';
+    document.getElementById('pq-desc').style.display = (pqMode === 'yes') ? 'block' : 'none';
+    if(pqMode === 'yes') {
+        updatePChart();
+    }
+}
+
+// p係数グラフを更新
+let chartP = null;
+function updatePChart(canvasId = 'chart-p') {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return null;
+    
+    const stories = parseInt(document.getElementById('inp_Stories').value);
+    
+    // p係数のデータ生成（2階建てと平屋で異なる）
+    let data1F = []; // 平屋用
+    let data2F = []; // 2階建て用
+    
+    for(let Te = 0; Te <= 0.5; Te += 0.01) {
+        // 2階建て
+        let p2;
+        if(Te <= 0.16) p2 = 1.0 - (0.15/0.16) * Te;
+        else p2 = 0.85;
+        if(p2 < 0.7) p2 = 0.7;
+        data2F.push({ x: Te, y: p2 });
+        
+        // 平屋
+        let p1;
+        if(Te <= 0.16) p1 = 1.0 - (0.20/0.16) * Te;
+        else p1 = 0.80;
+        if(p1 < 0.7) p1 = 0.7;
+        data1F.push({ x: Te, y: p1 });
+    }
+    
+    const datasets = [];
+    if(stories === 2) {
+        datasets.push({
+            label: 'p (2階建て)',
+            data: data2F,
+            borderColor: '#005a9c',
+            backgroundColor: '#005a9c',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 0,
+            fill: false
+        });
+    } else {
+        datasets.push({
+            label: 'p (平屋)',
+            data: data1F,
+            borderColor: '#dc3545',
+            backgroundColor: '#dc3545',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 0,
+            fill: false
+        });
+    }
+    
+    // 既存のグラフがあれば破棄
+    if(canvasId === 'chart-p' && chartP) {
+        chartP.destroy();
+    }
+    
+    const newChart = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: { datasets: datasets },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Te (s)', font: { size: 10 } }, min: 0, max: 0.5 },
+                y: { title: { display: true, text: 'p', font: { size: 10 } }, min: 0.6, max: 1.05 }
+            },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { font: { size: 9 } } }
+            }
+        }
+    });
+    
+    if(canvasId === 'chart-p') {
+        chartP = newChart;
+    }
+    
+    return newChart;
+}
+
+// 応答スペクトルSa0グラフを更新
+let chartSa0 = null;
+function updateSa0Chart(canvasId = 'chart-sa0') {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return null;
+    
+    const saMode = document.getElementById('inp_Sa_mode')?.value || 'standard';
+    
+    // 既存のグラフがあれば破棄
+    if(canvasId === 'chart-sa0' && chartSa0) {
+        chartSa0.destroy();
+    }
+    
+    let datasets = [];
+    
+    if(saMode === 'custom') {
+        // 自由入力モード - 損傷限界と安全限界を別々に表示
+        
+        // 安全限界用（自由入力があればそれ、なければ告示値）
+        if(saDataS.length > 0) {
+            const dataS = saDataS.map(d => ({ x: d.t, y: d.sa }));
+            datasets.push({
+                label: 'Sa (安全限界・自由入力)',
+                data: dataS,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220,53,69,0.1)',
+                borderWidth: 2,
+                showLine: true,
+                pointRadius: 2,
+                fill: true
+            });
+        } else {
+            // 告示値でフォールバック
+            let dataSafety = [];
+            for(let T = 0; T <= 3.0; T += 0.02) {
+                dataSafety.push({ x: T, y: getSao(T, 's') });
+            }
+            datasets.push({
+                label: 'Sa0 (安全限界・告示値)',
+                data: dataSafety,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220,53,69,0.05)',
+                borderWidth: 1.5,
+                borderDash: [5, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: true
+            });
+        }
+        
+        // 損傷限界用（自由入力があればそれ、なければ告示値）
+        if(saDataD.length > 0) {
+            const dataD = saDataD.map(d => ({ x: d.t, y: d.sa }));
+            datasets.push({
+                label: 'Sa (損傷限界・自由入力)',
+                data: dataD,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,0.1)',
+                borderWidth: 2,
+                showLine: true,
+                pointRadius: 2,
+                fill: true
+            });
+        } else {
+            // 告示値でフォールバック
+            let dataDamage = [];
+            for(let T = 0; T <= 3.0; T += 0.02) {
+                dataDamage.push({ x: T, y: getSao(T, 'd') });
+            }
+            datasets.push({
+                label: 'Sa0 (損傷限界・告示値)',
+                data: dataDamage,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40,167,69,0.05)',
+                borderWidth: 1.5,
+                borderDash: [5, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: true
+            });
+        }
+    } else {
+        // 標準モード（告示準拠）
+        let dataDamage = [];
+        let dataSafety = [];
+        
+        for(let T = 0; T <= 3.0; T += 0.02) {
+            const sa0d = getSao(T, 'd');
+            const sa0s = getSao(T, 's');
+            dataDamage.push({ x: T, y: sa0d });
+            dataSafety.push({ x: T, y: sa0s });
+        }
+        
+        datasets.push({
+            label: 'Sa0 (安全限界)',
+            data: dataSafety,
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220,53,69,0.1)',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 0,
+            fill: true
+        });
+        datasets.push({
+            label: 'Sa0 (損傷限界)',
+            data: dataDamage,
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40,167,69,0.1)',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 0,
+            fill: true
+        });
+    }
+    
+    const newChart = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: { datasets: datasets },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: 'T (s)', font: { size: 10 } }, min: 0, max: 3 },
+                y: { title: { display: true, text: 'Sa (m/s²)', font: { size: 10 } }, min: 0 }
+            },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { font: { size: 9 } } }
+            }
+        }
+    });
+    
+    if(canvasId === 'chart-sa0') {
+        chartSa0 = newChart;
+    }
+    
+    return newChart;
+}
+
+// Sa入力モード切替
+function toggleSaInput() {
+    const mode = document.getElementById('inp_Sa_mode').value;
+    document.getElementById('sa-standard-desc').style.display = (mode === 'standard') ? 'block' : 'none';
+    document.getElementById('inp_Sa_custom_input').style.display = (mode === 'custom') ? 'block' : 'none';
+    if(mode === 'custom') {
+        renderSaDataList('d');
+        renderSaDataList('s');
+    }
+    updateSa0Chart();
+}
+
+// Saスペクトルデータ一覧を表示
+function renderSaDataList(type) {
+    const container = document.getElementById('sa-data-list-' + type);
+    if(!container) return;
+    
+    const data = (type === 'd') ? saDataD : saDataS;
+    
+    if(data.length === 0) {
+        container.innerHTML = '<span style="color:#999;">データなし</span>';
+        return;
+    }
+    let html = '<table style="width:100%; font-size:0.9em;"><thead><tr><th>T(s)</th><th>Sa</th></tr></thead><tbody>';
+    data.forEach(d => {
+        html += `<tr><td>${d.t.toFixed(3)}</td><td>${d.sa.toFixed(3)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Saスプレッドシートを開く
+function openSaSpreadsheet(type) {
+    currentSaType = type;
+    document.getElementById('sa-modal').style.display = 'flex';
+    document.getElementById('sa-modal-type').innerText = (type === 'd') ? '（損傷限界用）' : '（安全限界用）';
+    
+    let data = [];
+    const srcData = (type === 'd') ? saDataD : saDataS;
+    if(srcData.length > 0) {
+        srcData.forEach(d => data.push([d.t, d.sa]));
+    }
+    while(data.length < 50) data.push([null, null]);
+    
+    if(hotSa) hotSa.destroy();
+    hotSa = new Handsontable(document.getElementById('sa-spreadsheet-container'), {
+        data: data,
+        colHeaders: ['T (s)', 'Sa (m/s²)'],
+        columns: [{ type: 'numeric' }, { type: 'numeric' }],
+        rowHeaders: true,
+        contextMenu: true,
+        width: '100%',
+        height: '100%',
+        licenseKey: 'non-commercial-and-evaluation'
+    });
+}
+
+// Saスプレッドシートを閉じる
+function closeSaSpreadsheet() {
+    document.getElementById('sa-modal').style.display = 'none';
+}
+
+// Saデータを反映
+function applySaData() {
+    if(!hotSa) return;
+    
+    const raw = hotSa.getData();
+    let newData = [];
+    
+    raw.forEach(row => {
+        const t = parseFloat(row[0]);
+        const sa = parseFloat(row[1]);
+        if(!isNaN(t) && !isNaN(sa) && t >= 0 && sa >= 0) {
+            newData.push({ t: t, sa: sa });
+        }
+    });
+    
+    // Tでソート
+    newData.sort((a, b) => a.t - b.t);
+    
+    // 対象のデータを更新
+    if(currentSaType === 'd') {
+        saDataD = newData;
+    } else {
+        saDataS = newData;
+    }
+    
+    renderSaDataList(currentSaType);
+    updateSa0Chart();
+    closeSaSpreadsheet();
+}
+
+// Saデータをクリア
+function clearSaData(type) {
+    const label = (type === 'd') ? '損傷限界用' : '安全限界用';
+    if(confirm(label + 'Saスペクトルデータをクリアしますか？')) {
+        if(type === 'd') {
+            saDataD = [];
+        } else {
+            saDataS = [];
+        }
+        renderSaDataList(type);
+        updateSa0Chart();
+    }
+}
+
+function switchTab(t) {
+    document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab-link').forEach(e => e.classList.remove('active'));
+    document.getElementById('tab-'+t).classList.add('active');
+    document.querySelector(`.tab-link[onclick="switchTab('${t}')"]`).classList.add('active');
+}
+
+function toggleTcInput() {
+    let v = document.getElementById('inp_Tc_mode').value;
+    document.getElementById('inp_Tc_custom_input').style.display = (v === 'custom') ? 'block' : 'none';
+    if(v === 'custom') {
+        renderGsDataList();
+    }
+    updateGsChart();
+}
+
+// グラフ表示用のGs計算（getGs関数とは別に、建物オブジェクトなしで使用）
+function getGsForChart(tcMode, T) {
+    let Gs = 1.5;
+    if (tcMode === '1') { 
+        if (T < 0.576) Gs = 1.5;
+        else if (T < 0.64) Gs = 0.864 / T;
+        else Gs = 1.35;
+    } else if (tcMode === '3') {
+        const T2_3 = 0.64 * 2.7 / 1.5; 
+        if (T < 0.64) Gs = 1.5;
+        else if (T < T2_3) Gs = 1.5 * T / 0.64;
+        else Gs = 2.7;
+    } else {
+        // 第2種（デフォルト）
+        const T2_2 = 0.64 * 2.025 / 1.5; 
+        if (T < 0.64) Gs = 1.5;
+        else if (T < T2_2) Gs = 1.5 * T / 0.64;
+        else Gs = 2.025;
+    }
+    return Gs;
+}
+
+// Gsスペクトルデータ一覧を表示
+function renderGsDataList() {
+    const container = document.getElementById('gs-data-list');
+    if(gsData.length === 0) {
+        container.innerHTML = '<span style="color:#999;">データなし（Excel貼付で入力）</span>';
+        return;
+    }
+    let html = '<table style="width:100%; font-size:0.9em;"><thead><tr><th>T(s)</th><th>Gs</th></tr></thead><tbody>';
+    gsData.forEach(d => {
+        html += `<tr><td>${d.t.toFixed(3)}</td><td>${d.g.toFixed(3)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Gsスペクトルグラフを更新
+function updateGsChart() {
+    const canvas = document.getElementById('chart-gs');
+    if(!canvas) return;
+    
+    if(chartGs) chartGs.destroy();
+    
+    const tcMode = document.getElementById('inp_Tc_mode').value;
+    let data = [];
+    let label = 'Gs';
+    
+    if(tcMode === 'custom') {
+        // 自由入力モード
+        if(gsData.length === 0) {
+            chartGs = null;
+            return;
+        }
+        data = gsData.map(d => ({ x: d.t, y: d.g }));
+        label = 'Gs (自由入力)';
+    } else {
+        // 第1～3種の標準スペクトル生成
+        const mockBldg = { tcMode: tcMode, gsPts: [] };
+        const typeNames = { '1': '第1種', '2': '第2種', '3': '第3種' };
+        label = 'Gs (' + typeNames[tcMode] + ')';
+        
+        // T=0から3秒までのスペクトル点を生成
+        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
+        tValues.forEach(t => {
+            const gs = getGsForChart(tcMode, t);
+            data.push({ x: t, y: gs });
+        });
+        // 重複除去とソート
+        data.sort((a, b) => a.x - b.x);
+    }
+    
+    chartGs = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: label,
+                data: data,
+                borderColor: '#005a9c',
+                backgroundColor: '#005a9c',
+                borderWidth: 2,
+                showLine: true,
+                pointRadius: 2,
+                fill: false
+            }]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: 'T (s)', font: { size: 10 } }, min: 0 },
+                y: { title: { display: true, text: 'Gs', font: { size: 10 } }, min: 0 }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// Gsスプレッドシートを開く
+function openGsSpreadsheet() {
+    document.getElementById('gs-modal').style.display = 'flex';
+    
+    let data = [];
+    // 既存データがあれば読み込み
+    if(gsData.length > 0) {
+        gsData.forEach(d => data.push([d.t, d.g]));
+    }
+    // 50行まで拡張
+    while(data.length < 50) data.push([null, null]);
+    
+    if(hotGs) hotGs.destroy();
+    hotGs = new Handsontable(document.getElementById('gs-spreadsheet-container'), {
+        data: data,
+        colHeaders: ['T (s)', 'Gs'],
+        columns: [{ type: 'numeric' }, { type: 'numeric' }],
+        rowHeaders: true,
+        contextMenu: true,
+        width: '100%',
+        height: '100%',
+        licenseKey: 'non-commercial-and-evaluation'
+    });
+}
+
+// Gsスプレッドシートを閉じる
+function closeGsSpreadsheet() {
+    document.getElementById('gs-modal').style.display = 'none';
+}
+
+// Gsデータを反映
+function applyGsData() {
+    if(!hotGs) return;
+    
+    const raw = hotGs.getData();
+    gsData = [];
+    
+    raw.forEach(row => {
+        const t = parseFloat(row[0]);
+        const g = parseFloat(row[1]);
+        if(!isNaN(t) && !isNaN(g) && t >= 0 && g >= 0) {
+            gsData.push({ t: t, g: g });
+        }
+    });
+    
+    // Tでソート
+    gsData.sort((a, b) => a.t - b.t);
+    
+    renderGsDataList();
+    updateGsChart();
+    closeGsSpreadsheet();
+}
+
+// Gsデータをクリア
+function clearGsData() {
+    if(confirm('Gsスペクトルデータをクリアしますか？')) {
+        gsData = [];
+        renderGsDataList();
+        updateGsChart();
+    }
+}
+
+function addRow(id, n='', q='') {
+    let floor = id.includes('2') ? '2' : '1';
+    let h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
+    let mm = (n && n!=0) ? (h*1000/n).toFixed(2) : '';
+    
+    // Trigger updateInputGraph on input
+    const trigger = `oninput="updateInputGraph('${id}')"`;
+    const syncD = `oninput="syncDisp(this); updateInputGraph('${id}')"`;
+    const syncN = `oninput="syncInvN(this); updateInputGraph('${id}')"`;
+
+    document.querySelector(`#table-${id} tbody`).insertAdjacentHTML('beforeend', 
+        `<tr data-floor="${floor}">
+            <td>1/<input type="number" class="inp-invN" value="${n}" ${syncD} placeholder="120"></td>
+            <td><input type="number" class="inp-disp" value="${mm}" ${syncN}></td>
+            <td><input type="number" class="inp-force" value="${q}" ${trigger}></td>
+            <td><button class="btn-sm" onclick="this.closest('tr').remove(); updateInputGraph('${id}')" style="color:red;">×</button></td>
+        </tr>`);
+}
+
+function syncDisp(e) {
+    let r = e.closest('tr'), h = parseFloat(document.getElementById('inp_H'+r.dataset.floor).value);
+    let n = parseFloat(e.value);
+    if(n > 0 && h > 0) r.querySelector('.inp-disp').value = (h*1000/n).toFixed(2);
+}
+function syncInvN(e) {
+    let r = e.closest('tr'), h = parseFloat(document.getElementById('inp_H'+r.dataset.floor).value);
+    let d = parseFloat(e.value);
+    if(d > 0 && h > 0) r.querySelector('.inp-invN').value = (h*1000/d).toFixed(1);
+}
+function showLog(d) {
+    document.getElementById('log-container-x').style.display = d==='x'?'block':'none';
+    document.getElementById('log-container-y').style.display = d==='y'?'block':'none';
+}
+
+function openSpreadsheet(id) {
+    // 新規自由入力項目を作成してから編集モードに入る
+    const nameInput = document.getElementById(`free-name-${id}`);
+    const qtyInput = document.getElementById(`free-qty-${id}`);
+    const name = nameInput.value.trim() || `自由入力${freeInputData[id].length + 1}`;
+    const qty = parseFloat(qtyInput.value) || 1;
+    
+    if(qty <= 0) {
+        alert('数量は0より大きい値を入力してください。');
+        return;
+    }
+    
+    // 新規項目を追加
+    freeInputData[id].push({ name: name, qty: qty, data: [] });
+    const newIdx = freeInputData[id].length - 1;
+    
+    // 項目名入力をクリア
+    nameInput.value = '';
+    qtyInput.value = '1';
+    
+    // 編集モードを設定
+    currentEditingFreeItem = { id: id, idx: newIdx };
+    
+    const qtyStr = qty !== 1 ? ` (×${qty})` : '';
+    document.getElementById('sheet-target-name').innerText = `${id.toUpperCase()} - ${name}${qtyStr}`;
+    document.getElementById('sheet-modal').style.display = 'flex';
+    
+    // heqチェックボックスをリセット
+    document.getElementById('heq-input-checkbox').checked = false;
+    
+    let data = [];
+    for(let i=0; i<100; i++) data.push([null, null]);
+    if(hot) hot.destroy();
+    hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+        data: data, colHeaders: ['変形角(1/N) or rad', 'Q(kN)'], columns: [{}, { type: 'numeric' }],
+        rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+    });
+}
+function closeSpreadsheet(){ 
+    document.getElementById('sheet-modal').style.display = 'none'; 
+    // キャンセル時にデータが空の項目は削除
+    if(currentEditingFreeItem) {
+        const { id, idx } = currentEditingFreeItem;
+        if(freeInputData[id][idx] && freeInputData[id][idx].data.length === 0) {
+            freeInputData[id].splice(idx, 1);
+            renderFreeInputList(id);
+        }
+        currentEditingFreeItem = null;
+    }
+}
+
+// heqチェックボックス切り替え時にスプレッドシートの列を変更
+function toggleHeqColumn() {
+    if(!hot) return;
+    const useHeq = document.getElementById('heq-input-checkbox').checked;
+    const currentData = hot.getData();
+    
+    let newData;
+    if(useHeq) {
+        // 2列→3列に変換
+        newData = currentData.map(row => {
+            if(row.length === 2) {
+                return [row[0], row[1], null];
+            }
+            return row;
+        });
+    } else {
+        // 3列→2列に変換
+        newData = currentData.map(row => {
+            return [row[0], row[1]];
+        });
+    }
+    
+    // 100行まで拡張
+    while(newData.length < 100) {
+        newData.push(useHeq ? [null, null, null] : [null, null]);
+    }
+    
+    hot.destroy();
+    if(useHeq) {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: newData, colHeaders: ['変形角(1/N) or rad', 'Q(kN)', 'heq'], 
+            columns: [{}, { type: 'numeric' }, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    } else {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: newData, colHeaders: ['変形角(1/N) or rad', 'Q(kN)'], 
+            columns: [{}, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    }
+}
+
+function applySheetData(){
+    if(!hot || !currentEditingFreeItem) return;
+    const d = hot.getData();
+    const { id, idx } = currentEditingFreeItem;
+    const floor = id.includes('2') ? '2' : '1';
+    const h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
+    const useHeq = document.getElementById('heq-input-checkbox').checked;
+    
+    let newData = [];
+    d.forEach(r => {
+        let val = r[0], q = parseFloat(r[1]);
+        let heq = useHeq ? parseFloat(r[2]) : undefined;
+        
+        if(val != null && !isNaN(q)) {
+            let rad = 0;
+            if(typeof val === 'string' && val.includes('/')) {
+                let parts = val.split('/');
+                if(parts.length==2) {
+                    let n = parseFloat(parts[1]);
+                    if(n > 0) rad = 1/n;
+                }
+            } else if(!isNaN(parseFloat(val))) {
+                let v = parseFloat(val);
+                if(v > 1) rad = 1/v; // 1/N形式
+                else if(v > 0) rad = v; // rad形式
+            }
+            if(rad > 0) {
+                let dataPoint = { r: rad, q: q };
+                if(useHeq && !isNaN(heq)) {
+                    dataPoint.heq = heq;
+                }
+                newData.push(dataPoint);
+            }
+        }
+    });
+    
+    // ソートして重複を除去
+    newData.sort((a,b) => a.r - b.r);
+    
+    freeInputData[id][idx].data = newData;
+    renderFreeInputList(id);
+    updateInputGraph(id);
+    
+    currentEditingFreeItem = null;
+    document.getElementById('sheet-modal').style.display = 'none';
+}
+
+// --- Logic Helpers ---
+function getBldg() {
+    let stories = parseInt(document.getElementById('inp_Stories').value);
+    let tcMode = document.getElementById('inp_Tc_mode').value;
+    let gsPts = [];
+    if(tcMode === 'custom') {
+        // gsDataから取得
+        gsPts = gsData.map(d => ({ t: d.t, g: d.g }));
+        gsPts.sort((a,b) => a.t - b.t);
+    }
+    
+    // Saモード
+    let saMode = document.getElementById('inp_Sa_mode')?.value || 'standard';
+    let saPtsD = []; // 損傷限界用
+    let saPtsS = []; // 安全限界用
+    if(saMode === 'custom') {
+        saPtsD = saDataD.map(d => ({ t: d.t, sa: d.sa }));
+        saPtsD.sort((a,b) => a.t - b.t);
+        saPtsS = saDataS.map(d => ({ t: d.t, sa: d.sa }));
+        saPtsS.sort((a,b) => a.t - b.t);
+    }
+    
+    let b = {
+        name: document.getElementById('inp_BuildingName').value,
+        stories: stories,
+        Z: parseFloat(document.getElementById('inp_Z').value),
+        tcMode: tcMode, gsPts: gsPts,
+        saMode: saMode, saPtsD: saPtsD, saPtsS: saPtsS,
+        pqMode: document.getElementById('inp_pq').value,
+        W1: parseFloat(document.getElementById('inp_W1').value),
+        H1: parseFloat(document.getElementById('inp_H1').value)
+    };
+    
+    if(stories === 2) {
+        b.W2 = parseFloat(document.getElementById('inp_W2').value);
+        b.H2 = parseFloat(document.getElementById('inp_H2').value);
+    } else {
+        b.W2 = 0; b.H2 = 0;
+    }
+    return b;
+}
+
+// NOTE: Returns composite curve with {d: meter, q: kN, heq: equivalent damping}
+function getForce(id) {
+    let composite = getCompositeForce(id);
+    // Convert rad to displacement (m) for the engine
+    let floor = id.includes('2') ? '2' : '1';
+    let h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
+    
+    // heq情報も含めて変換
+    let u = composite.map(p => ({ d: p.r * h, q: p.q, heq: p.heq || 0 }));
+    
+    // Ensure strict monotonicity for displacement and remove duplicates
+    u.sort((a,b) => a.d - b.d);
+    let cleanU = [];
+    if(u.length > 0) cleanU.push(u[0]);
+    for(let i=1; i<u.length; i++) {
+        if(u[i].d > cleanU[cleanU.length-1].d + 1e-6) {
+            cleanU.push(u[i]);
+        }
+    }
+    if(cleanU.length === 0 || cleanU[0].d !== 0) {
+        cleanU.unshift({d:0, q:0, heq:0});
+    }
+
+    return cleanU;
+}
+
+function interpQ(pts, d) {
+    if(d <= 0) return 0;
+    let n = pts.length;
+    if(n===0) return 0;
+    if(d >= pts[n-1].d) {
+        let denom = pts[n-1].d - pts[n-2].d;
+        let s = (denom !== 0) ? (pts[n-1].q - pts[n-2].q) / denom : 0;
+        return pts[n-1].q + (d - pts[n-1].d) * s;
+    }
+    for(let i=0; i<n-1; i++) {
+        if(d >= pts[i].d && d <= pts[i+1].d) {
+            return pts[i].q + (d - pts[i].d) * (pts[i+1].q - pts[i].q) / (pts[i+1].d - pts[i].d);
+        }
+    }
+    return 0;
+}
+
+// heq を補間取得 (要素累積方式で算出済みのheqを使用)
+function interpHeq(pts, d) {
+    if(d <= 0) return 0;
+    let n = pts.length;
+    if(n===0) return 0;
+    if(d >= pts[n-1].d) {
+        // 範囲外は最後の点のheqを使用
+        return pts[n-1].heq || 0;
+    }
+    for(let i=0; i<n-1; i++) {
+        if(d >= pts[i].d && d <= pts[i+1].d) {
+            let ratio = (pts[i+1].d - pts[i].d) > 0 ? 
+                        (d - pts[i].d) / (pts[i+1].d - pts[i].d) : 0;
+            let heq1 = pts[i].heq || 0;
+            let heq2 = pts[i+1].heq || 0;
+            return heq1 + ratio * (heq2 - heq1);
+        }
+    }
+    return 0;
+}
+
+function getSao(T, type) {
+    if (type === 'd') {
+        if (T < 0.16) return 0.64 + 6.0 * T;
+        if (T < 0.64) return 1.6;
+        return 1.024 / T;
+    } else {
+        if (T < 0.16) return 3.2 + 30.0 * T; 
+        if (T < 0.64) return 8.0;
+        return 5.12 / T;
+    }
+}
+
+// 自由入力Saスペクトルから補間取得（損傷限界/安全限界別）
+function getSaCustom(pts, T) {
+    if(!pts || pts.length === 0) return null; // データがない場合はnullを返す
+    if(T <= pts[0].t) return pts[0].sa;
+    if(T >= pts[pts.length-1].t) return pts[pts.length-1].sa;
+    for(let i=0; i<pts.length-1; i++) {
+        if(T >= pts[i].t && T <= pts[i+1].t) {
+            const ratio = (pts[i+1].t - pts[i].t) > 0 ? (T - pts[i].t) / (pts[i+1].t - pts[i].t) : 0;
+            return pts[i].sa + ratio * (pts[i+1].sa - pts[i].sa);
+        }
+    }
+    return null;
+}
+
+function getGs(b, T) {
+    if(b.tcMode === 'custom') {
+        let pts = b.gsPts;
+        if(pts.length === 0) return 2.5; 
+        if(T <= pts[0].t) return pts[0].g;
+        if(T >= pts[pts.length-1].t) return pts[pts.length-1].g;
+        for(let i=0; i<pts.length-1; i++) {
+            if(T >= pts[i].t && T <= pts[i+1].t) {
+                return pts[i].g + (pts[i+1].g - pts[i].g) * (T - pts[i].t) / (pts[i+1].t - pts[i].t);
+            }
+        }
+        return 2.5;
+    }
+    let Gs = 1.5;
+    if (b.tcMode === '1') { 
+        if (T < 0.576) Gs = 1.5;
+        else if (T < 0.64) Gs = 0.864 / T;
+        else Gs = 1.35;
+    } else if (b.tcMode === '3') {
+        const T2_3 = 0.64 * 2.7 / 1.5; 
+        if (T < 0.64) Gs = 1.5;
+        else if (T < T2_3) Gs = 1.5 * T / 0.64;
+        else Gs = 2.7;
+    } else {
+        const T2_2 = 0.64 * 2.025 / 1.5; 
+        if (T < 0.64) Gs = 1.5;
+        else if (T < T2_2) Gs = 1.5 * T / 0.64;
+        else Gs = 2.025;
+    }
+    return Gs;
+}
+
+function checkDiscriminant(b, f1, f2, limitD) {
+    if(b.stories === 1) return { lhs:0, rhs:0, isSafe:true }; 
+    const limitR = 1/limitD;
+    const Qd1 = interpQ(f1, limitR * b.H1);
+    const Qd2 = interpQ(f2, limitR * b.H2);
+    const H_ratio = b.H2 / b.H1;
+    const W_ratio = b.W1 / b.W2; 
+    const lhs = (Qd1 > 0) ? Qd2 / Qd1 : 0;
+    const rhs = (1 + H_ratio) / (1 + H_ratio + W_ratio);
+    const isSafe = lhs > rhs * 1.05;
+    return { lhs, rhs, isSafe };
+}
+
+function calc(b, f1, f2) {
+    const m1 = b.W1 / G_ACC;
+    
+    const getInitialStiffness = (pts) => {
+        if(pts.length < 2) return 10000;
+        let p0 = (pts[0].d === 0) ? pts[0] : {d:0, q:0};
+        let p1 = (pts[0].d === 0) ? pts[1] : pts[0]; 
+        if(!p1 || p1.d === 0) return 10000;
+        return (p1.q - p0.q) / (p1.d - p0.d);
+    };
+    const K10 = getInitialStiffness(f1);
+
+    let steps = [];
+    const maxR = 0.1;
+    const rStep = 0.0001;
+
+    let m2 = 0, K20 = 0;
+    if(b.stories === 2) {
+        m2 = b.W2 / G_ACC;
+        K20 = getInitialStiffness(f2);
+    }
+
+    const calcEigen = (k1, k2) => {
+        if(b.stories === 1) {
+            const T = (k1 > 0) ? 2 * Math.PI * Math.sqrt(m1 / k1) : 0;
+            return { w2: 0, T: T, u2: 0 };
+        }
+        if(k1 < 1) k1 = 1;
+        if(k2 < 1) k2 = 1;
+        const A = m1 * m2;
+        const B = - (m1 * k2 + m2 * k1 + m2 * k2);
+        const C = k1 * k2;
+        const det = B*B - 4*A*C;
+        if(det < 0) return { w2: 0, T: 0, u2: 1.0 }; 
+        const w2 = (-B - Math.sqrt(det)) / (2*A); 
+        const T = (w2 > 0) ? 2 * Math.PI / Math.sqrt(w2) : 0;
+        let u2 = 1.0;
+        if (k2 > 1e-4) u2 = (k1 + k2 - m1 * w2) / k2;
+        return { w2, T, u2 };
+    };
+
+    const initEigen = calcEigen(K10, K20);
+    const T0 = initEigen.T;
+    let currentU2 = (b.stories === 2) ? initEigen.u2 : 0;
+
+    for(let r = 0; r <= maxR; r += rStep) {
+        let d1 = r * b.H1;       
+        let Q1 = interpQ(f1, d1);
+        let K1 = (d1 > 0) ? Q1 / d1 : K10;
+
+        let d2 = 0, Q2 = 0, K2 = 0;
+        if(b.stories === 2) {
+            let u_ratio = (currentU2 > 1.0) ? currentU2 : 1.0;
+            d2 = d1 * (u_ratio - 1.0); 
+            Q2 = interpQ(f2, d2);
+            K2 = (d2 > 0) ? Q2 / d2 : K20;
+        }
+
+        let eigen = calcEigen(K1, K2);
+        let Te = eigen.T;
+        if(Te < 0.01) Te = 0.01;
+
+        if(b.stories === 2) currentU2 = eigen.u2;
+        let u1 = 1.0;
+        let u2 = eigen.u2; 
+
+        let sum_m_u  = m1 * u1 + m2 * u2;
+        let sum_m_u2 = m1 * u1**2 + m2 * u2**2;
+        let sum_m_u_h = m1 * u1 * b.H1 + m2 * u2 * (b.H1 + b.H2);
+
+        let Me = (sum_m_u2 > 0) ? (sum_m_u)**2 / sum_m_u2 : (m1 + m2);
+        let beta_u = (sum_m_u > 0) ? sum_m_u2 / sum_m_u : 1.0;
+        let Delta = beta_u * d1;
+        let He = (sum_m_u > 0) ? sum_m_u_h / sum_m_u : b.H1;
+
+        // ------------------------------------------------------------------
+        // 【修正】減衰性能 (指定計算式によるheq算出)
+        // heq1 = (δz1 - Q1/K10) × Q1 / δz1 / Q1 × 2 / 4 / π
+        // heq2 = ((δz2-δz1) - Q2/K20) × Q2 / (δz2-δz1) / Q2 × 2 / 4 / π
+        // ------------------------------------------------------------------
+        
+        // --- 1. 各階のポテンシャルエネルギー (Wi) 算出 ---
+        // WA (ポテンシャルエネルギー) = 1/2 * Q * δ
+        let wa1 = 0.5 * Q1 * d1;
+        let wa2 = (b.stories === 2) ? 0.5 * Q2 * d2 : 0;
+        let WA = wa1 + wa2; // 全体のポテンシャルエネルギー
+
+        // --- 2. 各階の等価減衰定数 (heq) を指定計算式で算出 ---
+        // heq1 = (δz1 - Q1/K10) × Q1 / δz1 / Q1 × 2 / 4 / π
+        //      = (δz1 - Q1/K10) / δz1 × 2 / (4π)
+        let heq1 = 0;
+        if (d1 > 0 && K10 > 0) {
+            let elasticDef1 = Q1 / K10;  // 弾性変形 Q1/K10
+            heq1 = (d1 - elasticDef1) / d1 * 2 / (4 * Math.PI);
+            if (heq1 < 0) heq1 = 0;
+        }
+
+        // heq2 = ((δz2-δz1) - Q2/K20) × Q2 / (δz2-δz1) / Q2 × 2 / 4 / π
+        //      = (d2 - Q2/K20) / d2 × 2 / (4π)
+        let heq2 = 0;
+        if (b.stories === 2 && d2 > 0 && K20 > 0) {
+            let elasticDef2 = Q2 / K20;  // 弾性変形 Q2/K20
+            heq2 = (d2 - elasticDef2) / d2 * 2 / (4 * Math.PI);
+            if (heq2 < 0) heq2 = 0;
+        }
+
+        // --- 3. ΔW (履歴減衰エネルギー) の算出 ---
+        // ΔW = 4π(heq1･W1 + heq2･W2)
+        let dW = 4 * Math.PI * (heq1 * wa1 + heq2 * wa2);
+
+        // --- 4. 全体の等価減衰定数 h の算出 ---
+        // 定義式: h = 0.05 + ΔW / (4π * WA)
+        let h = 0.05;
+        if (WA > 0) {
+            h += dW / (4 * Math.PI * WA);
+        }
+
+        // 上限値の適用 (一般的に0.25)
+        if(h > 0.25) h = 0.25;
+
+        // --- 5. QA (等価せん断力) をエネルギー等価により逆算 ---
+        // WA = 0.5 * QA * Delta より QA = 2 * WA / Delta
+        let QA = (Delta > 0) ? (2 * WA / Delta) : 0;
+        let Ke = (Delta > 0) ? QA / Delta : 0;
+
+        // 減衰低減係数 Fh（告示準拠：h = 0.05 + ΔW/(4πWA) を使用）
+        let Fh_d = 1.0; 
+        let Fh_s = 1.5 / (1 + 10 * h);
+
+        // 応答スペクトルの取得（標準/自由入力で分岐）
+        let Sao_d, Sao_s, S0d, S0s, Gs_val;
+        let saCustomInfo = null; // 自由入力時の情報保持用
+        
+        if(b.saMode === 'custom') {
+            // 自由入力モード - 損傷限界と安全限界を別々に処理
+            
+            // 自由入力時の減衰定数 h の計算ルール:
+            // dW/(4π*WA) < 0.05 の場合: h = 0.05
+            // dW/(4π*WA) ≧ 0.05 の場合: h = dW/(4π*WA)
+            let h_raw = 0;
+            if (WA > 0) {
+                h_raw = dW / (4 * Math.PI * WA);
+            }
+            let h_custom = Math.max(0.05, h_raw);
+            if(h_custom > 0.25) h_custom = 0.25; // 上限値
+            
+            // 自由入力用の Fh を再計算
+            let Fh_s_custom = 1.5 / (1 + 10 * h_custom);
+            
+            // 損傷限界用Sa（自由入力があればそれ、なければ告示値）
+            const Sa_d_custom = getSaCustom(b.saPtsD, Te);
+            if(Sa_d_custom !== null) {
+                Sao_d = Sa_d_custom;
+            } else {
+                Sao_d = getSao(Te, 'd');
+            }
+            
+            // 安全限界用Sa（自由入力があればそれ、なければ告示値）
+            const Sa_s_custom = getSaCustom(b.saPtsS, Te);
+            if(Sa_s_custom !== null) {
+                Sao_s = Sa_s_custom;
+            } else {
+                Sao_s = getSao(Te, 's');
+            }
+            
+            S0d = Sao_d * b.Z;
+            S0s = Sao_s * b.Z;
+            Gs_val = getGs(b, Te); // 告示準拠と同様にGsを計算
+            
+            // 自由入力用の h と Fh を使用
+            h = h_custom;
+            Fh_s = Fh_s_custom;
+            
+            saCustomInfo = { 
+                h: h_custom, Fh: Fh_s_custom,
+                h_raw: h_raw, // 補正前の値
+                usedCustomD: Sa_d_custom !== null,
+                usedCustomS: Sa_s_custom !== null
+            };
+        } else {
+            // 標準モード（告示準拠）
+            Sao_d = getSao(Te, 'd');
+            Sao_s = getSao(Te, 's');
+            S0d = Sao_d * b.Z;
+            S0s = Sao_s * b.Z;
+            Gs_val = getGs(b, Te);
+        }
+
+        let p = 1.0, q = 1.0;
+        if(b.pqMode === 'yes') {
+            if(b.stories === 2) {
+                if(Te <= 0.16) p = 1.0 - (0.15/0.16) * Te;
+                else p = 0.85;
+            } else {
+                if(Te <= 0.16) p = 1.0 - (0.20/0.16) * Te;
+                else p = 0.80;
+            }
+            if(p < 0.7) p = 0.7; 
+            let mu_ratio = Me / (m1 + m2);
+            if(mu_ratio < 0.75 && mu_ratio > 0) q = 0.75 / mu_ratio; 
+            else q = 1.0;
+        }
+
+
+        let SAd = S0d * Gs_val * p * q * Fh_d;
+        let SAs = S0s * Gs_val * Fh_s * p * q; 
+        
+        let Qnd = SAd * Me; 
+        let Qns = SAs * Me;
+        let SDd = SAd * (Te / (2*Math.PI))**2;
+        let SDs = SAs * (Te / (2*Math.PI))**2;
+
+        let req_R_d = (He > 0) ? SDd / He : 0;
+        let req_R_s = (He > 0) ? SDs / He : 0;
+
+        let d1_req_d = (beta_u > 0) ? SDd / beta_u : 0;
+        let d1_req_s = (beta_u > 0) ? SDs / beta_u : 0;
+        let d2_req_d = d1_req_d * (u2 - 1.0);
+        let d2_req_s = d1_req_s * (u2 - 1.0);
+        if(d2_req_d < 0) d2_req_d = 0;
+        if(d2_req_s < 0) d2_req_s = 0;
+
+        let alpha2 = (b.stories === 2) ? b.W2 / (b.W1 + b.W2) : 0;
+        let Ai = 1 + (1/Math.sqrt(alpha2) - alpha2) * (2*Te / (1 + 3*Te));
+
+        steps.push({
+            n: (r>0)?Math.round(1/r):0, 
+            R: r, R1: r, 
+            R2: (b.stories===2 && b.H2>0) ? d2/b.H2 : 0, 
+            Q1: Q1, Q2: Q2,
+            K1: K1, K2: K2,
+            dZ1: d1,      
+            dZ2: d1 + d2, 
+            sub: d2,      
+            uRat: u2,     
+            MU: Me, D: Delta, QA: QA, Ke: Ke, Te: Te, H: He,
+            dW: dW, 
+            WA: WA, 
+            heq1: heq1, heq2: heq2,
+            h: h, Fh: Fh_s, p: p, q: q,
+            S0d: S0d, S0s: S0s, Gs: Gs_val,
+            SAd: SAd, SDd: SDd, Qnd: Qnd,
+            SAs: SAs, SDs: SDs, Qns: Qns,
+            reqRd: req_R_d, 
+            reqR1d: d1_req_d / b.H1, 
+            reqR2d: (b.stories===2 && b.H2>0) ? d2_req_d / b.H2 : 0,
+            reqRs: req_R_s, 
+            reqR1s: d1_req_s / b.H1, 
+            reqR2s: (b.stories===2 && b.H2>0) ? d2_req_s / b.H2 : 0,
+            Ai: Ai, alpha2: alpha2
+        });
+    }
+    
+    // 各階の最大耐力とその時の変形角を算出
+    let maxQ1Step = steps.reduce((prev, curr) => (curr.Q1 > prev.Q1) ? curr : prev, steps[0]);
+    let maxQ2Step = steps.reduce((prev, curr) => (curr.Q2 > prev.Q2) ? curr : prev, steps[0]);
+    let Q1max = maxQ1Step.Q1;
+    let Q2max = maxQ2Step.Q2;
+    let R1_atQ1max = maxQ1Step.R1;  // 1階最大耐力時の変形角
+    let R2_atQ2max = maxQ2Step.R2;  // 2階最大耐力時の変形角
+    
+    return { steps, T0, K10, K20, Q1max, Q2max, R1_atQ1max, R2_atQ2max };
+}
+
+function findIntersection(steps, type) {
+    for(let i=0; i<steps.length-1; i++) {
+        let s1 = steps[i], s2 = steps[i+1];
+        let req1 = (type==='d') ? s1.Qnd : s1.Qns;
+        let req2 = (type==='d') ? s2.Qnd : s2.Qns;
+        let v1 = s1.QA - req1, v2 = s2.QA - req2;
+        
+        if(v1 * v2 <= 0 && s1.QA > 0) {
+            let r = Math.abs(v1) / (Math.abs(v1) + Math.abs(v2));
+            let res = {};
+            for(let k in s1) if(typeof s1[k] === 'number') res[k] = s1[k] + r * (s2[k] - s1[k]);
+            return res;
+        }
+    }
+    return null;
+}
+
+function getRating(ratio) {
+    if(ratio >= 1.5) return { text: "倒壊しない", cls: "badge-ok" };
+    if(ratio >= 1.0) return { text: "一応倒壊しない", cls: "badge-warn" };
+    if(ratio >= 0.7) return { text: "倒壊する可能性がある", cls: "badge-ng" };
+    return { text: "倒壊する可能性が高い", cls: "badge-ng" };
+}
+
+function executeCalculation() {
+    const b = getBldg();
+    if(b.tcMode==='custom' && b.gsPts.length === 0) { alert('Gsスペクトルが入力されていません。'); return; }
+    
+    const skipY = document.getElementById('chk-skip-y').checked;
+    
+    let fx1 = getForce('x1'), fy1 = skipY ? [] : getForce('y1');
+    let fx2 = (b.stories===2) ? getForce('x2') : [];
+    let fy2 = (b.stories===2 && !skipY) ? getForce('y2') : [];
+    
+    if(fx1.length < 2) { alert('X方向の復元力特性データが不足しています。'); return; }
+    if(!skipY && fy1.length < 2) { alert('Y方向の復元力特性データが不足しています。'); return; }
+    
+    const limitD = parseFloat(document.getElementById('inp_limit_d').value);
+    const limitS = parseFloat(document.getElementById('inp_limit_s').value);
+
+    let checkX = checkDiscriminant(b, fx1, fx2, limitD);
+    let msg = "";
+    if(!checkX.isSafe && b.stories===2) msg += "X方向: 1階先行降伏の条件を満たしていません。\n";
+    
+    if(!skipY) {
+        let checkY = checkDiscriminant(b, fy1, fy2, limitD);
+        if(!checkY.isSafe && b.stories===2) msg += "Y方向: 1階先行降伏の条件を満たしていません。\n";
+    }
+    if(msg) alert(msg + "※2階の変形が過大になる可能性があります。");
+
+    let resX = calc(b, fx1, fx2);
+    let resY = skipY ? null : calc(b, fy1, fy2);
+    
+    if(!resX) return;
+    if(!skipY && !resY) return;
+
+    let ptXd = findIntersection(resX.steps, 'd'), ptXs = findIntersection(resX.steps, 's');
+    let ptYd = skipY ? null : findIntersection(resY.steps, 'd');
+    let ptYs = skipY ? null : findIntersection(resY.steps, 's');
+    
+    calcRes = { b, resX, resY, ptXd, ptXs, ptYd, ptYs, skipY };
+    updateView('x', resX, ptXd, ptXs, limitD, limitS);
+    renderLog('x', resX.steps);
+    
+    // Y方向の表示/非表示
+    document.getElementById('result-panel-y').style.display = skipY ? 'none' : 'block';
+    document.getElementById('btn-log-y').style.display = skipY ? 'none' : 'inline-block';
+    
+    if(!skipY) {
+        updateView('y', resY, ptYd, ptYs, limitD, limitS);
+        renderLog('y', resY.steps);
+    }
+    
+    document.getElementById('result-summary').style.display = 'block';
+    
+    document.getElementById('rep-Z').innerText = b.Z.toFixed(2);
+    let tcName = (b.tcMode==='1') ? '第1種(岩盤等)' : (b.tcMode==='3') ? '第3種(軟弱)' : (b.tcMode==='2') ? '第2種(普通)' : '自由設定';
+    document.getElementById('rep-Tc').innerText = tcName;
+    document.getElementById('rep-PQ').innerText = (b.pqMode==='yes') ? '考慮する' : '考慮しない';
+    document.getElementById('rep-lim-d').innerText = `1/${limitD}`;
+    document.getElementById('rep-lim-s').innerText = `1/${limitS}`;
+    document.getElementById('rep-building-name').innerText = b.name;
+    
+    let htmlBldg = `<tr><td>1F</td><td>${b.H1.toFixed(2)}</td><td>${b.W1.toFixed(1)}</td><td>${b.W1.toFixed(1)}</td><td>${skipY ? 'X:'+resX.K10.toFixed(0) : 'X:'+resX.K10.toFixed(0)+' / Y:'+resY.K10.toFixed(0)}</td></tr>`;
+    if(b.stories === 2) {
+        htmlBldg = `<tr><td>2F</td><td>${b.H2.toFixed(2)}</td><td>${b.W2.toFixed(1)}</td><td>${b.W2.toFixed(1)}</td><td>${skipY ? 'X:'+resX.K20.toFixed(0) : 'X:'+resX.K20.toFixed(0)+' / Y:'+resY.K20.toFixed(0)}</td></tr>` +
+                   `<tr><td>1F</td><td>${b.H1.toFixed(2)}</td><td>${b.W1.toFixed(1)}</td><td>${(b.W1+b.W2).toFixed(1)}</td><td>${skipY ? 'X:'+resX.K10.toFixed(0) : 'X:'+resX.K10.toFixed(0)+' / Y:'+resY.K10.toFixed(0)}</td></tr>`;
+    }
+    document.getElementById('rep-bldg-tbody').innerHTML = htmlBldg;
+    
+    // 交点詳細を更新
+    renderIntersectionDetail('x', b, resX, ptXd, ptXs);
+    if(!skipY) {
+        renderIntersectionDetail('y', b, resY, ptYd, ptYs);
+    }
+    document.getElementById('detail-content').style.display = 'block';
+    document.getElementById('detail-placeholder').style.display = 'none';
+    document.getElementById('btn-detail-y').style.display = skipY ? 'none' : 'inline-block';
+}
+
+// 交点詳細の方向切り替え
+function showDetailDir(dir) {
+    document.getElementById('detail-x').style.display = (dir === 'x') ? 'block' : 'none';
+    document.getElementById('detail-y').style.display = (dir === 'y') ? 'block' : 'none';
+    document.getElementById('btn-detail-x').style.background = (dir === 'x') ? '#005a9c' : '#ccc';
+    document.getElementById('btn-detail-x').style.color = (dir === 'x') ? '#fff' : '#333';
+    document.getElementById('btn-detail-y').style.background = (dir === 'y') ? '#005a9c' : '#ccc';
+    document.getElementById('btn-detail-y').style.color = (dir === 'y') ? '#fff' : '#333';
+}
+
+// 交点詳細を生成・表示（画面用と印刷用の両方を更新）
+function renderIntersectionDetail(dir, b, res, ptD, ptS) {
+    const dirName = (dir === 'x') ? 'X方向' : 'Y方向';
+    const is1F = (b.stories === 1);
+    
+    let html = `<h3 style="color:#005a9c; border-bottom:2px solid #005a9c; padding-bottom:5px;">${dirName} 交点計算詳細</h3>`;
+    
+    // 損傷限界の詳細
+    html += renderPointDetail(b, res, ptD, '損傷限界', '#28a745', is1F);
+    
+    // 安全限界の詳細
+    html += renderPointDetail(b, res, ptS, '安全限界', '#dc3545', is1F);
+    
+    // 1. 画面表示用コンテナへの反映
+    const screenContainer = document.getElementById('detail-' + dir);
+    if(screenContainer) {
+        screenContainer.innerHTML = html;
+        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, screenContainer]);
+    }
+
+    // 2. 計算書(印刷)用コンテナへの反映
+    const repContainer = document.getElementById('rep-detail-' + dir);
+    if(repContainer) {
+        repContainer.innerHTML = html;
+        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer]);
+    }
+}
+
+// 各交点の詳細を生成
+function renderPointDetail(b, res, pt, limitName, color, is1F) {
+    if(!pt) {
+        return `
+        <div style="background:#fff5f5; border:2px solid ${color}; border-radius:8px; padding:15px; margin-bottom:20px;">
+            <h4 style="color:${color}; margin-top:0;">【${limitName}】交点なし</h4>
+            <p style="color:#dc3545; font-weight:bold;">復元力特性曲線と必要耐力曲線の交点が見つかりませんでした。</p>
+            <p>建物の耐力が不足している可能性があります。</p>
+        </div>`;
+    }
+    
+    const f = (v, d=4) => (typeof v === 'number') ? v.toFixed(d) : '-';
+    const f2 = (v) => f(v, 2);
+    const f3 = (v) => f(v, 3);
+    const f4 = (v) => f(v, 4);
+    const f6 = (v) => f(v, 6);
+    const fInt = (v) => (typeof v === 'number') ? Math.round(v) : '-';
+    
+    // 各種計算値
+    const R1 = pt.R1;
+    const R2 = pt.R2 || 0;
+    const d1 = pt.dZ1;
+    const d2 = pt.sub || 0;
+    const Q1 = pt.Q1;
+    const Q2 = pt.Q2 || 0;
+    const K1 = pt.K1;
+    const K2 = pt.K2 || 0;
+    const u2 = pt.uRat || 0;
+    
+    const m1 = b.W1 / 9.80665;
+    const m2 = b.W2 / 9.80665;
+    
+    const Me = pt.MU;
+    const Delta = pt.D;
+    const He = pt.H;
+    const QA = pt.QA;
+    const Ke = pt.Ke;
+    const Te = pt.Te;
+    
+    const heq1 = pt.heq1;
+    const heq2 = pt.heq2 || 0;
+    const wa1 = 0.5 * Q1 * d1;
+    const wa2 = is1F ? 0 : 0.5 * Q2 * d2;
+    const WA = pt.WA;
+    const dW = pt.dW;
+    const h = pt.h;
+    const Fh = pt.Fh;
+    
+    const Sao = (limitName === '損傷限界') ? pt.S0d / b.Z : pt.S0s / b.Z;
+    const S0 = (limitName === '損傷限界') ? pt.S0d : pt.S0s;
+    const Gs = pt.Gs;
+    const p = pt.p;
+    const q = pt.q;
+    const SA = (limitName === '損傷限界') ? pt.SAd : pt.SAs;
+    const SD = (limitName === '損傷限界') ? pt.SDd : pt.SDs;
+    const Qn = (limitName === '損傷限界') ? pt.Qnd : pt.Qns;
+    
+    const Fh_d = 1.0;
+    
+    let html = `
+    <div style="background:#fafafa; border:2px solid ${color}; border-radius:8px; padding:15px; margin-bottom:20px;">
+        <h4 style="color:${color}; margin-top:0; font-size:1.2em;">【${limitName}】交点計算詳細</h4>
+        
+        <!-- 1. 変形状態 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">1. 変形状態</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算式</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算値</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階層間変形角 R₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">（入力値）</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>1/${fInt(1/R1)}</strong> = ${f6(R1)} rad</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階層間変位 δ₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">δ₁ = R₁ × H₁ = ${f6(R1)} × ${f2(b.H1)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(d1)}</strong> m</td>
+                </tr>`;
+    
+    if(!is1F) {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">モード形比 u₂/u₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">固有値解析より</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(u2)}</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階層間変位 δ₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">δ₂ = δ₁ × (u₂ - 1) = ${f4(d1)} × (${f4(u2)} - 1)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(d2)}</strong> m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階層間変形角 R₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">R₂ = δ₂ / H₂ = ${f4(d2)} / ${f2(b.H2)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>1/${fInt(1/R2)}</strong> = ${f6(R2)} rad</td>
+                </tr>`;
+    }
+    
+    html += `
+            </table>
+        </div>
+        
+        <!-- 2. 復元力特性 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">2. 復元力特性（せん断力・剛性）</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算式</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算値</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階せん断力 Q₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">復元力特性より補間</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(Q1)}</strong> kN</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階割線剛性 K₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">K₁ = Q₁ / δ₁ = ${f2(Q1)} / ${f4(d1)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(K1)}</strong> kN/m</td>
+                </tr>`;
+    
+    if(!is1F) {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階せん断力 Q₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">復元力特性より補間</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(Q2)}</strong> kN</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階割線剛性 K₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">K₂ = Q₂ / δ₂ = ${f2(Q2)} / ${f4(d2)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(K2)}</strong> kN/m</td>
+                </tr>`;
+    }
+    
+    html += `
+            </table>
+        </div>
+        
+        <!-- 3. 等価1自由度系への置換 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">3. 等価1自由度系への置換</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算式</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算値</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階質量 m₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">m₁ = W₁ / g = ${f2(b.W1)} / 9.807</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(m1)}</strong> t</td>
+                </tr>`;
+    
+    if(!is1F) {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階質量 m₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">m₂ = W₂ / g = ${f2(b.W2)} / 9.807</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(m2)}</strong> t</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価質量 Mₑ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Mₑ = (Σmᵢuᵢ)² / Σmᵢuᵢ²</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(Me)}</strong> t</td>
+                </tr>`;
+    } else {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価質量 Mₑ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Mₑ = m₁（1階建て）</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(Me)}</strong> t</td>
+                </tr>`;
+    }
+    
+    html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価変位 Δ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Δ = Σmᵢuᵢ² / Σmᵢuᵢ × δ₁</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(Delta)}</strong> m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価高さ Hₑ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Hₑ = Σmᵢuᵢhᵢ / Σmᵢuᵢ</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(He)}</strong> m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価せん断力 Qₐ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Qₐ = 2 × Wₐ / Δ = 2 × ${f2(WA)} / ${f4(Delta)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(QA)}</strong> kN</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価剛性 Kₑ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Kₑ = Qₐ / Δ = ${f2(QA)} / ${f4(Delta)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(Ke)}</strong> kN/m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価周期 Tₑ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Tₑ = 2π√(Mₑ/Kₑ)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(Te)}</strong> s</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 4. 減衰定数・低減係数 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">4. 減衰定数・低減係数</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算式</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算値</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階ポテンシャルエネルギー W₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">W₁ = 0.5 × Q₁ × δ₁ = 0.5 × ${f2(Q1)} × ${f4(d1)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(wa1)}</strong> kN·m</td>
+                </tr>`;
+    
+    if(!is1F) {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階ポテンシャルエネルギー W₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">W₂ = 0.5 × Q₂ × δ₂ = 0.5 × ${f2(Q2)} × ${f4(d2)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(wa2)}</strong> kN·m</td>
+                </tr>`;
+    }
+    
+    html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">全体ポテンシャルエネルギー Wₐ</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Wₐ = W₁ + W₂</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(WA)}</strong> kN·m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">1階等価減衰定数 heq₁</td>
+                    <td style="border:1px solid #ccc; padding:5px;">heq₁ = (δ₁ - Q₁/K₁₀) / δ₁ × 2/(4π)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(heq1)}</strong></td>
+                </tr>`;
+    
+    if(!is1F) {
+        html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">2階等価減衰定数 heq₂</td>
+                    <td style="border:1px solid #ccc; padding:5px;">heq₂ = (δ₂ - Q₂/K₂₀) / δ₂ × 2/(4π)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(heq2)}</strong></td>
+                </tr>`;
+    }
+    
+    html += `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">履歴減衰エネルギー ΔW</td>
+                    <td style="border:1px solid #ccc; padding:5px;">ΔW = 4π(heq₁·W₁ + heq₂·W₂)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(dW)}</strong> kN·m</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">総合減衰定数 h</td>
+                    <td style="border:1px solid #ccc; padding:5px;">${b.saMode === 'custom' ? 'h = max(0.05, ΔW/(4πWₐ))' : 'h = 0.05 + ΔW/(4πWₐ)'}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(h)}</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">減衰低減係数 Fh</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Fh = 1.5 / (1 + 10h) = 1.5 / (1 + 10×${f4(h)})</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(Fh)}</strong></td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 5. 応答スペクトル・必要耐力 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">5. 応答スペクトル・必要耐力</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算式</th>
+                    <th style="border:1px solid #ccc; padding:5px;">計算値</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">基盤加速度 Sa₀(Tₑ)</td>
+                    <td style="border:1px solid #ccc; padding:5px;">${limitName}用スペクトル (Tₑ=${f4(Te)}s)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(Sao)}</strong> m/s²</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">地域補正 S₀</td>
+                    <td style="border:1px solid #ccc; padding:5px;">S₀ = Sa₀ × Z = ${f3(Sao)} × ${f2(b.Z)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(S0)}</strong> m/s²</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">地盤増幅率 Gs</td>
+                    <td style="border:1px solid #ccc; padding:5px;">${b.tcMode === 'custom' ? '自由入力スペクトル' : '告示式'} (Tₑ=${f4(Te)}s)</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(Gs)}</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">調整係数 p</td>
+                    <td style="border:1px solid #ccc; padding:5px;">${b.pqMode === 'yes' ? '考慮' : '考慮しない (=1.0)'}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(p)}</strong></td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">調整係数 q</td>
+                    <td style="border:1px solid #ccc; padding:5px;">${b.pqMode === 'yes' ? '考慮' : '考慮しない (=1.0)'}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(q)}</strong></td>
+                </tr>
+                <tr style="background:#fffacd;">
+                    <td style="border:1px solid #ccc; padding:5px;"><strong>設計加速度 Sₐ</strong></td>
+                    <td style="border:1px solid #ccc; padding:5px;">Sₐ = S₀ × Gs × ${limitName === '損傷限界' ? 'Fh_d' : 'Fh'} × p × q<br>= ${f3(S0)} × ${f3(Gs)} × ${limitName === '損傷限界' ? f4(Fh_d) : f4(Fh)} × ${f4(p)} × ${f4(q)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f3(SA)}</strong> m/s²</td>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">応答変位 Sd</td>
+                    <td style="border:1px solid #ccc; padding:5px;">Sd = Sₐ × (Tₑ/2π)² = ${f3(SA)} × (${f4(Te)}/2π)²</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f4(SD)}</strong> m</td>
+                </tr>
+                <tr style="background:#fffacd;">
+                    <td style="border:1px solid #ccc; padding:5px;"><strong>必要耐力 Qn</strong></td>
+                    <td style="border:1px solid #ccc; padding:5px;">Qn = Sₐ × Mₑ = ${f3(SA)} × ${f3(Me)}</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><strong>${f2(Qn)}</strong> kN</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 6. 判定 -->
+        <div style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:5px;">
+            <h5 style="color:#005a9c; margin:0 0 10px 0;">6. 判定結果</h5>
+            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                <tr style="background:#f0f0f0;">
+                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
+                    <th style="border:1px solid #ccc; padding:5px;">保有値</th>
+                    <th style="border:1px solid #ccc; padding:5px;">必要値</th>
+                    <th style="border:1px solid #ccc; padding:5px;">判定</th>
+                </tr>
+                <tr>
+                    <td style="border:1px solid #ccc; padding:5px;">等価せん断力 Qₐ vs 必要耐力 Qn</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;">${f2(QA)} kN</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:right;">${f2(Qn)} kN</td>
+                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><strong style="color:${QA >= Qn ? '#28a745' : '#dc3545'};">${QA >= Qn ? 'OK (交点)' : 'NG'}</strong></td>
+                </tr>
+            </table>
+        </div>
+    </div>`;
+    
+    return html;
+}
+
+function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
+    let ratingHtml = "";
+    let maxQaStep = resObj.steps.reduce((prev, current) => (prev.QA > current.QA) ? prev : current, resObj.steps[0]);
+    let Qsi = maxQaStep.QA;
+    let Qsni = maxQaStep.Qns;
+    let ratio = (Qsni > 0) ? Qsi / Qsni : 0;
+    let rate = getRating(ratio);
+    ratingHtml = `<div class="rating-box">評点: ${ratio.toFixed(2)} <span class="badge ${rate.cls}">${rate.text}</span></div>`;
+
+    const is1F = (calcRes.b.stories === 1);
+    
+    let sumW1 = calcRes.b.W1 + calcRes.b.W2;
+    let sumW2 = calcRes.b.W2;
+
+    let head = is1F 
+        ? `<tr><th>検討ケース</th><th>1F変形</th><th>1F耐力(kN)</th><th>1F係数</th><th>判定</th></tr>` 
+        : `<tr><th>検討ケース</th><th>1F変形</th><th>1F耐力(kN)</th><th>1F係数</th><th>判定</th><th>2F変形</th><th>2F耐力(kN)</th><th>2F係数</th><th>判定</th></tr>`;
+
+    const fmt = (p, label, limInv) => {
+        if(!p) return `<tr><td>${label}</td><td colspan="${is1F?4:8}" style="color:red; font-weight:bold;">交点なし (NG or 崩壊)</td></tr>`;
+        
+        let r1 = p.R1, inv1 = (r1>0)?Math.round(1/r1):'-';
+        let j1 = (r1 <= 1/limInv) ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-ng">NG</span>';
+        if(r1 > 1/15) j1='<span class="badge badge-ng">倒壊</span>';
+        
+        // 変形角が最大耐力時の変形角を超えている場合は最大耐力を表示
+        let dispQ1 = (r1 > resObj.R1_atQ1max) ? resObj.Q1max : p.Q1;
+        let c1 = (dispQ1 / sumW1).toFixed(2);
+        let cell1 = `<td>1/${inv1}<br>(${Math.round(p.dZ1*1000)}mm)</td><td>${dispQ1.toFixed(1)}</td><td>${c1}</td><td>${j1}</td>`;
+        
+        if(is1F) return `<tr><td>${label}</td>${cell1}</tr>`;
+        
+        let r2 = p.R2, inv2 = (r2>0)?Math.round(1/r2):'-';
+        let j2 = (r2 <= 1/limInv) ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-ng">NG</span>';
+        if(r2 > 1/15) j2='<span class="badge badge-ng">倒壊</span>';
+        
+        // 変形角が最大耐力時の変形角を超えている場合は最大耐力を表示
+        let dispQ2 = (r2 > resObj.R2_atQ2max) ? resObj.Q2max : p.Q2;
+        let c2 = (sumW2 > 0) ? (dispQ2 / sumW2).toFixed(2) : '-';
+        return `<tr><td>${label}</td>${cell1}<td>1/${inv2}<br>(${Math.round(p.sub*1000)}mm)</td><td>${dispQ2.toFixed(1)}</td><td>${c2}</td><td>${j2}</td></tr>`;
+    };
+    
+    let html = `<table class="data-table"><thead>${head}</thead><tbody>${fmt(ptD, `損傷限界(1/${limitD}相当)`, limitD)}${fmt(ptS, `安全限界(1/${limitS}相当)`, limitS)}</tbody></table>${ratingHtml}`;
+    document.getElementById(`summary-${dir}-table`).innerHTML = html;
+    document.getElementById(`rep-res-${dir}-table`).innerHTML = html;
+    drawChart(`chart-${dir}`, resObj.steps, ptD, ptS);
+}
+
+function renderLog(dir, steps) {
+    const fmtR = (v) => { if(v<=0) return '-'; return `1/${Math.round(1/v)}<br>(${v.toFixed(5)})`; };
+    const is1F = (calcRes.b.stories === 1);
+    let h = `<table class="log-table"><thead><tr class="log-header-group">`;
+    h += `<th colspan="${is1F?3:5}">変位・剛性・層せん断力</th>`;
+    h += is1F ? `<th colspan="2">振動モード</th>` : `<th colspan="4">振動モード</th>`;
+    h += `<th colspan="6">等価1自由度系</th><th colspan="8">減衰・調整係数</th><th colspan="6">損傷限界</th><th colspan="6">安全限界</th></tr><tr>`;
+    h += `<th>層間変形角R<br>(rad)</th>`;
+    if(!is1F) h += `<th>Q2<br>(kN)</th>`;
+    h += `<th>Q1<br>(kN)</th>`;
+    if(!is1F) h += `<th>K2<br>(kN/m)</th>`;
+    h += `<th>K1<br>(kN/m)</th>`;
+    if(!is1F) h += `<th>u2/u1</th><th>δZ2<br>(m)</th>`;
+    h += `<th>δZ1<br>(m)</th>`;
+    if(!is1F) h += `<th>δ2<br>(m)</th>`;
+    h += `<th>Me<br>(t)</th><th>Δ<br>(m)</th><th>Qa<br>(kN)</th><th>Ke<br>(kN/m)</th><th>Te<br>(s)</th><th>He<br>(m)</th>
+          <th>ΔW<br>(kN・m)</th><th>Wa<br>(kN・m)</th><th>heq1</th><th>heq2</th><th>h</th><th>Fh</th><th>p</th><th>q</th>
+          <th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>
+          <th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th></tr></thead><tbody>`;
+
+    steps.forEach((s, i) => {
+        h += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
+        if(!is1F) h += `<td>${s.Q2.toFixed(1)}</td>`;
+        h += `<td>${s.Q1.toFixed(1)}</td>`;
+        if(!is1F) h += `<td>${s.K2.toFixed(0)}</td>`;
+        h += `<td>${s.K1.toFixed(0)}</td>`;
+        if(!is1F) h += `<td>${s.uRat.toFixed(3)}</td><td>${s.dZ2.toFixed(4)}</td>`;
+        h += `<td>${s.dZ1.toFixed(4)}</td>`;
+        if(!is1F) h += `<td>${s.sub.toFixed(4)}</td>`;
+        h += `<td>${s.MU.toFixed(2)}</td><td>${s.D.toFixed(4)}</td><td style="background:#eef;">${s.QA.toFixed(1)}</td><td>${s.Ke.toFixed(0)}</td><td>${s.Te.toFixed(3)}</td><td>${s.H.toFixed(2)}</td>
+            <td>${s.dW.toFixed(1)}</td><td>${s.WA.toFixed(1)}</td><td>${s.heq1.toFixed(4)}</td><td>${s.heq2.toFixed(4)}</td><td>${s.h.toFixed(3)}</td>
+            <td>${s.Fh.toFixed(2)}</td><td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>
+            <td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td>
+            <td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td><td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td>
+            <td>${fmtR(s.reqRd)}</td>
+            <td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td>
+            <td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td><td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td>
+            <td>${fmtR(s.reqRs)}</td></tr>`;
+    });
+    h += '</tbody></table>';
+    document.getElementById(`log-container-${dir}`).innerHTML = h;
+    // 計算書用のログは printReport 時に renderLogSplit で出力するため、ここでは出力しない
+}
+
+function drawChart(id, steps, ptD, ptS) {
+    const ctx = document.getElementById(id);
+    if(!ctx) return; 
+    const ctx2d = ctx.getContext('2d');
+    if(chartObjs[id]) chartObjs[id].destroy();
+
+    const getClosestIndex = (key) => {
+        let minDiff = Infinity;
+        let cIdx = 0;
+        steps.forEach((s, i) => {
+            let diff = Math.abs(s.QA - s[key]); 
+            if(diff < minDiff) { minDiff = diff; cIdx = i; }
+        });
+        return cIdx;
+    };
+    const findStepIndex = (targetD) => {
+        let idx = steps.findIndex(s => s.D >= targetD);
+        if(idx === -1) return steps.length - 1;
+        return idx;
+    };
+
+    let idxD = ptD ? findStepIndex(ptD.D) : getClosestIndex('Qnd');
+    let idxS = ptS ? findStepIndex(ptS.D) : getClosestIndex('Qns');
+
+    const findEndIndex = (startIndex, key) => {
+        if(startIndex >= steps.length - 1) return steps.length;
+        let startQ = steps[startIndex][key];
+        let targetQ = startQ * 0.5;
+        for(let i = startIndex; i < steps.length; i++) {
+            if(steps[i][key] < targetQ) return i;
+        }
+        return steps.length;
+    };
+
+    let endD = findEndIndex(idxD, 'Qnd');
+    let endS = findEndIndex(idxS, 'Qns');
+
+    const plotStepsD = steps.slice(0, endD); 
+    const plotStepsS = steps.slice(0, endS); 
+    
+    const cap = steps.filter(s => s.QA >= 0).map(s => ({ x: (s.H > 0 ? s.D / s.H : 0), y: s.QA }));
+    let maxX = 0, maxY = 0;
+    cap.forEach(p => { if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; });
+    const xMax = maxX * 1.1; 
+    const yMax = maxY * 1.1;
+
+    const demD = plotStepsD.map(s => ({ x: (s.H > 0 ? s.SDd / s.H : 0), y: s.Qnd }));
+    const demS = plotStepsS.map(s => ({ x: (s.H > 0 ? s.SDs / s.H : 0), y: s.Qns }));
+    
+    const points = [];
+    if(ptD) points.push({ x: (ptD.H > 0 ? ptD.D / ptD.H : 0), y: ptD.QA, label: '損傷限界', bg: '#28a745', style: 'rectRot' });
+    if(ptS) points.push({ x: (ptS.H > 0 ? ptS.D / ptS.H : 0), y: ptS.QA, label: '安全限界', bg: '#dc3545', style: 'circle' });
+    
+    chartObjs[id] = new Chart(ctx2d, {
+        type: 'scatter',
+        data: { datasets: [
+            { label: '保有耐力(QA)', data: cap, borderColor: '#005a9c', borderWidth: 2, showLine: true, pointRadius: 0 },
+            { label: '必要耐力(損傷)', data: demD, borderColor: '#28a745', borderWidth: 1.5, borderDash: [5,5], showLine: true, pointRadius: 0 },
+            { label: '必要耐力(安全)', data: demS, borderColor: '#dc3545', borderWidth: 1.5, borderDash: [2,2], showLine: true, pointRadius: 0 },
+            ...points.map(p => ({ label: p.label, data: [{x: p.x, y: p.y}], backgroundColor: p.bg, pointRadius: 6, pointStyle: p.style }))
+        ]},
+        options: { 
+            animation: false,
+            responsive: true, maintainAspectRatio: false, 
+            scales: { 
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: '変形角 Δ/He (rad)' }, max: xMax }, 
+                y: { title: { display: true, text: 'せん断力 Q (kN)' }, max: yMax } 
+            }, 
+            plugins: { tooltip: { callbacks: { label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } } } 
+        }
+    });
+}
+
+function printReport() {
+    if(!calcRes.b) { alert('計算を実行してください'); return; }
+    
+    // チェックボックスの状態を取得
+    const showOverview = document.getElementById('chk-rep-overview').checked;
+    const showForce = document.getElementById('chk-rep-force').checked;
+    const showResult = document.getElementById('chk-rep-result').checked;
+    const showLogic = document.getElementById('chk-rep-logic').checked;
+    const showLog = document.getElementById('chk-rep-log').checked;
+    const skipY = calcRes.skipY || false;
+    
+    // report-viewを一時的に表示（Chart.jsがcanvasサイズを取得するため）
+    const reportView = document.getElementById('report-view');
+    reportView.style.display = 'block';
+    reportView.style.position = 'absolute';
+    reportView.style.left = '-9999px';
+    
+    // ページの表示/非表示を設定
+    document.getElementById('rep-page-overview').style.display = showOverview ? 'block' : 'none';
+    document.getElementById('rep-page-force-x').style.display = showForce ? 'block' : 'none';
+    document.getElementById('rep-page-force-y').style.display = (showForce && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-result-x').style.display = showResult ? 'block' : 'none';
+    document.getElementById('rep-page-result-y').style.display = (showResult && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-logic').style.display = showLogic ? 'block' : 'none';
+    document.getElementById('rep-page-log-x1').style.display = showLog ? 'block' : 'none';
+    document.getElementById('rep-page-log-x2').style.display = showLog ? 'block' : 'none';
+    document.getElementById('rep-page-log-y1').style.display = (showLog && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-log-y2').style.display = (showLog && !skipY) ? 'block' : 'none';
+    
+    const charts = skipY ? ['chart-x'] : ['chart-x', 'chart-y']; 
+    charts.forEach(id => {
+        const canvas = document.getElementById(id);
+        const imgId = (id === 'chart-x') ? 'rep-img-x' : 'rep-img-y';
+        if(canvas) {
+            const imgData = canvas.toDataURL('image/png');
+            document.getElementById(imgId).src = imgData;
+        }
+    });
+    
+    // 復元力特性の詳細を出力
+    if(showForce) renderForceDetails();
+    
+    // Gsスペクトル情報を出力
+    if(showOverview) renderGsSpectrumReport();
+    
+    // 応答スペクトルSa0情報を出力
+    if(showOverview) renderSa0Report();
+    
+    // p,q調整係数情報を出力
+    if(showOverview) renderPqReport();
+    
+    // 計算ロジックの解説を出力
+    if(showLogic) renderLogicSection();
+    
+    // 詳細計算ログを2分割出力
+    if(showLog) {
+        renderLogSplit('x', calcRes.resX.steps);
+        if(!skipY) renderLogSplit('y', calcRes.resY.steps);
+    }
+    
+    // 復元力特性グラフを描画
+    setTimeout(() => {
+        if(showForce) {
+            drawForceChart('rep-chart-force-x', 'x');
+            if(!skipY) drawForceChart('rep-chart-force-y', 'y');
+        }
+        
+        // report-viewの位置をリセット
+        reportView.style.position = '';
+        reportView.style.left = '';
+        reportView.style.display = 'none';
+        
+        setTimeout(() => {
+            if(typeof MathJax !== 'undefined' && MathJax.Hub) {
+                // MathJax 2.x 用
+                MathJax.Hub.Queue(["Typeset", MathJax.Hub], function() {
+                    window.print();
+                });
+            } else {
+                window.print();
+            }
+        }, 300);
+    }, 300);
+}
+
+// Gsスペクトル情報を計算書に出力
+function renderGsSpectrumReport() {
+    const tcMode = document.getElementById('inp_Tc_mode').value;
+    const typeNames = { '1': '第1種 (岩盤・硬質砂礫等)', '2': '第2種 (通常の地盤)', '3': '第3種 (軟弱地盤)', 'custom': '自由入力' };
+    const tcDesc = { 
+        '1': 'Tc=0.4s, 岩盤・硬質砂礫層その他これに類する地盤',
+        '2': 'Tc=0.6s, 第1種・第3種以外の地盤',
+        '3': 'Tc=0.8s, 腐植土・泥土その他これに類する軟弱地盤',
+        'custom': 'Gsスペクトルを直接指定'
+    };
+    
+    document.getElementById('rep-Tc-detail').innerText = typeNames[tcMode] || '第2種';
+    document.getElementById('rep-Tc-mode').innerText = tcDesc[tcMode] || '-';
+    
+    // 自由入力の場合はデータテーブルを表示
+    const gsTableContainer = document.getElementById('rep-gs-data-table');
+    if(tcMode === 'custom' && gsData.length > 0) {
+        let html = '<table class="report-table" style="font-size:7pt;"><thead><tr><th>T (s)</th><th>Gs</th></tr></thead><tbody>';
+        gsData.forEach(d => {
+            html += `<tr><td>${d.t.toFixed(3)}</td><td>${d.g.toFixed(3)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        gsTableContainer.innerHTML = html;
+    } else {
+        // 標準スペクトルの場合は代表的な値を表示
+        let html = '<div style="font-size:7pt; margin-top:3px;">標準Gsスペクトル（告示値）</div>';
+        html += '<table class="report-table" style="font-size:7pt;"><thead><tr><th>T (s)</th><th>Gs</th></tr></thead><tbody>';
+        const sampleT = [0, 0.3, 0.576, 0.64, 0.864, 1.0, 1.5, 2.0];
+        sampleT.forEach(t => {
+            const gs = getGsForChart(tcMode, t);
+            html += `<tr><td>${t.toFixed(2)}</td><td>${gs.toFixed(3)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        gsTableContainer.innerHTML = html;
+    }
+    
+    // Gsスペクトルグラフを描画
+    const canvas = document.getElementById('rep-chart-gs');
+    if(!canvas) return;
+    
+    let data = [];
+    let label = 'Gs';
+    
+    if(tcMode === 'custom' && gsData.length > 0) {
+        data = gsData.map(d => ({ x: d.t, y: d.g }));
+        label = 'Gs (自由入力)';
+    } else {
+        label = 'Gs (' + typeNames[tcMode] + ')';
+        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
+        tValues.forEach(t => {
+            const gs = getGsForChart(tcMode, t);
+            data.push({ x: t, y: gs });
+        });
+        data.sort((a, b) => a.x - b.x);
+    }
+    
+    new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: label,
+                data: data,
+                borderColor: '#005a9c',
+                backgroundColor: '#005a9c',
+                borderWidth: 1.5,
+                showLine: true,
+                pointRadius: 1,
+                fill: false
+            }]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: 'T (s)', font: { size: 8 } }, min: 0, max: 3 },
+                y: { title: { display: true, text: 'Gs', font: { size: 8 } }, min: 0, max: 3 }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// 応答スペクトルSa0情報を計算書に出力
+function renderSa0Report() {
+    const saMode = document.getElementById('inp_Sa_mode')?.value || 'standard';
+    const tbody = document.getElementById('rep-sa0-tbody');
+    const canvas = document.getElementById('rep-chart-sa0');
+    const modeEl = document.getElementById('rep-sa-mode');
+    const descEl = document.getElementById('rep-sa-desc');
+    
+    const hasCustomD = saDataD.length > 0;
+    const hasCustomS = saDataS.length > 0;
+    
+    if(saMode === 'custom' && (hasCustomD || hasCustomS)) {
+        // 自由入力モード
+        let modeDesc = '自由入力モード';
+        if(hasCustomD && hasCustomS) {
+            modeDesc += '（損傷限界・安全限界 両方）';
+        } else if(hasCustomD) {
+            modeDesc += '（損傷限界のみ、安全限界は告示値）';
+        } else {
+            modeDesc += '（安全限界のみ、損傷限界は告示値）';
+        }
+        if(modeEl) modeEl.innerText = modeDesc;
+        
+        // 説明文を自由入力用に更新
+        if(descEl) {
+            descEl.innerHTML = `
+                <p><strong>加速度応答スペクトル Sa(T)</strong></p>
+                <p>損傷限界用・安全限界用を個別に入力可能。</p>
+                <p>未入力側は告示値を使用。</p>
+                <p><strong>【減衰低減係数Fh】</strong></p>
+                <p style="margin-left:10px;">ΔW/(4πWA) &lt; 0.05 → h = 0.05</p>
+                <p style="margin-left:10px;">ΔW/(4πWA) ≧ 0.05 → h = ΔW/(4πWA)</p>
+                <p style="margin-left:10px;">Fh = 1.5 / (1 + 10h)</p>
+            `;
+        }
+        
+        // テーブル出力（損傷限界と安全限界を両方表示）
+        const sampleT = [0, 0.1, 0.16, 0.3, 0.5, 0.64, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0];
+        let html = '';
+        sampleT.forEach(T => {
+            const saD = hasCustomD ? (getSaCustom(saDataD, T) || getSao(T, 'd')) : getSao(T, 'd');
+            const saS = hasCustomS ? (getSaCustom(saDataS, T) || getSao(T, 's')) : getSao(T, 's');
+            const markD = hasCustomD ? '' : '*';
+            const markS = hasCustomS ? '' : '*';
+            html += `<tr><td>${T.toFixed(2)}</td><td>${saD.toFixed(3)}${markD}</td><td>${saS.toFixed(3)}${markS}</td></tr>`;
+        });
+        tbody.innerHTML = html;
+        
+        // テーブルヘッダーを変更
+        const thead = tbody.parentElement.querySelector('thead');
+        if(thead) {
+            thead.innerHTML = '<tr><th>T(s)</th><th>Sa(損傷)</th><th>Sa(安全)</th></tr>';
+        }
+        
+        if(canvas) {
+            let datasets = [];
+            
+            // 安全限界
+            if(hasCustomS) {
+                const dataS = saDataS.map(d => ({ x: d.t, y: d.sa }));
+                datasets.push({
+                    label: 'Sa (安全・自由入力)',
+                    data: dataS,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220,53,69,0.1)',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 2,
+                    fill: true
+                });
+            } else {
+                let dataSafety = [];
+                for(let T = 0; T <= 3.0; T += 0.05) {
+                    dataSafety.push({ x: T, y: getSao(T, 's') });
+                }
+                datasets.push({
+                    label: 'Sa0 (安全・告示値)',
+                    data: dataSafety,
+                    borderColor: '#dc3545',
+                    borderDash: [5, 3],
+                    backgroundColor: 'rgba(220,53,69,0.05)',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: true
+                });
+            }
+            
+            // 損傷限界
+            if(hasCustomD) {
+                const dataD = saDataD.map(d => ({ x: d.t, y: d.sa }));
+                datasets.push({
+                    label: 'Sa (損傷・自由入力)',
+                    data: dataD,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40,167,69,0.1)',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 2,
+                    fill: true
+                });
+            } else {
+                let dataDamage = [];
+                for(let T = 0; T <= 3.0; T += 0.05) {
+                    dataDamage.push({ x: T, y: getSao(T, 'd') });
+                }
+                datasets.push({
+                    label: 'Sa0 (損傷・告示値)',
+                    data: dataDamage,
+                    borderColor: '#28a745',
+                    borderDash: [5, 3],
+                    backgroundColor: 'rgba(40,167,69,0.05)',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: true
+                });
+            }
+            
+            new Chart(canvas.getContext('2d'), {
+                type: 'scatter',
+                data: { datasets: datasets },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'T (s)', font: { size: 8 } }, min: 0, max: 3 },
+                        y: { title: { display: true, text: 'Sa (m/s²)', font: { size: 8 } }, min: 0 }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { font: { size: 7 } } }
+                    }
+                }
+            });
+        }
+    } else {
+        // 標準モード（告示準拠）
+        if(modeEl) modeEl.innerText = '標準スペクトル（告示準拠）';
+        
+        // 説明文を標準用に設定
+        if(descEl) {
+            descEl.innerHTML = `
+                <p><strong>加速度応答スペクトル Sa0(T)</strong></p>
+                <p>岩盤上の加速度応答スペクトルを表します。</p>
+                <p>● 損傷限界: 稀に発生する地震動 (50年に1回程度)</p>
+                <p>● 安全限界: 極めて稀に発生する地震動 (500年に1回程度)</p>
+                <p>※安全限界は損傷限界の5倍</p>
+            `;
+        }
+        
+        const sampleT = [0, 0.1, 0.16, 0.3, 0.5, 0.64, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0];
+        let html = '';
+        sampleT.forEach(T => {
+            const sa0d = getSao(T, 'd');
+            const sa0s = getSao(T, 's');
+            html += `<tr><td>${T.toFixed(2)}</td><td>${sa0d.toFixed(3)}</td><td>${sa0s.toFixed(3)}</td></tr>`;
+        });
+        tbody.innerHTML = html;
+        
+        // テーブルヘッダーを標準に戻す
+        const thead = tbody.parentElement.querySelector('thead');
+        if(thead) {
+            thead.innerHTML = '<tr><th>T(s)</th><th>Sa0(損傷)</th><th>Sa0(安全)</th></tr>';
+        }
+        
+        if(canvas) {
+            let dataDamage = [];
+            let dataSafety = [];
+            
+            for(let T = 0; T <= 3.0; T += 0.05) {
+                const sa0d = getSao(T, 'd');
+                const sa0s = getSao(T, 's');
+                dataDamage.push({ x: T, y: sa0d });
+                dataSafety.push({ x: T, y: sa0s });
+            }
+            
+            new Chart(canvas.getContext('2d'), {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Sa0 (安全)',
+                            data: dataSafety,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220,53,69,0.1)',
+                            borderWidth: 1.5,
+                            showLine: true,
+                            pointRadius: 0,
+                            fill: true
+                        },
+                        {
+                            label: 'Sa0 (損傷)',
+                            data: dataDamage,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40,167,69,0.1)',
+                            borderWidth: 1.5,
+                            showLine: true,
+                            pointRadius: 0,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', position: 'bottom', title: { display: true, text: 'T (s)', font: { size: 8 } }, min: 0, max: 3 },
+                        y: { title: { display: true, text: 'Sa0 (m/s²)', font: { size: 8 } }, min: 0 }
+                    },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { font: { size: 7 } } }
+                    }
+                }
+            });
+        }
+    }
+}
+
+// p,q調整係数情報を計算書に出力
+function renderPqReport() {
+    const pqMode = document.getElementById('inp_pq').value;
+    const stories = parseInt(document.getElementById('inp_Stories').value);
+    
+    document.getElementById('rep-pq-mode').innerText = (pqMode === 'yes') ? '考慮する（告示準拠）' : '考慮しない（p=1.0, q=1.0）';
+    
+    // p,q係数セクションの表示/非表示
+    const pqSection = document.getElementById('rep-pq-section');
+    
+    if(pqMode !== 'yes') {
+        pqSection.style.display = 'none';
+        return;
+    }
+    pqSection.style.display = 'block';
+    
+    // 説明文を設定
+    const descContainer = document.getElementById('rep-pq-desc');
+    let html = '<div style="font-size:7pt; line-height:1.4;">';
+    html += '<p><strong>p係数（等価周期による調整）</strong></p>';
+    html += '<p>・地震応答の位相差を考慮した調整係数</p>';
+    if(stories === 2) {
+        html += '<p>・2階建て: Te≤0.16s → p=1.0-(0.15/0.16)Te, Te>0.16s → p=0.85 (下限0.7)</p>';
+    } else {
+        html += '<p>・平屋: Te≤0.16s → p=1.0-(0.20/0.16)Te, Te>0.16s → p=0.80 (下限0.7)</p>';
+    }
+    html += '<p style="margin-top:5px;"><strong>q係数（等価質量比による調整）</strong></p>';
+    html += '<p>・高次モード影響を考慮した調整係数</p>';
+    html += '<p>・Me/(m1+m2)<0.75 → q=0.75/(Me/(m1+m2)), それ以外 → q=1.0</p>';
+    html += '</div>';
+    
+    // p係数の代表値テーブル
+    html += '<table class="report-table" style="font-size:7pt; margin-top:5px;"><thead><tr><th>Te(s)</th><th>p</th></tr></thead><tbody>';
+    const sampleTe = [0, 0.05, 0.10, 0.16, 0.20, 0.30, 0.40];
+    sampleTe.forEach(Te => {
+        let p;
+        if(stories === 2) {
+            if(Te <= 0.16) p = 1.0 - (0.15/0.16) * Te;
+            else p = 0.85;
+        } else {
+            if(Te <= 0.16) p = 1.0 - (0.20/0.16) * Te;
+            else p = 0.80;
+        }
+        if(p < 0.7) p = 0.7;
+        html += `<tr><td>${Te.toFixed(2)}</td><td>${p.toFixed(3)}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    descContainer.innerHTML = html;
+    
+    // p係数グラフを描画
+    const canvas = document.getElementById('rep-chart-p');
+    if(!canvas) return;
+    
+    // p係数のデータ生成
+    let data = [];
+    for(let Te = 0; Te <= 0.5; Te += 0.01) {
+        let p;
+        if(stories === 2) {
+            if(Te <= 0.16) p = 1.0 - (0.15/0.16) * Te;
+            else p = 0.85;
+        } else {
+            if(Te <= 0.16) p = 1.0 - (0.20/0.16) * Te;
+            else p = 0.80;
+        }
+        if(p < 0.7) p = 0.7;
+        data.push({ x: Te, y: p });
+    }
+    
+    new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'p (' + (stories === 2 ? '2階建て' : '平屋') + ')',
+                data: data,
+                borderColor: '#005a9c',
+                backgroundColor: '#005a9c',
+                borderWidth: 1.5,
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            }]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Te (s)', font: { size: 8 } }, min: 0, max: 0.5 },
+                y: { title: { display: true, text: 'p', font: { size: 8 } }, min: 0.6, max: 1.05 }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// 復元力特性の詳細をテーブル化（各変形角でのQ, heq付き）
+function renderForceDetails() {
+    const skipY = calcRes.skipY || false;
+    const dirs = skipY ? ['x'] : ['x', 'y'];
+    dirs.forEach(dir => {
+        const id1 = `${dir}1`;
+        const id2 = `${dir}2`;
+        const is1F = (calcRes.b.stories === 1);
+        
+        // 要素一覧テーブル
+        let html = `<h4 style="margin:5px 0; background:#f0f0f0; padding:3px;">耐力要素一覧</h4>`;
+        html += `<table class="report-table" style="font-size:7pt;"><thead><tr><th>階</th><th>要素名</th><th>数量</th><th>K0(kN/m)</th><th>最大Q(kN)</th><th>heq入力</th></tr></thead><tbody>`;
+        
+        // 1階の壁要素
+        addedWalls[id1].forEach(w => {
+            let data = WALL_DATA[w.name];
+            if(data) {
+                let K0 = WALL_K0[w.name] || 0;
+                let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
+                html += `<tr><td>1F</td><td>${w.name}</td><td>${w.qty.toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>自動</td></tr>`;
+            }
+        });
+        
+        // 1階の自由入力
+        freeInputData[id1].forEach(item => {
+            if(item.data.length > 0) {
+                let K0 = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 0;
+                let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
+                let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
+                html += `<tr><td>1F</td><td>${item.name}</td><td>${(item.qty||1).toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+            }
+        });
+        
+        if(!is1F) {
+            addedWalls[id2].forEach(w => {
+                let data = WALL_DATA[w.name];
+                if(data) {
+                    let K0 = WALL_K0[w.name] || 0;
+                    let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
+                    html += `<tr><td>2F</td><td>${w.name}</td><td>${w.qty.toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>自動</td></tr>`;
+                }
+            });
+            freeInputData[id2].forEach(item => {
+                if(item.data.length > 0) {
+                    let K0 = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 0;
+                    let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
+                    let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
+                    html += `<tr><td>2F</td><td>${item.name}</td><td>${(item.qty||1).toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                }
+            });
+        }
+        html += `</tbody></table>`;
+        
+        // 各変形角での耐力・heq詳細テーブル
+        html += `<h4 style="margin:10px 0 5px; background:#f0f0f0; padding:3px;">各変形角での耐力・heq</h4>`;
+        let composite1 = getCompositeForce(id1);
+        let composite2 = is1F ? [] : getCompositeForce(id2);
+        
+        // 主要変形角のみ抽出
+        let keyRads = [1/480, 1/240, 1/120, 1/60, 1/45, 1/30, 1/20, 1/15];
+        
+        html += `<table class="report-table" style="font-size:7pt;"><thead><tr><th>変形角</th>`;
+        if(!is1F) html += `<th>2F Q(kN)</th><th>2F heq</th>`;
+        html += `<th>1F Q(kN)</th><th>1F heq</th></tr></thead><tbody>`;
+        
+        keyRads.forEach(r => {
+            let c1 = composite1.find(c => Math.abs(c.r - r) < 0.0001) || interpComposite(composite1, r);
+            let c2 = is1F ? null : (composite2.find(c => Math.abs(c.r - r) < 0.0001) || interpComposite(composite2, r));
+            let radStr = `1/${Math.round(1/r)}`;
+            html += `<tr><td>${radStr}</td>`;
+            if(!is1F) html += `<td>${c2 ? c2.q.toFixed(1) : '-'}</td><td>${c2 ? c2.heq.toFixed(4) : '-'}</td>`;
+            html += `<td>${c1.q.toFixed(1)}</td><td>${c1.heq.toFixed(4)}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        
+        document.getElementById(`rep-force-${dir}-detail`).innerHTML = html;
+    });
+}
+
+// composite配列から指定変形角のデータを補間
+function interpComposite(composite, r) {
+    if(composite.length === 0) return { r: r, q: 0, heq: 0 };
+    if(r <= composite[0].r) return composite[0];
+    if(r >= composite[composite.length-1].r) return composite[composite.length-1];
+    for(let i = 0; i < composite.length - 1; i++) {
+        if(r >= composite[i].r && r <= composite[i+1].r) {
+            let ratio = (r - composite[i].r) / (composite[i+1].r - composite[i].r);
+            return {
+                r: r,
+                q: composite[i].q + ratio * (composite[i+1].q - composite[i].q),
+                heq: composite[i].heq + ratio * (composite[i+1].heq - composite[i].heq)
+            };
+        }
+    }
+    return { r: r, q: 0, heq: 0 };
+}
+
+// 復元力特性グラフを計算書用に描画
+let repForceCharts = {};
+function drawForceChart(canvasId, dir) {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    
+    // 既存のチャートを破棄
+    if(repForceCharts[canvasId]) {
+        repForceCharts[canvasId].destroy();
+    }
+    
+    const is1F = (calcRes.b.stories === 1);
+    let composite1 = getCompositeForce(`${dir}1`);
+    let composite2 = is1F ? [] : getCompositeForce(`${dir}2`);
+    
+    let datasets = [{
+        label: '1階 復元力',
+        data: composite1.map(c => ({ x: c.r, y: c.q })),
+        borderColor: '#005a9c',
+        borderWidth: 2,
+        showLine: true,
+        pointRadius: 1,
+        fill: false
+    }];
+    
+    if(!is1F) {
+        datasets.push({
+            label: '2階 復元力',
+            data: composite2.map(c => ({ x: c.r, y: c.q })),
+            borderColor: '#28a745',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 1,
+            fill: false
+        });
+    }
+    
+    let maxX = Math.max(...composite1.map(c => c.r), ...(is1F ? [0] : composite2.map(c => c.r))) * 1.1;
+    let maxY = Math.max(...composite1.map(c => c.q), ...(is1F ? [0] : composite2.map(c => c.q))) * 1.1;
+    
+    repForceCharts[canvasId] = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: { datasets: datasets },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { type: 'linear', position: 'bottom', title: { display: true, text: '変形角 R (rad)' }, max: maxX },
+                y: { title: { display: true, text: 'せん断力 Q (kN)' }, max: maxY, beginAtZero: true }
+            },
+            plugins: {
+                legend: { display: !is1F, position: 'top' }
+            }
+        }
+    });
+}
+
+// 詳細計算ログを2分割出力
+function renderLogSplit(dir, steps) {
+    const fmtR = (v) => { if(v<=0) return '-'; return `1/${Math.round(1/v)}`; };
+    const is1F = (calcRes.b.stories === 1);
+    
+    // テーブル1: 変位・剛性・等価1自由度系・減衰
+    let h1 = `<table class="log-table"><thead><tr class="log-header-group">`;
+    h1 += `<th rowspan="2">層間<br>変形角R</th>`;
+    h1 += is1F ? `<th colspan="2">層せん断力・剛性</th>` : `<th colspan="4">層せん断力・剛性</th>`;
+    h1 += `<th colspan="6">等価1自由度系</th>`;
+    h1 += `<th colspan="6">減衰</th></tr><tr>`;
+    if(!is1F) h1 += `<th>Q2</th><th>K2</th>`;
+    h1 += `<th>Q1</th><th>K1</th>`;
+    h1 += `<th>Me</th><th>Δ</th><th>Qa</th><th>Ke</th><th>Te</th><th>He</th>`;
+    h1 += `<th>heq1</th><th>heq2</th><th>ΔW</th><th>Wa</th><th>h</th><th>Fh</th>`;
+    h1 += `</tr></thead><tbody>`;
+
+    steps.forEach(s => {
+        h1 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
+        if(!is1F) h1 += `<td>${s.Q2.toFixed(1)}</td><td>${s.K2.toFixed(0)}</td>`;
+        h1 += `<td>${s.Q1.toFixed(1)}</td><td>${s.K1.toFixed(0)}</td>`;
+        h1 += `<td>${s.MU.toFixed(2)}</td><td>${s.D.toFixed(4)}</td><td style="background:#eef;">${s.QA.toFixed(1)}</td>`;
+        h1 += `<td>${s.Ke.toFixed(0)}</td><td>${s.Te.toFixed(3)}</td><td>${s.H.toFixed(2)}</td>`;
+        h1 += `<td>${s.heq1.toFixed(4)}</td><td>${s.heq2.toFixed(4)}</td><td>${s.dW.toFixed(1)}</td>`;
+        h1 += `<td>${s.WA.toFixed(1)}</td><td>${s.h.toFixed(3)}</td><td>${s.Fh.toFixed(2)}</td></tr>`;
+    });
+    h1 += '</tbody></table>';
+    document.getElementById(`report-log-${dir}1`).innerHTML = h1;
+
+    // テーブル2: 変形角・損傷限界・安全限界
+    let h2 = `<table class="log-table"><thead><tr class="log-header-group">`;
+    h2 += `<th rowspan="2">層間<br>変形角R</th>`;
+    h2 += `<th colspan="2">調整係数</th>`;
+    h2 += `<th colspan="6">損傷限界</th>`;
+    h2 += `<th colspan="6">安全限界</th></tr><tr>`;
+    h2 += `<th>p</th><th>q</th>`;
+    h2 += `<th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>`;
+    h2 += `<th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th>`;
+    h2 += `</tr></thead><tbody>`;
+
+    steps.forEach(s => {
+        h2 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
+        h2 += `<td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>`;
+        h2 += `<td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td>`;
+        h2 += `<td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td><td>${fmtR(s.reqRd)}</td>`;
+        h2 += `<td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td>`;
+        h2 += `<td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td><td>${fmtR(s.reqRs)}</td></tr>`;
+    });
+    h2 += '</tbody></table>';
+    document.getElementById(`report-log-${dir}2`).innerHTML = h2;
+}
+
+// 計算ロジックの解説を出力（1ページにまとめて表示）
+// 計算ロジックの解説を出力（省略なく全て記載）
+function renderLogicSection() {
+    const logicHtml = `
+    <div style="font-size:7pt; line-height:1.4;">
+        <!-- 1. 振動モデル・質量 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">1. 振動モデル・質量</strong><br>
+            \\( m_i = W_i / g \\)　（各階の質量：重量を重力加速度で除す）<br>
+            \\( g = 9.80665 \\, \\mathrm{m/s^2} \\)　（重力加速度）<br>
+            累積重量：下階ほど上階の重量を加算した値を使用
+        </div>
+        
+        <!-- 2. 固有値解析 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">2. 固有値解析・固有周期</strong><br>
+            剛性行列 \\( [K] \\) と質量行列 \\( [M] \\) から固有値方程式を解く：<br>
+            \\( ([K] - \\omega^2 [M]) \\{u\\} = 0 \\)<br>
+            固有円振動数：\\( \\omega = \\sqrt{\\lambda} \\)、固有周期：\\( T_0 = 2\\pi / \\omega \\)<br>
+            1次モード形状 \\( \\{u\\} \\) を正規化して使用
+        </div>
+        
+        <!-- 3. 等価1自由度系への縮約 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">3. 等価1自由度系への縮約</strong><br>
+            等価質量：\\( M_e = \\frac{(\\sum m_i u_i)^2}{\\sum m_i u_i^2} \\)<br>
+            等価高さ：\\( H_e = \\frac{\\sum m_i u_i h_i}{\\sum m_i u_i} \\)<br>
+            代表変位：\\( \\Delta = R \\times H_e \\)　（層間変形角 × 等価高さ）<br>
+            等価せん断力：\\( Q_A = M_e \\times \\ddot{u}_e \\)　（質点系から縮約）<br>
+            等価剛性：\\( K_e = Q_A / \\Delta \\)<br>
+            等価周期：\\( T_e = 2\\pi \\sqrt{M_e / K_e} \\)
+        </div>
+        
+        <!-- 4. 復元力特性 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">4. 復元力特性・壁要素の合成</strong><br>
+            各壁要素の復元力特性（Q-R関係）を変形角ごとに合成：<br>
+            \\( Q_{合成}(R) = \\sum_i Q_i(R) \\times n_i \\)　（各壁の耐力×倍率の総和）<br>
+            初期剛性：\\( K_0 = Q(R_{min}) / R_{min} \\)　（最小変形角での割線剛性）<br>
+            割線剛性：\\( K(R) = Q(R) / R \\)
+        </div>
+        
+        <!-- 5. 等価粘性減衰定数 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">5. 等価粘性減衰定数 heq</strong><br>
+            各壁要素のheq：\\( h_{eq,i} = 0.2 \\times (1 - \\sqrt{K_i / K_{i0}}) \\)　（剛性低下率から算定）<br>
+            直接入力がある場合はその値を使用<br>
+            階全体の合成heq：\\( h_{eq,階} = \\frac{\\sum (h_{eq,i} \\times Q_i)}{\\sum Q_i} \\)　（耐力加重平均）<br>
+            履歴減衰による仕事量：\\( \\Delta W = 4 \\times h_{eq} \\times Q_A \\times \\Delta \\)<br>
+            弾性歪エネルギー：\\( W_A = \\frac{1}{2} Q_A \\times \\Delta \\)<br>
+            <br>
+            <u>【告示準拠スペクトル使用時】</u><br>
+            総合減衰定数：\\( h = 0.05 + \\frac{\\Delta W}{4\\pi W_A} \\)　（初期減衰5% + 履歴減衰、上限25%）<br>
+            <br>
+            <u>【応答スペクトル自由入力時】</u><br>
+            \\( \\frac{\\Delta W}{4\\pi W_A} < 0.05 \\) の場合：\\( h = 0.05 \\)（下限値）<br>
+            \\( \\frac{\\Delta W}{4\\pi W_A} \\geq 0.05 \\) の場合：\\( h = \\frac{\\Delta W}{4\\pi W_A} \\)（上限25%）<br>
+            <br>
+            その後、\\( F_h = \\frac{1.5}{1 + 10h} \\) で減衰低減係数を計算
+        </div>
+        
+        <!-- 6. 減衰による応答低減係数 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">6. 減衰による応答低減係数 Fh</strong><br>
+            \\( F_h = \\frac{1.5}{1 + 10h} \\)　（h：総合減衰定数）<br>
+            減衰が大きいほど応答が低減される
+        </div>
+        
+        <!-- 7. 加速度応答スペクトル -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">7. 加速度応答スペクトル</strong><br>
+            地盤種別による特性周期 \\( T_c \\)：第1種=0.4s、第2種=0.6s、第3種=0.8s<br>
+            ・損傷限界スペクトル：\\( S_{0d}(T) \\)　（地震動レベルI）<br>
+            ・安全限界スペクトル：\\( S_{0s}(T) \\)　（地震動レベルII、損傷限界の5倍）<br>
+            地盤増幅率：\\( G_s \\)　（表層地盤の増幅特性）<br>
+            設計用加速度：\\( S_A = S_0 \\times G_s \\times F_h \\times Z \\times p \\times q \\)
+        </div>
+        
+        <!-- 8. 地域係数Z -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">8. 地域係数 Z</strong><br>
+            地震地域係数。地域による地震の強さの違いを考慮。<br>
+            ・Z=1.0：大部分の地域（東京、大阪、名古屋等）<br>
+            ・Z=0.9：北海道の一部、沖縄の一部等<br>
+            ・Z=0.8：北海道の一部等、Z=0.7：沖縄の一部等<br>
+            建築基準法施行令第88条に規定
+        </div>
+        
+        <!-- 9. 地盤種別とGs -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">9. 地盤種別と地盤増幅率 Gs</strong><br>
+            ・第1種地盤(Tc=0.4s)：岩盤、硬質砂礫層、第三紀層など良好な地盤<br>
+            ・第2種地盤(Tc=0.6s)：通常の地盤（第1種・第3種以外）<br>
+            ・第3種地盤(Tc=0.8s)：軟弱地盤、沿岸埋立地、涼沢低地等<br>
+            Gs：地表面での増幅率。第1種で1.0〜1.5、第3種で1.5〜2.5程度
+        </div>
+        
+        <!-- 10. 調整係数 p, q -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">10. 調整係数 p, q（平成12年建告1457号）</strong><br>
+            <strong>p：地震地域係数等に関する調整係数</strong><br>
+            ・T ≦ Tc のとき：p = 1.0<br>
+            ・T > Tc のとき：p = Tc / T（長周期側で低減）<br>
+            <strong>q：構造特性等に関する調整係数</strong><br>
+            ・T ≦ Tc のとき：q = T / Tc（短周期側で低減）<br>
+            ・T > Tc のとき：q = 1.0<br>
+            これらにより短周期・長周期の建物で応答を適切に評価
+        </div>
+        
+        <!-- 11. 変位応答スペクトル -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">11. 変位応答スペクトル</strong><br>
+            \\( S_D = S_A \\times \\left( \\frac{T_e}{2\\pi} \\right)^2 \\)　（加速度から変位へ変換）<br>
+            これが等価1自由度系の応答変位となる
+        </div>
+        
+        <!-- 12. 必要耐力・判定 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
+            <strong style="color:#005a9c;">12. 必要耐力と判定</strong><br>
+            必要耐力：\\( Q_{req} = M_e \\times S_A \\)<br>
+            保有耐力：\\( Q_{si} \\)　（復元力特性から求めた耐力）<br>
+            評点：\\( I_s = Q_{si} / Q_{req} \\)<br>
+            <br>
+            <strong>判定基準（安全限界）：</strong><br>
+            ・1.5以上：倒壊しない<br>
+            ・1.0〜1.5：一応倒壊しない<br>
+            ・0.7〜1.0：倒壊する可能性がある<br>
+            ・0.7未満：倒壊する可能性が高い
+        </div>
+        
+        <!-- 13. 収束計算 -->
+        <div style="border:1px solid #ddd; padding:6px; background:#fafafa;">
+            <strong style="color:#005a9c;">13. 収束計算による交点探索</strong><br>
+            層間変形角Rを変化させながら、復元力特性曲線と必要耐力曲線の交点を探索<br>
+            交点が見つかった変形角が、損傷限界・安全限界それぞれの応答変形角となる<br>
+            この応答変形角における層間変形角が限界値を超えないことを確認
+        </div>
+    </div>`;
+    document.getElementById('report-logic').innerHTML = logicHtml;
+}
+</script>
+</body>
+</html>
