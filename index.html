@@ -1404,11 +1404,16 @@ function getCompositeForce(id) {
     // Sort radians
     let sortedRads = Array.from(allRads).sort((a,b) => a - b);
     
+    // 階高を取得（radからdへの変換用）
+    let floor = id.includes('2') ? '2' : '1';
+    let h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
+    
     // 2. Calculate Sum Q and weighted heq at each radian
     // heq_story = Σ(heq_i * Q_i) / ΣQ_i
     let composite = sortedRads.map(rad => {
         let totalQ = 0;
         let sumHeqQ = 0; // heq_i * Q_i の合計
+        let d = rad * h; // 変位 (m)
         
         // --- Free Input items の処理 ---
         freeInputData[id].forEach(item => {
@@ -1424,16 +1429,18 @@ function getCompositeForce(id) {
                     // 入力されたheqを補間して取得
                     heq_elem = interpRadHeq(item.data, rad);
                 } else {
-                    // 従来通りの計算方法
+                    // 従来通りの計算方法: heq = (d - Q/K0) / d * 2 / (4π)
                     // 自由入力の初期剛性 K0
-                    let K0_free = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 10000;
-                    // 現在の割線剛性 K
-                    let K_free = (rad > 0 && q_elem > 0) ? (q_elem / qty) / rad : K0_free;
+                    let K0_free = (item.data[0].r > 0) ? item.data[0].q / (item.data[0].r * h) : 10000;
+                    let q_single = q_elem / qty; // 1要素あたりのQ
                     
-                    // heq = 0.2 * (1 - √(K/K0))
-                    let ratioK = (K0_free > 0) ? Math.sqrt(K_free / K0_free) : 1.0;
-                    if(ratioK > 1.0) ratioK = 1.0;
-                    heq_elem = 0.2 * (1.0 - ratioK);
+                    if (d > 0 && K0_free > 0) {
+                        let elasticDef = q_single / K0_free; // 弾性変形
+                        heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
+                        if (heq_elem < 0) heq_elem = 0;
+                    } else {
+                        heq_elem = 0;
+                    }
                 }
                 
                 totalQ += q_elem;
@@ -1446,16 +1453,20 @@ function getCompositeForce(id) {
             let data = WALL_DATA[w.name];
             if(data) {
                 let q_elem = interpRadQ(data, rad) * w.qty;
+                let q_single = q_elem / w.qty; // 1要素あたりのQ
                 
-                // 壁要素の初期剛性 (キャッシュから取得)
-                let K0_wall = WALL_K0[w.name] || 10000;
-                // 現在の割線剛性 K
-                let K_wall = (rad > 0 && q_elem > 0) ? (q_elem / w.qty) / rad : K0_wall;
+                // 壁要素の初期剛性 K0 (変位ベース: kN/m)
+                // WALL_K0は変形角ベースなので変位ベースに変換
+                let K0_wall_rad = WALL_K0[w.name] || 10000;
+                let K0_wall = K0_wall_rad / h; // 変位ベースに変換
                 
-                // heq = 0.2 * (1 - √(K/K0))
-                let ratioK = (K0_wall > 0) ? Math.sqrt(K_wall / K0_wall) : 1.0;
-                if(ratioK > 1.0) ratioK = 1.0;
-                let heq_elem = 0.2 * (1.0 - ratioK);
+                // heq = (d - Q/K0) / d * 2 / (4π)
+                let heq_elem = 0;
+                if (d > 0 && K0_wall > 0) {
+                    let elasticDef = q_single / K0_wall; // 弾性変形
+                    heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
+                    if (heq_elem < 0) heq_elem = 0;
+                }
                 
                 totalQ += q_elem;
                 sumHeqQ += heq_elem * q_elem;
@@ -2539,23 +2550,16 @@ function calc(b, f1, f2) {
         let wa2 = (b.stories === 2) ? 0.5 * Q2 * d2 : 0;
         let WA = wa1 + wa2; // 全体のポテンシャルエネルギー
 
-        // --- 2. 各階の等価減衰定数 (heq) を指定計算式で算出 ---
-        // heq1 = (δz1 - Q1/K10) × Q1 / δz1 / Q1 × 2 / 4 / π
-        //      = (δz1 - Q1/K10) / δz1 × 2 / (4π)
-        let heq1 = 0;
-        if (d1 > 0 && K10 > 0) {
-            let elasticDef1 = Q1 / K10;  // 弾性変形 Q1/K10
-            heq1 = (d1 - elasticDef1) / d1 * 2 / (4 * Math.PI);
-            if (heq1 < 0) heq1 = 0;
-        }
-
-        // heq2 = ((δz2-δz1) - Q2/K20) × Q2 / (δz2-δz1) / Q2 × 2 / 4 / π
-        //      = (d2 - Q2/K20) / d2 × 2 / (4π)
+        // --- 2. 各階の等価減衰定数 (heq) を取得 ---
+        // getCompositeForce で計算された加重平均heqを使用
+        // - heqが入力された要素: 入力値を補間して使用
+        // - heqが入力されていない要素: heq = (d - Q/K0) / d * 2 / (4π) で算出
+        // これらを各要素のせん断力Qで加重平均したものが階のheqとなる
+        let heq1 = interpHeq(f1, d1);
+        
         let heq2 = 0;
-        if (b.stories === 2 && d2 > 0 && K20 > 0) {
-            let elasticDef2 = Q2 / K20;  // 弾性変形 Q2/K20
-            heq2 = (d2 - elasticDef2) / d2 * 2 / (4 * Math.PI);
-            if (heq2 < 0) heq2 = 0;
+        if (b.stories === 2 && d2 > 0) {
+            heq2 = interpHeq(f2, d2);
         }
 
         // --- 3. ΔW (履歴減衰エネルギー) の算出 ---
