@@ -114,7 +114,7 @@
             .report-page:last-child { page-break-after: auto; }
 
             .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
-            .report-header h1 { margin: 0; font-size: 14pt; color: #000; border: none; }
+            .report-header h1 { margin: 0; font-size: 14pt; color: #000; border: none; display: none; }
             .report-header .report-title-box { flex: 1; }
             .report-header .report-prop-name { font-size: 12pt; font-weight: bold; text-align: right; }
             
@@ -167,7 +167,7 @@
         <div class="input-grid">
             <div class="input-group">
                 <label>物件名</label>
-                <input type="text" id="inp_BuildingName" placeholder="例: 〇〇邸 新築工事">
+                <input type="text" id="inp_BuildingName" placeholder="例: 〇〇邸 新築工事" oninput="syncProjectName('main')">
             </div>
             <div class="input-group">
                 <label>階数 (Stories)</label>
@@ -515,20 +515,56 @@
 
             <div class="print-options-section" style="background:#f8f8f8; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
-                        <strong style="color:#333;">計算書出力項目:</strong>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-overview" checked> 建物概要</label>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-force" checked> 復元力特性</label>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-result" checked> 判定結果</label>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-logic" checked> 計算ロジック</label>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-log" checked> 詳細計算ログ</label>
-                        <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-detail" checked> 交点詳細計算</label>
-                        <span id="span-rep-shear" style="display:none;">
-                            <label style="cursor:pointer; margin-left:10px;">
-                                <input type="checkbox" id="chk-rep-shear" checked> 層せん断力比較
+                    <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+                        <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+                            <strong style="color:#333;">計算書出力項目:</strong>
+                            <label style="cursor:pointer; font-weight:bold; color:#005a9c;">
+                                <input type="checkbox" id="chk-rep-cover" onchange="toggleCoverInput()"> 表紙
                             </label>
-                        </span>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-overview" checked> 建物概要</label>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-force" checked> 復元力特性</label>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-result" checked> 判定結果</label>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-logic" checked> 計算ロジック</label>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-log" checked> 詳細計算ログ</label>
+                            <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-detail" checked> 交点詳細計算</label>
+                            <span id="span-rep-shear" style="display:none;">
+                                <label style="cursor:pointer; margin-left:10px;">
+                                    <input type="checkbox" id="chk-rep-shear" checked> 層せん断力比較
+                                </label>
+                            </span>
+                        </div>
+                        
+                        <div id="cover-input-area" style="display:none; background:#fff; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                            <div style="font-size:0.9em; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #eee;">表紙記載事項</div>
+                            <div class="input-grid">
+                                <div class="input-group">
+                                    <label>日付</label>
+                                    <input type="text" id="inp_cover_date">
+                                </div>
+                                <div class="input-group">
+                                    <label>物件名</label>
+                                    <input type="text" id="inp_cover_project_name" oninput="syncProjectName('cover')">
+                                </div>
+                                <div class="input-group">
+                                    <label>会社名</label>
+                                    <input type="text" id="inp_cover_company">
+                                </div>
+                                <div class="input-group">
+                                    <label>事務所登録番号</label>
+                                    <input type="text" id="inp_cover_office_reg">
+                                </div>
+                                <div class="input-group">
+                                    <label>建築士登録番号</label>
+                                    <input type="text" id="inp_cover_arch_reg">
+                                </div>
+                                <div class="input-group">
+                                    <label>管理建築士氏名</label>
+                                    <input type="text" id="inp_cover_manager_name">
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    
                     <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="printReport()">計算書印刷プレビュー</button>
                 </div>
             </div>
@@ -770,6 +806,42 @@
     </div>
 
     <div id="report-view">
+        <div class="report-page" id="rep-page-cover" style="display:none; height: 95vh; box-sizing: border-box; text-align:center;">
+            <div style="display: flex; flex-direction: column; height: 100%; align-items: center;">
+                
+                <div style="margin-top: 100px; width: 100%;">
+                    <h1 style="font-size:36pt; margin: 0 0 20px 0; border:none; padding:0; color:#000;">構造計算書</h1>
+                    <h2 style="font-size:20pt; font-weight:normal; border:none; background:none; margin:0; color:#000;">限界耐力計算による応答検討</h2>
+                </div>
+                
+                <div style="flex-grow: 1;"></div>
+                
+                <div style="width: 85%;">
+                    <div style="border-top:4px double #000; border-bottom:4px double #000; padding:40px 0;">
+                        <div id="rep-cover-project-name" style="font-size:32pt; font-weight:bold; line-height: 1.4;"></div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 50px; margin-bottom: 20px;">
+                    <div id="rep-cover-date" style="font-size:16pt;"></div>
+                </div>
+                
+                <div style="flex-grow: 2;"></div>
+
+                <div style="width: 70%; margin-bottom: 80px;">
+                    <div style="border-top:4px double #000; width: 100%; margin-bottom: 30px;"></div>
+                    
+                    <div id="rep-cover-company" style="font-size:24pt; font-weight:bold; margin-bottom: 30px;"></div>
+                    
+                    <div style="display: inline-block; text-align: left; min-width: 60%;">
+                        <div id="rep-cover-office-reg" style="font-size:14pt; margin-bottom:10px;"></div>
+                        <div id="rep-cover-arch-reg" style="font-size:14pt; margin-bottom:10px;"></div>
+                        <div id="rep-cover-manager-name" style="font-size:14pt;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Page 1: 建物概要 -->
         <div class="report-page" id="rep-page-overview">
             <div class="report-header">
@@ -1019,6 +1091,12 @@
 const G_ACC = 9.80665; 
 const DEF_GS = [ {t:0.1,g:2.5}, {t:0.6,g:2.5}, {t:0.7,g:2.14}, {t:1.0,g:1.5} ];
 
+// ▼▼▼ 追加: レポート用チャートのインスタンス保持用変数 ▼▼▼
+let repChartGs = null;
+let repChartSa0 = null;
+let repChartP = null;
+// ▲▲▲ 追加ここまで ▲▲▲
+
 // Gsスペクトルデータ
 let gsData = [];
 let hotGs = null;
@@ -1137,6 +1215,11 @@ window.onload = function() {
     document.getElementById('report-date').innerText = "計算日: " + new Date().toLocaleDateString();
     
     toggleShearInput();
+    
+    // 表紙用日付のデフォルト設定
+    const today = new Date();
+    const dateStr = today.getFullYear() + "年" + (today.getMonth() + 1) + "月" + today.getDate() + "日";
+    document.getElementById('inp_cover_date').value = dateStr;
 };
 
 function initWallSelectors() {
@@ -1147,8 +1230,22 @@ function initWallSelectors() {
     });
 }
 
+// 【新規追加】デフォルトデータ削除用のヘルパー関数
+function checkAndRemoveDefault(id) {
+    // 自由入力データが1つだけで、かつ名前が「デフォルト」の場合のみ削除
+    if (freeInputData[id] && freeInputData[id].length === 1 && freeInputData[id][0].name === 'デフォルト') {
+        freeInputData[id] = [];
+        renderFreeInputList(id); // リスト表示を更新してデフォルトを消す
+        updateInputGraph(id);    // グラフも更新
+    }
+}
+
 // --- Wall Management ---
 function addWall(id) {
+    // ▼▼▼ 追加部分: デフォルト値があれば削除 ▼▼▼
+    checkAndRemoveDefault(id);
+    // ▲▲▲ 追加部分ここまで ▲▲▲
+
     const sel = document.getElementById(`sel-wall-${id}`);
     const name = sel.value;
     const qtyInput = document.getElementById(`qty-wall-${id}`);
@@ -1191,6 +1288,10 @@ function renderWallList(id) {
 
 // --- Free Input Item Management (複数自由入力対応) ---
 function addFreeInputItem(id) {
+    // ▼▼▼ 追加部分: デフォルト値があれば削除 ▼▼▼
+    checkAndRemoveDefault(id);
+    // ▲▲▲ 追加部分ここまで ▲▲▲
+
     const nameInput = document.getElementById(`free-name-${id}`);
     const qtyInput = document.getElementById(`free-qty-${id}`);
     const name = nameInput.value.trim() || `自由入力${freeInputData[id].length + 1}`;
@@ -2030,6 +2131,10 @@ function showLog(d) {
 }
 
 function openSpreadsheet(id) {
+    // ▼▼▼ 追加部分: デフォルト値があれば削除 ▼▼▼
+    checkAndRemoveDefault(id);
+    // ▲▲▲ 追加部分ここまで ▲▲▲
+
     // 新規自由入力項目を作成してから編集モードに入る
     const nameInput = document.getElementById(`free-name-${id}`);
     const qtyInput = document.getElementById(`free-qty-${id}`);
@@ -3086,6 +3191,172 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
     return html;
 }
 
+// 変形モード（串団子）グラフ描画
+// 2. 変形モード図描画関数（重ね合わせ対応・ラベル位置調整）
+// 2. 変形モード図描画関数（高解像度対応・重ね合わせ版）
+// 2. 変形モード図描画関数（高解像度対応・凡例位置調整版）
+// 2. 変形モード図描画関数（数値切れ対策・幅一杯拡大版）
+function drawStickModel(canvasId, b, ptD, ptS) {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    
+    // 1. デバイスピクセル比を取得
+    const dpr = window.devicePixelRatio || 1;
+
+    // 2. 表示サイズ（CSSサイズ）の決定
+    let rect = canvas.parentElement.getBoundingClientRect();
+    let cssW = rect.width;
+    if (!cssW || cssW === 0) cssW = 400; 
+    const cssH = 350; // 固定高さ
+
+    // 3. Canvasの内部解像度を設定
+    canvas.width = cssW * dpr;
+    canvas.height = cssH * dpr;
+
+    // 4. スタイルサイズを設定
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+
+    const ctx = canvas.getContext('2d');
+    
+    // 5. 描画座標系のスケール
+    ctx.scale(dpr, dpr);
+
+    const W = cssW;
+    const H = cssH;
+    
+    ctx.clearRect(0, 0, W, H);
+    
+    if(!ptD && !ptS) {
+        ctx.fillStyle = "#999";
+        ctx.textAlign = "center";
+        ctx.fillText("計算結果なし", W/2, H/2);
+        return;
+    }
+
+    // 【修正1】左右マージンを広げて数値切れを防止（50 -> 80）
+    const margin = { top: 40, bottom: 60, left: 80, right: 80 };
+    const chartH = H - margin.top - margin.bottom;
+    const centerX = W / 2;
+    
+    const totalH = b.H1 + b.H2;
+    
+    // 最大変位を取得してスケール決定
+    let maxDisp = 0;
+    if (ptD) maxDisp = Math.max(maxDisp, Math.abs(ptD.dZ1 || 0), (b.stories === 2 ? Math.abs(ptD.dZ2 || 0) : 0));
+    if (ptS) maxDisp = Math.max(maxDisp, Math.abs(ptS.dZ1 || 0), (b.stories === 2 ? Math.abs(ptS.dZ2 || 0) : 0));
+    
+    // 変位が極端に小さい場合のゼロ除算防止（最小値を設定）
+    const dispLimit = Math.max(maxDisp, totalH * 1/1000); 
+    
+    // 【修正2】描画エリア一杯までグラフを拡大する計算式に変更
+    // (W/2 - margin.right) は中心から右端までの描画可能幅
+    const scaleX = (W / 2 - margin.right) / dispLimit;
+    const scaleY = chartH / totalH;
+    
+    const toY = (h) => H - margin.bottom - (h * scaleY);
+    const toX = (d) => centerX + (d * scaleX);
+
+    // --- 基準線の描画 ---
+    
+    // 中心軸
+    ctx.strokeStyle = "#e0e0e0";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(centerX, margin.top); 
+    ctx.lineTo(centerX, H - margin.bottom);
+    ctx.stroke();
+    
+    // フロアライン
+    ctx.setLineDash([]);
+    const drawFloorLine = (h, name) => {
+        const y = toY(h);
+        ctx.beginPath();
+        // マージン領域も含めて線を引き、端までしっかり見せる
+        ctx.moveTo(10, y); ctx.lineTo(W-10, y);
+        ctx.stroke();
+        ctx.fillStyle = "#999";
+        ctx.textAlign = "left";
+        ctx.font = "11px sans-serif";
+        ctx.fillText(name, 5, y - 4);
+    };
+    
+    drawFloorLine(0, "GL");
+    drawFloorLine(b.H1, (b.stories===2 ? "2F" : "R"));
+    if(b.stories === 2) drawFloorLine(b.H1 + b.H2, "R");
+
+    // 固定端
+    ctx.fillStyle = "#333";
+    ctx.fillRect(centerX - 15, toY(0), 30, 4);
+
+    // --- モデル描画処理 ---
+    const drawModel = (pt, color, labelAlign) => {
+        if(!pt) return;
+        
+        const dZ1 = pt.dZ1 || 0;
+        const dZ2 = pt.dZ2 || 0;
+        
+        const n0 = { x: centerX, y: toY(0) };
+        const n1 = { x: toX(dZ1), y: toY(b.H1) };
+        const n2 = (b.stories === 2) ? { x: toX(dZ2), y: toY(b.H1 + b.H2) } : null;
+
+        // 串
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(n0.x, n0.y);
+        ctx.lineTo(n1.x, n1.y);
+        if(n2) ctx.lineTo(n2.x, n2.y);
+        ctx.stroke();
+
+        // 団子
+        const drawNode = (n, disp, drift) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // ラベル
+            ctx.fillStyle = color;
+            ctx.font = "bold 11px sans-serif";
+            
+            const isLeft = (labelAlign === 'left');
+            ctx.textAlign = isLeft ? "right" : "left";
+            const xOffset = isLeft ? -12 : 12;
+            
+            ctx.fillText((disp*1000).toFixed(1) + "mm", n.x + xOffset, n.y + 4);
+            
+            if(drift > 0) {
+                 ctx.font = "10px sans-serif";
+                 const invN = Math.round(1/drift);
+                 ctx.fillText(`1/${invN}`, n.x + xOffset, n.y + 16);
+            }
+        };
+
+        drawNode(n1, dZ1, pt.R1);
+        if(n2) drawNode(n2, dZ2, pt.R2);
+    };
+
+    // 重ね合わせ描画
+    drawModel(ptD, '#28a745', 'left');
+    drawModel(ptS, '#dc3545', 'right');
+    
+    // --- 凡例の描画 ---
+    ctx.textAlign = "center";
+    ctx.font = "bold 12px sans-serif";
+    const legendY = H - 20; 
+    
+    ctx.fillStyle = "#28a745"; 
+    ctx.fillText("● 損傷限界", centerX - 60, legendY);
+    
+    ctx.fillStyle = "#dc3545"; 
+    ctx.fillText("● 安全限界", centerX + 60, legendY);
+}// 1. 表示更新用関数（テーブル削除・キャンバス統合）
 function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     let ratingHtml = "";
     let maxQaStep = resObj.steps.reduce((prev, current) => (prev.QA > current.QA) ? prev : current, resObj.steps[0]);
@@ -3096,11 +3367,11 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     ratingHtml = `<div class="rating-box">評点: ${ratio.toFixed(2)} <span class="badge ${rate.cls}">${rate.text}</span></div>`;
 
     const is1F = (calcRes.b.stories === 1);
-    
-    let sumW1 = calcRes.b.W1 + calcRes.b.W2;
-    let sumW2 = calcRes.b.W2;
+    const sumW1 = calcRes.b.W1 + calcRes.b.W2;
+    const sumW2 = calcRes.b.W2;
 
-    let head = is1F 
+    // --- 判定結果サマリーテーブル ---
+    const head = is1F 
         ? `<tr><th>検討ケース</th><th>1F変形</th><th>1F耐力(kN)</th><th>1F係数</th><th>判定</th></tr>` 
         : `<tr><th>検討ケース</th><th>1F変形</th><th>1F耐力(kN)</th><th>1F係数</th><th>判定</th><th>2F変形</th><th>2F耐力(kN)</th><th>2F係数</th><th>判定</th></tr>`;
 
@@ -3111,7 +3382,6 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         let j1 = (r1 <= 1/limInv) ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-ng">NG</span>';
         if(r1 > 1/15) j1='<span class="badge badge-ng">倒壊</span>';
         
-        // 変形角が最大耐力時の変形角を超えている場合は最大耐力を表示
         let dispQ1 = (r1 > resObj.R1_atQ1max) ? resObj.Q1max : p.Q1;
         let c1 = (dispQ1 / sumW1).toFixed(2);
         let cell1 = `<td>1/${inv1}<br>(${Math.round(p.dZ1*1000)}mm)</td><td>${dispQ1.toFixed(1)}</td><td>${c1}</td><td>${j1}</td>`;
@@ -3122,16 +3392,53 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         let j2 = (r2 <= 1/limInv) ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-ng">NG</span>';
         if(r2 > 1/15) j2='<span class="badge badge-ng">倒壊</span>';
         
-        // 変形角が最大耐力時の変形角を超えている場合は最大耐力を表示
         let dispQ2 = (r2 > resObj.R2_atQ2max) ? resObj.Q2max : p.Q2;
         let c2 = (sumW2 > 0) ? (dispQ2 / sumW2).toFixed(2) : '-';
         return `<tr><td>${label}</td>${cell1}<td>1/${inv2}<br>(${Math.round(p.sub*1000)}mm)</td><td>${dispQ2.toFixed(1)}</td><td>${c2}</td><td>${j2}</td></tr>`;
     };
     
-    let html = `<table class="data-table"><thead>${head}</thead><tbody>${fmt(ptD, `損傷限界(1/${limitD}相当)`, limitD)}${fmt(ptS, `安全限界(1/${limitS}相当)`, limitS)}</tbody></table>${ratingHtml}`;
-    document.getElementById(`summary-${dir}-table`).innerHTML = html;
-    document.getElementById(`rep-res-${dir}-table`).innerHTML = html;
+    const summaryTableHtml = `<table class="data-table"><thead>${head}</thead><tbody>${fmt(ptD, `損傷限界(1/${limitD})`, limitD)}${fmt(ptS, `安全限界(1/${limitS})`, limitS)}</tbody></table>`;
+    
+    // --- 変形モード詳細（グラフのみ・重ね合わせ） ---
+    
+    // キャンバス枠のみを生成するヘルパー（テーブル生成処理を削除）
+    const createCanvasOnlyBlock = (title, canvasId) => {
+        // 高さ指定：テーブルがなくなった分、グラフが見やすいように少し高さを確保
+        let cvs = `<div style="width:100%; height:350px; border:1px solid #eee; background:#fff;"><canvas id="${canvasId}" style="width:100%; height:100%;"></canvas></div>`;
+        
+        return `<div style="flex:1; min-width:280px; border:1px solid #ddd; padding:10px; border-radius:5px; background:#fafafa;">
+            <div style="font-weight:bold; color:#005a9c; margin-bottom:10px; border-bottom:1px solid #ccc;">${title}</div>
+            ${cvs}
+        </div>`;
+    };
+
+    const idScreen = `canvas-mode-${dir}-screen`;
+    const idPrint = `canvas-mode-${dir}-print`;
+    
+    // 画面用HTML
+    const modeHtmlScreen = `<div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:15px;">
+        ${createCanvasOnlyBlock("変形モード図（損傷・安全 重ね合わせ）", idScreen)}
+    </div>`;
+
+    // 印刷用HTML
+    const modeHtmlPrint = `<div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:15px;">
+        ${createCanvasOnlyBlock("変形モード図（損傷・安全 重ね合わせ）", idPrint)}
+    </div>`;
+    
+    // HTML反映
+    document.getElementById(`summary-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml + modeHtmlScreen;
+    document.getElementById(`rep-res-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml + modeHtmlPrint;
+    
+    // グラフ描画
     drawChart(`chart-${dir}`, resObj.steps, ptD, ptS);
+    
+    // ▼▼▼ 修正: DOM生成直後は親要素のサイズ取得が正しく行えない場合があるため、描画を少し遅延させる ▼▼▼
+    setTimeout(() => {
+        // 重ね合わせ描画を実行
+        drawStickModel(idScreen, calcRes.b, ptD, ptS);
+        drawStickModel(idPrint, calcRes.b, ptD, ptS);
+    }, 100); 
+    // ▲▲▲ 修正ここまで ▲▲▲
 }
 
 function renderLog(dir, steps) {
@@ -3178,55 +3485,31 @@ function renderLog(dir, steps) {
     // 計算書用のログは printReport 時に renderLogSplit で出力するため、ここでは出力しない
 }
 
+// 保有耐力 vs 必要耐力 グラフ描画関数（太線化・全範囲描画版）
 function drawChart(id, steps, ptD, ptS) {
     const ctx = document.getElementById(id);
     if(!ctx) return; 
     const ctx2d = ctx.getContext('2d');
     if(chartObjs[id]) chartObjs[id].destroy();
 
-    const getClosestIndex = (key) => {
-        let minDiff = Infinity;
-        let cIdx = 0;
-        steps.forEach((s, i) => {
-            let diff = Math.abs(s.QA - s[key]); 
-            if(diff < minDiff) { minDiff = diff; cIdx = i; }
-        });
-        return cIdx;
-    };
-    const findStepIndex = (targetD) => {
-        let idx = steps.findIndex(s => s.D >= targetD);
-        if(idx === -1) return steps.length - 1;
-        return idx;
-    };
-
-    let idxD = ptD ? findStepIndex(ptD.D) : getClosestIndex('Qnd');
-    let idxS = ptS ? findStepIndex(ptS.D) : getClosestIndex('Qns');
-
-    const findEndIndex = (startIndex, key) => {
-        if(startIndex >= steps.length - 1) return steps.length;
-        let startQ = steps[startIndex][key];
-        let targetQ = startQ * 0.5;
-        for(let i = startIndex; i < steps.length; i++) {
-            if(steps[i][key] < targetQ) return i;
-        }
-        return steps.length;
-    };
-
-    let endD = findEndIndex(idxD, 'Qnd');
-    let endS = findEndIndex(idxS, 'Qns');
-
-    const plotStepsD = steps.slice(0, endD); 
-    const plotStepsS = steps.slice(0, endS); 
+    // --- 修正: 描画データの作成 ---
+    // 以前は交点付近でデータを切り取っていましたが(slice)、
+    // ラインが途切れる原因となるため、全ステップを描画データとして使用します。
     
+    // 保有耐力（Capacity）
     const cap = steps.filter(s => s.QA >= 0).map(s => ({ x: (s.H > 0 ? s.D / s.H : 0), y: s.QA }));
+    
+    // 必要耐力（Demand） - 全範囲を使用
+    const demD = steps.map(s => ({ x: (s.H > 0 ? s.SDd / s.H : 0), y: s.Qnd }));
+    const demS = steps.map(s => ({ x: (s.H > 0 ? s.SDs / s.H : 0), y: s.Qns }));
+
+    // 軸の最大値を決定（保有耐力曲線を基準にする）
     let maxX = 0, maxY = 0;
     cap.forEach(p => { if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; });
     const xMax = maxX * 1.1; 
     const yMax = maxY * 1.1;
 
-    const demD = plotStepsD.map(s => ({ x: (s.H > 0 ? s.SDd / s.H : 0), y: s.Qnd }));
-    const demS = plotStepsS.map(s => ({ x: (s.H > 0 ? s.SDs / s.H : 0), y: s.Qns }));
-    
+    // 交点ポイントの作成
     const points = [];
     if(ptD) points.push({ x: (ptD.H > 0 ? ptD.D / ptD.H : 0), y: ptD.QA, label: '損傷限界', bg: '#28a745', style: 'rectRot' });
     if(ptS) points.push({ x: (ptS.H > 0 ? ptS.D / ptS.H : 0), y: ptS.QA, label: '安全限界', bg: '#dc3545', style: 'circle' });
@@ -3234,19 +3517,63 @@ function drawChart(id, steps, ptD, ptS) {
     chartObjs[id] = new Chart(ctx2d, {
         type: 'scatter',
         data: { datasets: [
-            { label: '保有耐力(QA)', data: cap, borderColor: '#005a9c', borderWidth: 2, showLine: true, pointRadius: 0 },
-            { label: '必要耐力(損傷)', data: demD, borderColor: '#28a745', borderWidth: 1.5, borderDash: [5,5], showLine: true, pointRadius: 0 },
-            { label: '必要耐力(安全)', data: demS, borderColor: '#dc3545', borderWidth: 1.5, borderDash: [2,2], showLine: true, pointRadius: 0 },
-            ...points.map(p => ({ label: p.label, data: [{x: p.x, y: p.y}], backgroundColor: p.bg, pointRadius: 6, pointStyle: p.style }))
+            { 
+                label: '保有耐力(QA)', 
+                data: cap, 
+                borderColor: '#005a9c', 
+                borderWidth: 2, // 実線は標準の太さ
+                showLine: true, 
+                pointRadius: 0 
+            },
+            { 
+                label: '必要耐力(損傷)', 
+                data: demD, 
+                borderColor: '#28a745', 
+                borderWidth: 3, // 【修正】太さを 1.5 -> 3 に変更
+                borderDash: [5,5], 
+                showLine: true, 
+                pointRadius: 0 
+            },
+            { 
+                label: '必要耐力(安全)', 
+                data: demS, 
+                borderColor: '#dc3545', 
+                borderWidth: 3, // 【修正】太さを 1.5 -> 3 に変更
+                borderDash: [2,2], 
+                showLine: true, 
+                pointRadius: 0 
+            },
+            ...points.map(p => ({ 
+                label: p.label, 
+                data: [{x: p.x, y: p.y}], 
+                backgroundColor: p.bg, 
+                pointRadius: 6, 
+                pointStyle: p.style 
+            }))
         ]},
         options: { 
             animation: false,
-            responsive: true, maintainAspectRatio: false, 
+            responsive: true, 
+            maintainAspectRatio: false, 
             scales: { 
-                x: { type: 'linear', position: 'bottom', title: { display: true, text: '変形角 Δ/He (rad)' }, max: xMax }, 
-                y: { title: { display: true, text: 'せん断力 Q (kN)' }, max: yMax } 
+                x: { 
+                    type: 'linear', 
+                    position: 'bottom', 
+                    title: { display: true, text: '変形角 Δ/He (rad)' }, 
+                    max: xMax // 保有耐力の範囲で表示をクリップ
+                }, 
+                y: { 
+                    title: { display: true, text: 'せん断力 Q (kN)' }, 
+                    max: yMax // 保有耐力の範囲で表示をクリップ
+                } 
             }, 
-            plugins: { tooltip: { callbacks: { label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } } } 
+            plugins: { 
+                tooltip: { 
+                    callbacks: { 
+                        label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` 
+                    } 
+                } 
+            } 
         }
     });
 }
@@ -3255,6 +3582,7 @@ function printReport() {
     if(!calcRes.b) { alert('計算を実行してください'); return; }
     
     // チェックボックスの状態を取得
+    const showCover = document.getElementById('chk-rep-cover').checked; // 追加
     const showOverview = document.getElementById('chk-rep-overview').checked;
     const showForce = document.getElementById('chk-rep-force').checked;
     const showResult = document.getElementById('chk-rep-result').checked;
@@ -3270,6 +3598,30 @@ function printReport() {
     reportView.style.position = 'absolute';
     reportView.style.left = '-9999px';
     
+    // --- 表紙の処理 (追加部分) ---
+    const coverPage = document.getElementById('rep-page-cover');
+    if (showCover) {
+        coverPage.style.display = 'block';
+        // 入力値を反映
+        document.getElementById('rep-cover-project-name').innerText = document.getElementById('inp_cover_project_name').value;
+        document.getElementById('rep-cover-date').innerText = document.getElementById('inp_cover_date').value;
+        document.getElementById('rep-cover-company').innerText = document.getElementById('inp_cover_company').value;
+        
+        // 空欄でなければラベル付きで表示
+        const offReg = document.getElementById('inp_cover_office_reg').value;
+        document.getElementById('rep-cover-office-reg').innerText = offReg ? "事務所登録: " + offReg : "";
+        
+        const archReg = document.getElementById('inp_cover_arch_reg').value;
+        document.getElementById('rep-cover-arch-reg').innerText = archReg ? "建築士登録: " + archReg : "";
+        
+        const mgrName = document.getElementById('inp_cover_manager_name').value;
+        document.getElementById('rep-cover-manager-name').innerText = mgrName ? "管理建築士: " + mgrName : "";
+        
+    } else {
+        coverPage.style.display = 'none';
+    }
+    // ---------------------------
+
     // ページの表示/非表示を設定
     document.getElementById('rep-page-overview').style.display = showOverview ? 'block' : 'none';
     document.getElementById('rep-page-force-x').style.display = showForce ? 'block' : 'none';
@@ -3283,6 +3635,7 @@ function printReport() {
     document.getElementById('rep-page-log-y2').style.display = (showLog && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-detail-x').style.display = showDetail ? 'block' : 'none';
     document.getElementById('rep-page-detail-y').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    // 層せん断力比較ページ
     document.getElementById('rep-page-shear').style.display = (showShear && document.getElementById('chk_calc_shear_force').checked) ? 'block' : 'none';
     
     const charts = skipY ? ['chart-x'] : ['chart-x', 'chart-y']; 
@@ -3295,22 +3648,14 @@ function printReport() {
         }
     });
     
-    // 復元力特性の詳細を出力
+    // 各種レポート要素のレンダリング
     if(showForce) renderForceDetails();
-    
-    // Gsスペクトル情報を出力
-    if(showOverview) renderGsSpectrumReport();
-    
-    // 応答スペクトルSa0情報を出力
-    if(showOverview) renderSa0Report();
-    
-    // p,q調整係数情報を出力
-    if(showOverview) renderPqReport();
-    
-    // 計算ロジックの解説を出力
+    if(showOverview) {
+        renderGsSpectrumReport();
+        renderSa0Report();
+        renderPqReport();
+    }
     if(showLogic) renderLogicSection();
-    
-    // 詳細計算ログを2分割出力
     if(showLog) {
         renderLogSplit('x', calcRes.resX.steps);
         if(!skipY) renderLogSplit('y', calcRes.resY.steps);
@@ -3326,8 +3671,29 @@ function printReport() {
         // report-viewの位置をリセット
         reportView.style.position = '';
         reportView.style.left = '';
-        reportView.style.display = 'none';
+        reportView.style.display = 'none'; // CSSの @media print で display:block !important されるため画面上だけ消える
         
+        // ▼▼▼ 【修正部分】空白ページ対策 ▼▼▼
+        // CSSの :last-child はDOM構造に依存するため、display:noneの要素があると
+        // 意図せず page-break-after: always が効いてしまう。
+        // JSで「表示されている最後のページ」を特定し、改ページ設定を解除する。
+        const pages = document.querySelectorAll('.report-page');
+        let lastVisiblePage = null;
+
+        pages.forEach(p => {
+            // JSで display: none がセットされていないページを対象にする
+            if (p.style.display !== 'none') {
+                p.style.pageBreakAfter = 'always'; // 基本は改ページあり
+                lastVisiblePage = p;
+            }
+        });
+
+        // 実際に表示される最後のページのみ改ページを解除
+        if (lastVisiblePage) {
+            lastVisiblePage.style.pageBreakAfter = 'auto';
+        }
+        // ▲▲▲ 【修正部分ここまで】 ▲▲▲
+
         setTimeout(() => {
             if(typeof MathJax !== 'undefined' && MathJax.Hub) {
                 // MathJax 2.x 用
@@ -3381,6 +3747,13 @@ function renderGsSpectrumReport() {
     const canvas = document.getElementById('rep-chart-gs');
     if(!canvas) return;
     
+    // ▼▼▼ 修正: 既存チャートの破棄処理を追加 ▼▼▼
+    if(repChartGs) {
+        repChartGs.destroy();
+        repChartGs = null;
+    }
+    // ▲▲▲ 修正ここまで ▲▲▲
+    
     let data = [];
     let label = 'Gs';
     
@@ -3397,7 +3770,8 @@ function renderGsSpectrumReport() {
         data.sort((a, b) => a.x - b.x);
     }
     
-    new Chart(canvas.getContext('2d'), {
+    // ▼▼▼ 修正: 変数名を repChartGs に変更 ▼▼▼
+    repChartGs = new Chart(canvas.getContext('2d'), {
         type: 'scatter',
         data: {
             datasets: [{
@@ -3481,6 +3855,13 @@ function renderSa0Report() {
         }
         
         if(canvas) {
+            // ▼▼▼ 修正: 既存チャートの破棄処理を追加 ▼▼▼
+            if(repChartSa0) {
+                repChartSa0.destroy();
+                repChartSa0 = null;
+            }
+            // ▲▲▲ 修正ここまで ▲▲▲
+
             let datasets = [];
             
             // 安全限界
@@ -3545,7 +3926,8 @@ function renderSa0Report() {
                 });
             }
             
-            new Chart(canvas.getContext('2d'), {
+            // ▼▼▼ 修正: 変数名を repChartSa0 に変更 ▼▼▼
+            repChartSa0 = new Chart(canvas.getContext('2d'), {
                 type: 'scatter',
                 data: { datasets: datasets },
                 options: {
@@ -3593,6 +3975,13 @@ function renderSa0Report() {
         }
         
         if(canvas) {
+            // ▼▼▼ 修正1: 既存チャートの破棄処理を追加 ▼▼▼
+            if(repChartSa0) {
+                repChartSa0.destroy();
+                repChartSa0 = null;
+            }
+            // ▲▲▲ 修正1 ここまで ▲▲▲
+
             let dataDamage = [];
             let dataSafety = [];
             
@@ -3603,7 +3992,8 @@ function renderSa0Report() {
                 dataSafety.push({ x: T, y: sa0s });
             }
             
-            new Chart(canvas.getContext('2d'), {
+            // ▼▼▼ 修正2: 作成したインスタンスを変数 repChartSa0 に代入するよう変更 ▼▼▼
+            repChartSa0 = new Chart(canvas.getContext('2d'), {
                 type: 'scatter',
                 data: {
                     datasets: [
@@ -3642,6 +4032,7 @@ function renderSa0Report() {
                     }
                 }
             });
+            // ▲▲▲ 修正2 ここまで ▲▲▲
         }
     }
 }
@@ -3699,6 +4090,13 @@ function renderPqReport() {
     const canvas = document.getElementById('rep-chart-p');
     if(!canvas) return;
     
+    // ▼▼▼ 修正: 既存チャートの破棄処理を追加 ▼▼▼
+    if(repChartP) {
+        repChartP.destroy();
+        repChartP = null;
+    }
+    // ▲▲▲ 修正ここまで ▲▲▲
+    
     // p係数のデータ生成
     let data = [];
     for(let Te = 0; Te <= 0.5; Te += 0.01) {
@@ -3714,7 +4112,8 @@ function renderPqReport() {
         data.push({ x: Te, y: p });
     }
     
-    new Chart(canvas.getContext('2d'), {
+    // ▼▼▼ 修正: 変数名を repChartP に変更 ▼▼▼
+    repChartP = new Chart(canvas.getContext('2d'), {
         type: 'scatter',
         data: {
             datasets: [{
@@ -4580,6 +4979,15 @@ function collectAllInputData() {
     return {
         version: "1.0",
         timestamp: new Date().toISOString(),
+        
+        // 表紙データ (追加)
+        cover_checked: document.getElementById('chk-rep-cover').checked,
+        cover_date: document.getElementById('inp_cover_date').value,
+        cover_company: document.getElementById('inp_cover_company').value,
+        cover_office_reg: document.getElementById('inp_cover_office_reg').value,
+        cover_arch_reg: document.getElementById('inp_cover_arch_reg').value,
+        cover_manager_name: document.getElementById('inp_cover_manager_name').value,
+        
         // 基本設定
         buildingName: document.getElementById('inp_BuildingName').value,
         stories: document.getElementById('inp_Stories').value,
@@ -4698,6 +5106,20 @@ function restoreAllInputData(data) {
             });
         }
         
+        // 表紙データの復元
+        if(data.cover_checked !== undefined) {
+            document.getElementById('chk-rep-cover').checked = data.cover_checked;
+            toggleCoverInput();
+        }
+        if(data.cover_date !== undefined) document.getElementById('inp_cover_date').value = data.cover_date;
+        if(data.cover_company !== undefined) document.getElementById('inp_cover_company').value = data.cover_company;
+        if(data.cover_office_reg !== undefined) document.getElementById('inp_cover_office_reg').value = data.cover_office_reg;
+        if(data.cover_arch_reg !== undefined) document.getElementById('inp_cover_arch_reg').value = data.cover_arch_reg;
+        if(data.cover_manager_name !== undefined) document.getElementById('inp_cover_manager_name').value = data.cover_manager_name;
+        
+        // 物件名は既存のrestore処理で復元されるため、syncを呼び出して表紙側に反映
+        syncProjectName('main');
+        
         return true;
     } catch(e) {
         console.error('データ復元エラー:', e);
@@ -4729,6 +5151,15 @@ function saveToCSV() {
     csvContent += "Ds," + data.Ds + "\n";
     csvContent += "Fes," + data.Fes + "\n";
     csvContent += "T_factor," + data.T_factor + "\n";
+    
+    // 表紙データ (追加)
+    csvContent += "#表紙データ\n";
+    csvContent += "cover_checked," + data.cover_checked + "\n";
+    csvContent += "cover_date," + escapeCSV(data.cover_date) + "\n";
+    csvContent += "cover_company," + escapeCSV(data.cover_company) + "\n";
+    csvContent += "cover_office_reg," + escapeCSV(data.cover_office_reg) + "\n";
+    csvContent += "cover_arch_reg," + escapeCSV(data.cover_arch_reg) + "\n";
+    csvContent += "cover_manager_name," + escapeCSV(data.cover_manager_name) + "\n";
     
     // 階データ
     csvContent += "#階データ\n";
@@ -4890,6 +5321,15 @@ function parseCSVToData(content) {
         else if(key === 'Ds') data.Ds = value;
         else if(key === 'Fes') data.Fes = value;
         else if(key === 'T_factor') data.T_factor = value;
+        
+        // 表紙データ (追加)
+        else if(key === 'cover_checked') data.cover_checked = (value === 'true');
+        else if(key === 'cover_date') data.cover_date = value;
+        else if(key === 'cover_company') data.cover_company = value;
+        else if(key === 'cover_office_reg') data.cover_office_reg = value;
+        else if(key === 'cover_arch_reg') data.cover_arch_reg = value;
+        else if(key === 'cover_manager_name') data.cover_manager_name = value;
+        
         else if(key === 'W1') data.W1 = value;
         else if(key === 'W2') data.W2 = value;
         else if(key === 'H1') data.H1 = value;
@@ -5004,6 +5444,24 @@ function parseCSVLine(line) {
     result.push(current);
     
     return result;
+}
+
+// 表紙入力エリアの表示切替
+function toggleCoverInput() {
+    const isChecked = document.getElementById('chk-rep-cover').checked;
+    document.getElementById('cover-input-area').style.display = isChecked ? 'block' : 'none';
+}
+
+// 物件名の同期
+function syncProjectName(source) {
+    const mainInput = document.getElementById('inp_BuildingName');
+    const coverInput = document.getElementById('inp_cover_project_name');
+    
+    if (source === 'main') {
+        coverInput.value = mainInput.value;
+    } else {
+        mainInput.value = coverInput.value;
+    }
 }
 </script>
 
