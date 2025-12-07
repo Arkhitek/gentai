@@ -152,10 +152,17 @@
             <div class="tab-link" onclick="switchTab('force-y')">3. 復元力Y方向</div>
             <div class="tab-link" onclick="switchTab('result')">4. 計算結果・ログ</div>
             <div class="tab-link" onclick="switchTab('detail')">5. 交点詳細</div>
+            <div class="tab-link" id="tab-link-shear" onclick="switchTab('shear')" style="display:none;">6. 層せん断力の比較</div>
         </div>
     </div>
 
     <div id="tab-input" class="tab-content active no-print">
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:15px; padding:10px; background:#f0f4f8; border-radius:5px; border:1px solid #cce;">
+            <span style="flex:1; font-weight:bold; color:#005a9c; align-self:center;">📁 データ入出力</span>
+            <button onclick="saveToCSV()" style="padding:8px 20px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">📥 CSV保存</button>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="loadFromCSV(event)">
+            <button onclick="document.getElementById('csvFileInput').click()" style="padding:8px 20px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">📤 CSV読込</button>
+        </div>
         <h2>1. 建物・地盤諸元</h2>
         <div class="input-grid">
             <div class="input-group">
@@ -280,6 +287,41 @@
                 <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">p係数グラフ (Te-p)</div>
                 <div style="height:180px; border:1px solid #ccc; background:#fff; padding:5px;">
                     <canvas id="chart-p"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <h3>1-5. 地震層せん断力との比較設定</h3>
+        <div style="background:#f0f8ff; border:1px solid #b0c4de; padding:15px; border-radius:5px;">
+            <div class="input-group" style="margin-bottom:10px; text-align: left; border:none; background:transparent; padding:0;">
+                <label style="cursor:pointer; font-weight:bold; color:#005a9c; font-size:1.1em; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
+                    <input type="checkbox" id="chk_calc_shear_force" onchange="toggleShearInput()" style="width:auto; transform:scale(1.2); margin:0;"> 
+                    地震層せん断力(1次設計・2次設計)と比較を行う
+                </label>
+            </div>
+            
+            <div id="shear-input-area" style="display:none; margin-top:10px;">
+                <p style="font-size:0.9em; color:#666; margin-bottom:10px; line-height:1.5;">
+                    ※建築基準法に基づく地震層せん断力係数 
+                    <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
+                        C<sub>i</sub> = Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
+                    </span>
+                    を計算し、限界耐力と比較します。
+                </p>
+                
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(1次設計相当・損傷限界比較用)</span></label>
+                        <input type="number" id="inp_C0_D" value="0.2" step="0.05">
+                    </div>
+                    <div class="input-group">
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界比較用)</span></label>
+                        <input type="number" id="inp_C0_S" value="1.0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label>木造固有周期係数 (T=kH)</label>
+                        <input type="number" id="inp_T_factor" value="0.03" step="0.01">
+                    </div>
                 </div>
             </div>
         </div>
@@ -470,6 +512,11 @@
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-logic" checked> 計算ロジック</label>
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-log" checked> 詳細計算ログ</label>
                         <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-detail" checked> 交点詳細計算</label>
+                        <span id="span-rep-shear" style="display:none;">
+                            <label style="cursor:pointer; margin-left:10px;">
+                                <input type="checkbox" id="chk-rep-shear" checked> 層せん断力比較
+                            </label>
+                        </span>
                     </div>
                     <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="printReport()">計算書印刷プレビュー</button>
                 </div>
@@ -702,6 +749,15 @@
         </div>
     </div>
 
+    <div id="tab-shear" class="tab-content no-print">
+        <h2>6. 層せん断力の比較</h2>
+        <div id="shear-result-container">
+            <div style="padding:40px; text-align:center; color:#999; border:2px dashed #ddd; border-radius:8px;">
+                <p style="font-size:1.2em;">計算を実行すると、ここに比較結果が表示されます。</p>
+            </div>
+        </div>
+    </div>
+
     <div id="report-view">
         <!-- Page 1: 建物概要 -->
         <div class="report-page" id="rep-page-overview">
@@ -892,6 +948,12 @@
             </div>
             <div id="rep-detail-y" class="logic-print" style="font-size:8pt;"></div>
         </div>
+        <div class="report-page" id="rep-page-shear">
+            <div class="report-header">
+                <h1>8. 層せん断力の比較・検証</h1>
+            </div>
+            <div id="rep-shear-content" class="logic-print"></div>
+        </div>
     </div>
 </div>
 
@@ -1062,6 +1124,8 @@ window.onload = function() {
     updatePChart();
     
     document.getElementById('report-date').innerText = "計算日: " + new Date().toLocaleDateString();
+    
+    toggleShearInput();
 };
 
 function initWallSelectors() {
@@ -2634,6 +2698,12 @@ function executeCalculation() {
     document.getElementById('detail-content').style.display = 'block';
     document.getElementById('detail-placeholder').style.display = 'none';
     document.getElementById('btn-detail-y').style.display = skipY ? 'none' : 'inline-block';
+    
+    // --- 追加: 層せん断力比較の更新 ---
+    if(document.getElementById('chk_calc_shear_force').checked) {
+        updateShearTab(b, resX, resY, ptXd, ptXs, ptYd, ptYs);
+    }
+    // --------------------------------
 }
 
 // 交点詳細の方向切り替え
@@ -2999,23 +3069,6 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
             </table>
         </div>
         
-        <!-- 6. 判定 -->
-        <div style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">6. 判定結果</h5>
-            <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
-                <tr style="background:#f0f0f0;">
-                    <th style="border:1px solid #ccc; padding:5px;">項目</th>
-                    <th style="border:1px solid #ccc; padding:5px;">保有値</th>
-                    <th style="border:1px solid #ccc; padding:5px;">必要値</th>
-                    <th style="border:1px solid #ccc; padding:5px;">判定</th>
-                </tr>
-                <tr>
-                    <td style="border:1px solid #ccc; padding:5px;">等価せん断力 Qₐ vs 必要耐力 Qn</td>
-                    <td style="border:1px solid #ccc; padding:5px; text-align:right;">${f2(QA)} kN</td>
-                    <td style="border:1px solid #ccc; padding:5px; text-align:right;">${f2(Qn)} kN</td>
-                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><strong style="color:${QA >= Qn ? '#28a745' : '#dc3545'};">${QA >= Qn ? 'OK (交点)' : 'NG'}</strong></td>
-                </tr>
-            </table>
         </div>
     </div>`;
     
@@ -3197,6 +3250,7 @@ function printReport() {
     const showLogic = document.getElementById('chk-rep-logic').checked;
     const showLog = document.getElementById('chk-rep-log').checked;
     const showDetail = document.getElementById('chk-rep-detail').checked;
+    const showShear = document.getElementById('chk-rep-shear').checked;
     const skipY = calcRes.skipY || false;
     
     // report-viewを一時的に表示（Chart.jsがcanvasサイズを取得するため）
@@ -3218,6 +3272,7 @@ function printReport() {
     document.getElementById('rep-page-log-y2').style.display = (showLog && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-detail-x').style.display = showDetail ? 'block' : 'none';
     document.getElementById('rep-page-detail-y').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-shear').style.display = (showShear && document.getElementById('chk_calc_shear_force').checked) ? 'block' : 'none';
     
     const charts = skipY ? ['chart-x'] : ['chart-x', 'chart-y']; 
     charts.forEach(id => {
@@ -4209,6 +4264,724 @@ function calcResponseSpectrum(wave) {
     }
     
     return spectra;
+}
+
+// --- 追加機能: 地震層せん断力比較ロジック ---
+
+// 入力エリアの表示切替
+// 入力エリアの表示切替と計算書オプションの連動
+function toggleShearInput() {
+    const chk = document.getElementById('chk_calc_shear_force').checked;
+    
+    // 入力エリアの制御
+    document.getElementById('shear-input-area').style.display = chk ? 'block' : 'none';
+    document.getElementById('tab-link-shear').style.display = chk ? 'block' : 'none';
+    
+    // 計算書出力オプションの制御
+    const optSpan = document.getElementById('span-rep-shear');
+    const optChk = document.getElementById('chk-rep-shear');
+    
+    if (chk) {
+        optSpan.style.display = 'inline-block';
+        optChk.checked = true; // 表示されたらデフォルトでチェック
+    } else {
+        optSpan.style.display = 'none';
+        optChk.checked = false; // 非表示ならチェックを外す
+    }
+
+    // 計算実行済みならタブを戻す等のUX
+    if(!chk) {
+        // もし現在「層せん断力の比較」タブを開いていたら入力タブに戻す
+        if(document.getElementById('tab-shear').classList.contains('active')) {
+            switchTab('input');
+        }
+    }
+}
+
+// 標準層せん断力の計算
+function calcStandardShear(b) {
+    const H_total = b.H1 + b.H2; // 建物全高 (m)
+    const k = parseFloat(document.getElementById('inp_T_factor').value) || 0.03;
+    const T = k * H_total; // 固有周期 T = 0.03 * H
+    
+    // Rt (振動特性係数) の計算
+    let Tc = 0.6; // デフォルト第2種
+    if(b.tcMode === '1') Tc = 0.4;
+    else if(b.tcMode === '3') Tc = 0.8;
+    // 自由入力の場合は第2種(0.6)と仮定するか、gsPtsから推定するが、ここでは安全側に第2種とする
+    
+    let Rt = 1.0;
+    if(T < Tc) {
+        Rt = 1.0;
+    } else if(T < 2*Tc) {
+        Rt = 1.0 - 0.2 * Math.pow((T/Tc - 1), 2);
+    } else {
+        Rt = 1.6 * Tc / T;
+    }
+    
+    // Ai (地震層せん断力分布係数) の計算
+    // αi = (自分より上の重量) / (全重量)
+    const W_total = b.W1 + b.W2;
+    const alpha2 = (b.stories === 2) ? b.W2 / W_total : 0;
+    const alpha1 = 1.0; // 1階は常に全重量支える
+    
+    // Ai = 1 + (1/sqrt(αi) - αi) * 2T/(1+3T)
+    const calcAi = (alpha) => {
+        if(alpha <= 0) return 0; // 最上階の上など
+        return 1 + (1/Math.sqrt(alpha) - alpha) * (2*T) / (1 + 3*T);
+    };
+    
+    const Ai1 = 1.0; // α=1なのでAi=1
+    const Ai2 = (b.stories === 2) ? calcAi(alpha2) : 0;
+    
+    // Ci (層せん断力係数) = Z * Rt * Ai * C0
+    const C0_D = parseFloat(document.getElementById('inp_C0_D').value);
+    const C0_S = parseFloat(document.getElementById('inp_C0_S').value);
+    
+    // 必要せん断力 Q = Ci * Wi (Wiは支えている重量)
+    // 1階支える重量: W1+W2, 2階支える重量: W2
+    const W_sum1 = b.W1 + b.W2;
+    const W_sum2 = b.W2;
+    
+    // 損傷限界 (Damage)
+    const Qi_D_1 = b.Z * Rt * Ai1 * C0_D * W_sum1;
+    const Qi_D_2 = (b.stories === 2) ? b.Z * Rt * Ai2 * C0_D * W_sum2 : 0;
+    
+    // 安全限界 (Safety)
+    const Qi_S_1 = b.Z * Rt * Ai1 * C0_S * W_sum1;
+    const Qi_S_2 = (b.stories === 2) ? b.Z * Rt * Ai2 * C0_S * W_sum2 : 0;
+    
+    return {
+        T, Tc, Rt, Ai1, Ai2, alpha2,
+        C0_D, C0_S,
+        Qd1: Qi_D_1, Qd2: Qi_D_2,
+        Qs1: Qi_S_1, Qs2: Qi_S_2,
+        W_total
+    };
+}
+
+// 結果表示用HTML生成
+// 結果表示用HTML生成
+function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) {
+    const f2 = (v) => v.toFixed(2);
+    const f3 = (v) => v.toFixed(3);
+    const skipY = document.getElementById('chk-skip-y').checked;
+    
+    // 判定関数
+    const judge = (limit, req) => {
+        if(!limit) return '<span class="badge badge-ng">NG(交点なし)</span>';
+        const ratio = limit / req;
+        const cls = ratio >= 1.0 ? 'badge-ok' : 'badge-ng';
+        return `<span class="badge ${cls}">${ratio.toFixed(2)}</span>`;
+    };
+
+    let html = '';
+    
+    // 1. 比較結果サマリーテーブル
+    html += `<h3>1. 層せん断力 比較判定結果</h3>`;
+    
+    // 罫線付きで見やすいスタイルを適用
+    const tableStyle = "width:100%; border-collapse:collapse; font-size:0.9em; border:1px solid #999;";
+    const thStyle = "background:#e0e0e0; border:1px solid #666; padding:6px; text-align:center; font-weight:bold;";
+    const tdStyle = "border:1px solid #666; padding:5px; text-align:center;";
+    const tdLabelStyle = "border:1px solid #666; padding:5px; text-align:center; background:#f9f9f9; font-weight:bold;";
+
+    html += `<table style="${tableStyle}">
+        <thead>
+            <tr>
+                <th rowspan="2" style="${thStyle}">方向</th>
+                <th rowspan="2" style="${thStyle}">階</th>
+                <th colspan="3" style="${thStyle} border-bottom:2px solid #666;">損傷限界 (C0=${stdShear.C0_D})</th>
+                <th colspan="3" style="${thStyle} border-bottom:2px solid #666;">安全限界 (C0=${stdShear.C0_S})</th>
+            </tr>
+            <tr>
+                <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
+                <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
+                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
+                <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
+                <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
+                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
+            </tr>
+        </thead>
+        <tbody>`;
+        
+    // X方向
+    const QlimXd1 = ptXd ? ptXd.QA : 0;
+    const QlimXs1 = ptXs ? ptXs.QA : 0;
+    const QlimXd2 = (b.stories===2 && ptXd) ? ptXd.Q2 : 0;
+    const QlimXs2 = (b.stories===2 && ptXs) ? ptXs.Q2 : 0;
+    
+    if(b.stories === 2) {
+        // 2F
+        html += `<tr>
+            <td rowspan="2" style="${tdLabelStyle}">X方向</td>
+            <td style="${tdLabelStyle}">2F</td>
+            <td style="${tdStyle}">${f2(QlimXd2)}</td><td style="${tdStyle}">${f2(stdShear.Qd2)}</td><td style="${tdStyle}">${judge(QlimXd2, stdShear.Qd2)}</td>
+            <td style="${tdStyle}">${f2(QlimXs2)}</td><td style="${tdStyle}">${f2(stdShear.Qs2)}</td><td style="${tdStyle}">${judge(QlimXs2, stdShear.Qs2)}</td>
+        </tr>`;
+        // 1F
+        html += `<tr>
+            <td style="${tdLabelStyle}">1F</td>
+            <td style="${tdStyle}">${f2(QlimXd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimXd1, stdShear.Qd1)}</td>
+            <td style="${tdStyle}">${f2(QlimXs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimXs1, stdShear.Qs1)}</td>
+        </tr>`;
+    } else {
+        html += `<tr>
+            <td style="${tdLabelStyle}">X方向</td>
+            <td style="${tdLabelStyle}">1F</td>
+            <td style="${tdStyle}">${f2(QlimXd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimXd1, stdShear.Qd1)}</td>
+            <td style="${tdStyle}">${f2(QlimXs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimXs1, stdShear.Qs1)}</td>
+        </tr>`;
+    }
+    
+    // Y方向
+    if(!skipY) {
+        const QlimYd1 = ptYd ? ptYd.QA : 0;
+        const QlimYs1 = ptYs ? ptYs.QA : 0;
+        const QlimYd2 = (b.stories===2 && ptYd) ? ptYd.Q2 : 0;
+        const QlimYs2 = (b.stories===2 && ptYs) ? ptYs.Q2 : 0;
+        
+        if(b.stories === 2) {
+            html += `<tr>
+                <td rowspan="2" style="${tdLabelStyle}">Y方向</td>
+                <td style="${tdLabelStyle}">2F</td>
+                <td style="${tdStyle}">${f2(QlimYd2)}</td><td style="${tdStyle}">${f2(stdShear.Qd2)}</td><td style="${tdStyle}">${judge(QlimYd2, stdShear.Qd2)}</td>
+                <td style="${tdStyle}">${f2(QlimYs2)}</td><td style="${tdStyle}">${f2(stdShear.Qs2)}</td><td style="${tdStyle}">${judge(QlimYs2, stdShear.Qs2)}</td>
+            </tr>`;
+            html += `<tr>
+                <td style="${tdLabelStyle}">1F</td>
+                <td style="${tdStyle}">${f2(QlimYd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimYd1, stdShear.Qd1)}</td>
+                <td style="${tdStyle}">${f2(QlimYs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimYs1, stdShear.Qs1)}</td>
+            </tr>`;
+        } else {
+            html += `<tr>
+                <td style="${tdLabelStyle}">Y方向</td>
+                <td style="${tdLabelStyle}">1F</td>
+                <td style="${tdStyle}">${f2(QlimYd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimYd1, stdShear.Qd1)}</td>
+                <td style="${tdStyle}">${f2(QlimYs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimYs1, stdShear.Qs1)}</td>
+            </tr>`;
+        }
+    }
+    
+    html += `</tbody></table>`;
+    html += `<p style="font-size:0.8em; color:#666; margin-top:5px;">※限界時耐力(Qlim)は、限界耐力計算における交点時の各階せん断力を示します。<br>※必要せん断力(Qreq)は、建築基準法施工令第88条に基づく地震層せん断力 \\( Q_i = C_i W_i \\) です。</p>`;
+    
+    // 2. 計算ロジックと詳細
+    html += `<h3>2. 層せん断力の計算過程詳細</h3>`;
+    html += `<div style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:5px;">`;
+    
+    // 諸元
+    html += `<h4>2-1. 振動特性係数 \\( R_t \\) の算定</h4>`;
+    html += `<p>建物全高 \\( H = ${f2(b.H1+b.H2)} \\, \\text{m} \\)</p>`;
+    html += `<p>設計用一次固有周期 \\( T = 0.03 H = 0.03 \\times ${f2(b.H1+b.H2)} = ${f3(stdShear.T)} \\, \\text{s} \\)</p>`;
+    html += `<p>地盤種別による \\( T_c = ${stdShear.Tc} \\, \\text{s} \\)</p>`;
+    html += `<p>振動特性係数 \\( R_t \\)：`;
+    if(stdShear.T < stdShear.Tc) {
+        html += `\\( T < T_c \\) のため \\( R_t = 1.0 \\)`;
+    } else if(stdShear.T < 2*stdShear.Tc) {
+        html += `\\( T_c \\le T < 2T_c \\) のため \\( R_t = 1 - 0.2(T/T_c - 1)^2 = ${f3(stdShear.Rt)} \\)`;
+    } else {
+        html += `\\( 2T_c \\le T \\) のため \\( R_t = 1.6 T_c / T = ${f3(stdShear.Rt)} \\)`;
+    }
+    html += `</p>`;
+    
+    // Ai
+    html += `<h4>2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
+    if(b.stories === 2) {
+        html += `<p><strong>2階：</strong><br>`;
+        html += `支える重量 \\( W_2 = ${f2(b.W2)} \\, \\text{kN} \\)、全重量 \\( \\Sigma W = ${f2(stdShear.W_total)} \\, \\text{kN} \\)<br>`;
+        html += `\\( \\alpha_2 = W_2 / \\Sigma W = ${f3(stdShear.alpha2)} \\)<br>`;
+        html += `\\( A_2 = 1 + (\\frac{1}{\\sqrt{\\alpha_2}} - \\alpha_2)\\frac{2T}{1+3T} = ${f3(stdShear.Ai2)} \\)</p>`;
+        
+        html += `<p><strong>1階：</strong><br>`;
+        html += `\\( \\alpha_1 = 1.0 \\) より \\( A_1 = 1.0 \\)</p>`;
+    } else {
+        html += `<p>平屋のため \\( A_1 = 1.0 \\)</p>`;
+    }
+    
+    // Q計算
+    html += `<h4>2-3. 各階の必要地震層せん断力 \\( Q_i \\)</h4>`;
+    html += `<p>計算式：\\( Q_i = C_i \\cdot W_i = (Z \\cdot R_t \\cdot A_i \\cdot C_0) \\cdot W_i \\)</p>`;
+    html += `<p>共通係数：\\( Z = ${b.Z}, \\quad R_t = ${f3(stdShear.Rt)} \\)</p>`;
+    
+    const renderQCalc = (floor, label, C0, Ai, W, resQ) => {
+        return `<p><strong>${floor} (${label}, C0=${C0})：</strong><br>
+        \\( C_i = ${b.Z} \\times ${f3(stdShear.Rt)} \\times ${f3(Ai)} \\times ${C0} = ${f3(b.Z * stdShear.Rt * Ai * C0)} \\)<br>
+        \\( Q_i = ${f3(b.Z * stdShear.Rt * Ai * C0)} \\times ${f2(W)} = \\mathbf{${f2(resQ)} \\, \\text{kN}} \\)</p>`;
+    };
+    
+    const W_sum1 = b.W1 + b.W2;
+    const W_sum2 = b.W2;
+    
+    html += `<div style="display:flex; gap:20px; flex-wrap:wrap;">`;
+    html += `<div style="flex:1; min-width:300px; background:#f9f9f9; padding:10px; border-radius:4px;"><h5>損傷限界 (C0=${stdShear.C0_D})</h5>`;
+    if(b.stories === 2) html += renderQCalc('2階', '損傷', stdShear.C0_D, stdShear.Ai2, W_sum2, stdShear.Qd2);
+    html += renderQCalc('1階', '損傷', stdShear.C0_D, stdShear.Ai1, W_sum1, stdShear.Qd1);
+    html += `</div>`;
+    
+    html += `<div style="flex:1; min-width:300px; background:#fff5f5; padding:10px; border-radius:4px;"><h5>安全限界 (C0=${stdShear.C0_S})</h5>`;
+    if(b.stories === 2) html += renderQCalc('2階', '安全', stdShear.C0_S, stdShear.Ai2, W_sum2, stdShear.Qs2);
+    html += renderQCalc('1階', '安全', stdShear.C0_S, stdShear.Ai1, W_sum1, stdShear.Qs1);
+    html += `</div>`;
+    html += `</div>`;
+    
+    html += `</div>`; // End logic
+    
+    return html;
+}
+
+// executeCalculation の末尾に追加するためのフック処理
+// 既存のexecuteCalculation関数内の末尾（HTML更新後）に以下のような処理を追加する必要があります。
+// しかし、既存コードを直接書き換える形になるため、
+// 既存のexecuteCalculationをオーバーライドするか、
+// ユーザーが手動でマージする形になります。
+// ここでは、新しい関数 `updateShearTab` を作成し、
+// これを `executeCalculation` の最後に呼び出すように指示します。
+
+function updateShearTab(b, resX, resY, ptXd, ptXs, ptYd, ptYs) {
+    if(!document.getElementById('chk_calc_shear_force').checked) return;
+    
+    const stdShear = calcStandardShear(b);
+    const html = renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs);
+    
+    // 画面表示用
+    const container = document.getElementById('shear-result-container');
+    container.innerHTML = html;
+    if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, container]);
+    
+    // レポート用
+    const repContainer = document.getElementById('rep-shear-content');
+    if(repContainer) {
+        repContainer.innerHTML = html;
+        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer]);
+    }
+}
+
+// ========================================
+// CSV保存・読込機能
+// ========================================
+
+// 全入力データを収集
+function collectAllInputData() {
+    return {
+        version: "1.0",
+        timestamp: new Date().toISOString(),
+        // 基本設定
+        buildingName: document.getElementById('inp_BuildingName').value,
+        stories: document.getElementById('inp_Stories').value,
+        Z: document.getElementById('inp_Z').value,
+        // 応答スペクトル
+        saMode: document.getElementById('inp_Sa_mode').value,
+        saDataD: saDataD,
+        saDataS: saDataS,
+        // 地盤種別
+        tcMode: document.getElementById('inp_Tc_mode').value,
+        gsData: gsData,
+        // p,q係数
+        pqMode: document.getElementById('inp_pq').value,
+        // 地震層せん断力比較
+        calcShearForce: document.getElementById('chk_calc_shear_force').checked,
+        C0_D: document.getElementById('inp_C0_D').value,
+        C0_S: document.getElementById('inp_C0_S').value,
+        T_factor: document.getElementById('inp_T_factor').value,
+        // 階データ
+        W1: document.getElementById('inp_W1').value,
+        W2: document.getElementById('inp_W2').value,
+        H1: document.getElementById('inp_H1').value,
+        H2: document.getElementById('inp_H2').value,
+        // 判定基準
+        limit_d: document.getElementById('inp_limit_d').value,
+        limit_s: document.getElementById('inp_limit_s').value,
+        // Y方向スキップ
+        skipY: document.getElementById('chk-skip-y').checked,
+        // 耐力壁データ
+        addedWalls: addedWalls,
+        // 自由入力データ
+        freeInputData: freeInputData
+    };
+}
+
+// 全入力データを復元
+function restoreAllInputData(data) {
+    try {
+        // 基本設定
+        if(data.buildingName !== undefined) document.getElementById('inp_BuildingName').value = data.buildingName;
+        if(data.stories !== undefined) {
+            document.getElementById('inp_Stories').value = data.stories;
+            toggleStories();
+        }
+        if(data.Z !== undefined) document.getElementById('inp_Z').value = data.Z;
+        
+        // 応答スペクトル
+        if(data.saMode !== undefined) {
+            document.getElementById('inp_Sa_mode').value = data.saMode;
+            toggleSaInput();
+        }
+        if(data.saDataD !== undefined) saDataD = data.saDataD;
+        if(data.saDataS !== undefined) saDataS = data.saDataS;
+        renderSaDataList('d');
+        renderSaDataList('s');
+        updateSa0Chart();
+        
+        // 地盤種別
+        if(data.tcMode !== undefined) {
+            document.getElementById('inp_Tc_mode').value = data.tcMode;
+            toggleTcInput();
+        }
+        if(data.gsData !== undefined) gsData = data.gsData;
+        renderGsDataList();
+        updateGsChart();
+        
+        // p,q係数
+        if(data.pqMode !== undefined) {
+            document.getElementById('inp_pq').value = data.pqMode;
+            togglePqInput();
+        }
+        
+        // 地震層せん断力比較
+        if(data.calcShearForce !== undefined) {
+            document.getElementById('chk_calc_shear_force').checked = data.calcShearForce;
+            toggleShearInput();
+        }
+        if(data.C0_D !== undefined) document.getElementById('inp_C0_D').value = data.C0_D;
+        if(data.C0_S !== undefined) document.getElementById('inp_C0_S').value = data.C0_S;
+        if(data.T_factor !== undefined) document.getElementById('inp_T_factor').value = data.T_factor;
+        
+        // 階データ
+        if(data.W1 !== undefined) document.getElementById('inp_W1').value = data.W1;
+        if(data.W2 !== undefined) document.getElementById('inp_W2').value = data.W2;
+        if(data.H1 !== undefined) document.getElementById('inp_H1').value = data.H1;
+        if(data.H2 !== undefined) document.getElementById('inp_H2').value = data.H2;
+        
+        // 判定基準
+        if(data.limit_d !== undefined) document.getElementById('inp_limit_d').value = data.limit_d;
+        if(data.limit_s !== undefined) document.getElementById('inp_limit_s').value = data.limit_s;
+        
+        // Y方向スキップ
+        if(data.skipY !== undefined) {
+            document.getElementById('chk-skip-y').checked = data.skipY;
+            toggleSkipY();
+        }
+        
+        // 耐力壁データ
+        if(data.addedWalls !== undefined) {
+            addedWalls = data.addedWalls;
+            ['x1', 'x2', 'y1', 'y2'].forEach(id => {
+                renderWallList(id);
+            });
+        }
+        
+        // 自由入力データ
+        if(data.freeInputData !== undefined) {
+            freeInputData = data.freeInputData;
+            ['x1', 'x2', 'y1', 'y2'].forEach(id => {
+                renderFreeInputList(id);
+                updateInputGraph(id);
+            });
+        }
+        
+        return true;
+    } catch(e) {
+        console.error('データ復元エラー:', e);
+        return false;
+    }
+}
+
+// CSV保存
+function saveToCSV() {
+    const data = collectAllInputData();
+    
+    // CSVヘッダーとデータ行を構築
+    let csvContent = "";
+    
+    // メタ情報行
+    csvContent += "#限界耐力計算データ,version," + data.version + ",timestamp," + data.timestamp + "\n";
+    
+    // 基本設定
+    csvContent += "#基本設定\n";
+    csvContent += "buildingName," + escapeCSV(data.buildingName) + "\n";
+    csvContent += "stories," + data.stories + "\n";
+    csvContent += "Z," + data.Z + "\n";
+    csvContent += "saMode," + data.saMode + "\n";
+    csvContent += "tcMode," + data.tcMode + "\n";
+    csvContent += "pqMode," + data.pqMode + "\n";
+    csvContent += "calcShearForce," + data.calcShearForce + "\n";
+    csvContent += "C0_D," + data.C0_D + "\n";
+    csvContent += "C0_S," + data.C0_S + "\n";
+    csvContent += "T_factor," + data.T_factor + "\n";
+    
+    // 階データ
+    csvContent += "#階データ\n";
+    csvContent += "W1," + data.W1 + "\n";
+    csvContent += "W2," + data.W2 + "\n";
+    csvContent += "H1," + data.H1 + "\n";
+    csvContent += "H2," + data.H2 + "\n";
+    
+    // 判定基準
+    csvContent += "#判定基準\n";
+    csvContent += "limit_d," + data.limit_d + "\n";
+    csvContent += "limit_s," + data.limit_s + "\n";
+    csvContent += "skipY," + data.skipY + "\n";
+    
+    // Saデータ（損傷限界）
+    csvContent += "#SaDataD,count," + data.saDataD.length + "\n";
+    if(data.saDataD.length > 0) {
+        csvContent += "SaDataD_T," + data.saDataD.map(d => d.t).join(",") + "\n";
+        csvContent += "SaDataD_Sa," + data.saDataD.map(d => d.sa).join(",") + "\n";
+    }
+    
+    // Saデータ（安全限界）
+    csvContent += "#SaDataS,count," + data.saDataS.length + "\n";
+    if(data.saDataS.length > 0) {
+        csvContent += "SaDataS_T," + data.saDataS.map(d => d.t).join(",") + "\n";
+        csvContent += "SaDataS_Sa," + data.saDataS.map(d => d.sa).join(",") + "\n";
+    }
+    
+    // Gsデータ
+    csvContent += "#GsData,count," + data.gsData.length + "\n";
+    if(data.gsData.length > 0) {
+        csvContent += "GsData_T," + data.gsData.map(d => d.t).join(",") + "\n";
+        csvContent += "GsData_Gs," + data.gsData.map(d => d.g).join(",") + "\n";
+    }
+    
+    // 耐力壁データ
+    ['x1', 'x2', 'y1', 'y2'].forEach(id => {
+        csvContent += "#Walls_" + id + ",count," + data.addedWalls[id].length + "\n";
+        data.addedWalls[id].forEach((w, i) => {
+            csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "\n";
+        });
+    });
+    
+    // 自由入力データ
+    ['x1', 'x2', 'y1', 'y2'].forEach(id => {
+        csvContent += "#FreeInput_" + id + ",count," + data.freeInputData[id].length + "\n";
+        data.freeInputData[id].forEach((item, i) => {
+            csvContent += "FreeItem_" + id + "_" + i + "_name," + escapeCSV(item.name) + "\n";
+            csvContent += "FreeItem_" + id + "_" + i + "_qty," + item.qty + "\n";
+            csvContent += "FreeItem_" + id + "_" + i + "_count," + item.data.length + "\n";
+            if(item.data.length > 0) {
+                csvContent += "FreeItem_" + id + "_" + i + "_r," + item.data.map(d => d.r).join(",") + "\n";
+                csvContent += "FreeItem_" + id + "_" + i + "_q," + item.data.map(d => d.q).join(",") + "\n";
+                // heqがある場合
+                const hasHeq = item.data.some(d => d.heq !== undefined && d.heq !== null);
+                if(hasHeq) {
+                    csvContent += "FreeItem_" + id + "_" + i + "_heq," + item.data.map(d => d.heq !== undefined ? d.heq : "").join(",") + "\n";
+                }
+            }
+        });
+    });
+    
+    // BOM付きUTF-8でダウンロード
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // ファイル名に物件名と日付を含める
+    const buildingName = data.buildingName || '限界耐力計算';
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    link.download = buildingName.replace(/[\\/:*?"<>|]/g, '_') + '_' + dateStr + '.csv';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    alert('CSVファイルを保存しました。');
+}
+
+// CSV文字列エスケープ
+function escapeCSV(str) {
+    if(str === null || str === undefined) return '';
+    str = String(str);
+    if(str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
+// CSVファイル読込
+function loadFromCSV(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const content = e.target.result;
+            const data = parseCSVToData(content);
+            
+            if(data) {
+                if(restoreAllInputData(data)) {
+                    alert('CSVファイルを読み込みました。');
+                } else {
+                    alert('データの復元中にエラーが発生しました。');
+                }
+            } else {
+                alert('CSVファイルの形式が正しくありません。');
+            }
+        } catch(err) {
+            console.error('CSV読込エラー:', err);
+            alert('CSVファイルの読み込みに失敗しました。\n' + err.message);
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+    
+    // ファイル入力をリセット（同じファイルを再度選択可能にする）
+    event.target.value = '';
+}
+
+// CSVをパースしてデータオブジェクトに変換
+function parseCSVToData(content) {
+    const lines = content.split(/\r?\n/);
+    const data = {
+        saDataD: [],
+        saDataS: [],
+        gsData: [],
+        addedWalls: { x1: [], x2: [], y1: [], y2: [] },
+        freeInputData: { x1: [], x2: [], y1: [], y2: [] }
+    };
+    
+    let tempSaD_T = [], tempSaD_Sa = [];
+    let tempSaS_T = [], tempSaS_Sa = [];
+    let tempGs_T = [], tempGs_Gs = [];
+    let freeItemTemp = {};
+    
+    for(let line of lines) {
+        if(!line.trim() || line.startsWith('#')) continue;
+        
+        const parts = parseCSVLine(line);
+        if(parts.length < 2) continue;
+        
+        const key = parts[0];
+        const value = parts[1];
+        
+        // 基本設定
+        if(key === 'buildingName') data.buildingName = value;
+        else if(key === 'stories') data.stories = value;
+        else if(key === 'Z') data.Z = value;
+        else if(key === 'saMode') data.saMode = value;
+        else if(key === 'tcMode') data.tcMode = value;
+        else if(key === 'pqMode') data.pqMode = value;
+        else if(key === 'calcShearForce') data.calcShearForce = (value === 'true');
+        else if(key === 'C0_D') data.C0_D = value;
+        else if(key === 'C0_S') data.C0_S = value;
+        else if(key === 'T_factor') data.T_factor = value;
+        else if(key === 'W1') data.W1 = value;
+        else if(key === 'W2') data.W2 = value;
+        else if(key === 'H1') data.H1 = value;
+        else if(key === 'H2') data.H2 = value;
+        else if(key === 'limit_d') data.limit_d = value;
+        else if(key === 'limit_s') data.limit_s = value;
+        else if(key === 'skipY') data.skipY = (value === 'true');
+        
+        // Saデータ
+        else if(key === 'SaDataD_T') tempSaD_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'SaDataD_Sa') tempSaD_Sa = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'SaDataS_T') tempSaS_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'SaDataS_Sa') tempSaS_Sa = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        
+        // Gsデータ
+        else if(key === 'GsData_T') tempGs_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'GsData_Gs') tempGs_Gs = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        
+        // 耐力壁
+        else if(key.startsWith('Wall_')) {
+            const match = key.match(/^Wall_(x1|x2|y1|y2)_(\d+)$/);
+            if(match) {
+                const id = match[1];
+                const name = value;
+                const qty = parseFloat(parts[2]) || 1;
+                data.addedWalls[id].push({ name: name, qty: qty });
+            }
+        }
+        
+        // 自由入力
+        else if(key.startsWith('FreeItem_')) {
+            const match = key.match(/^FreeItem_(x1|x2|y1|y2)_(\d+)_(.+)$/);
+            if(match) {
+                const id = match[1];
+                const idx = match[2];
+                const prop = match[3];
+                const itemKey = id + '_' + idx;
+                
+                if(!freeItemTemp[itemKey]) {
+                    freeItemTemp[itemKey] = { id: id, idx: parseInt(idx), name: '', qty: 1, data: [], r: [], q: [], heq: [] };
+                }
+                
+                if(prop === 'name') freeItemTemp[itemKey].name = value;
+                else if(prop === 'qty') freeItemTemp[itemKey].qty = parseFloat(value) || 1;
+                else if(prop === 'r') freeItemTemp[itemKey].r = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                else if(prop === 'q') freeItemTemp[itemKey].q = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+                else if(prop === 'heq') freeItemTemp[itemKey].heq = parts.slice(1).map(v => v === '' ? null : parseFloat(v));
+            }
+        }
+    }
+    
+    // Saデータを組み立て
+    for(let i = 0; i < tempSaD_T.length && i < tempSaD_Sa.length; i++) {
+        data.saDataD.push({ t: tempSaD_T[i], sa: tempSaD_Sa[i] });
+    }
+    for(let i = 0; i < tempSaS_T.length && i < tempSaS_Sa.length; i++) {
+        data.saDataS.push({ t: tempSaS_T[i], sa: tempSaS_Sa[i] });
+    }
+    
+    // Gsデータを組み立て
+    for(let i = 0; i < tempGs_T.length && i < tempGs_Gs.length; i++) {
+        data.gsData.push({ t: tempGs_T[i], g: tempGs_Gs[i] });
+    }
+    
+    // 自由入力データを組み立て
+    for(let itemKey in freeItemTemp) {
+        const item = freeItemTemp[itemKey];
+        const itemData = [];
+        for(let i = 0; i < item.r.length && i < item.q.length; i++) {
+            const point = { r: item.r[i], q: item.q[i] };
+            if(item.heq && item.heq[i] !== null && !isNaN(item.heq[i])) {
+                point.heq = item.heq[i];
+            }
+            itemData.push(point);
+        }
+        data.freeInputData[item.id].push({ name: item.name, qty: item.qty, data: itemData });
+    }
+    
+    return data;
+}
+
+// CSV行をパース（ダブルクォートを考慮）
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for(let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if(inQuotes) {
+            if(char === '"' && nextChar === '"') {
+                current += '"';
+                i++;
+            } else if(char === '"') {
+                inQuotes = false;
+            } else {
+                current += char;
+            }
+        } else {
+            if(char === '"') {
+                inQuotes = true;
+            } else if(char === ',') {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+    }
+    result.push(current);
+    
+    return result;
 }
 </script>
 
