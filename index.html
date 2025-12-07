@@ -302,21 +302,32 @@
             
             <div id="shear-input-area" style="display:none; margin-top:10px;">
                 <p style="font-size:0.9em; color:#666; margin-bottom:10px; line-height:1.5;">
-                    ※建築基準法に基づく地震層せん断力係数 
-                    <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
+                    ※建築基準法に基づく地震層せん断力係数<br>
+                    損傷限界(1次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
                         C<sub>i</sub> = Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
-                    </span>
+                    </span><br>
+                    安全限界(2次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
+                        C<sub>i</sub> = D<sub>s</sub> · F<sub>es</sub> · Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
+                    </span><br>
                     を計算し、限界耐力と比較します。
                 </p>
                 
                 <div class="input-grid">
                     <div class="input-group">
-                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(1次設計相当・損傷限界比較用)</span></label>
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(1次設計相当・損傷限界)</span></label>
                         <input type="number" id="inp_C0_D" value="0.2" step="0.05">
                     </div>
                     <div class="input-group">
-                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界比較用)</span></label>
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
                         <input type="number" id="inp_C0_S" value="1.0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label>構造特性係数 Ds<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
+                        <input type="number" id="inp_Ds" value="0.4" step="0.05">
+                    </div>
+                    <div class="input-group">
+                        <label>形状係数 Fes<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
+                        <input type="number" id="inp_Fes" value="1.0" step="0.1">
                     </div>
                     <div class="input-group">
                         <label>木造固有周期係数 (T=kH)</label>
@@ -4299,6 +4310,7 @@ function toggleShearInput() {
 }
 
 // 標準層せん断力の計算
+// 標準層せん断力の計算 (修正版: Ds, Fes対応)
 function calcStandardShear(b) {
     const H_total = b.H1 + b.H2; // 建物全高 (m)
     const k = parseFloat(document.getElementById('inp_T_factor').value) || 0.03;
@@ -4308,7 +4320,6 @@ function calcStandardShear(b) {
     let Tc = 0.6; // デフォルト第2種
     if(b.tcMode === '1') Tc = 0.4;
     else if(b.tcMode === '3') Tc = 0.8;
-    // 自由入力の場合は第2種(0.6)と仮定するか、gsPtsから推定するが、ここでは安全側に第2種とする
     
     let Rt = 1.0;
     if(T < Tc) {
@@ -4320,59 +4331,65 @@ function calcStandardShear(b) {
     }
     
     // Ai (地震層せん断力分布係数) の計算
-    // αi = (自分より上の重量) / (全重量)
     const W_total = b.W1 + b.W2;
     const alpha2 = (b.stories === 2) ? b.W2 / W_total : 0;
-    const alpha1 = 1.0; // 1階は常に全重量支える
     
-    // Ai = 1 + (1/sqrt(αi) - αi) * 2T/(1+3T)
     const calcAi = (alpha) => {
-        if(alpha <= 0) return 0; // 最上階の上など
+        if(alpha <= 0) return 0;
         return 1 + (1/Math.sqrt(alpha) - alpha) * (2*T) / (1 + 3*T);
     };
     
-    const Ai1 = 1.0; // α=1なのでAi=1
+    const Ai1 = 1.0; 
     const Ai2 = (b.stories === 2) ? calcAi(alpha2) : 0;
     
-    // Ci (層せん断力係数) = Z * Rt * Ai * C0
-    const C0_D = parseFloat(document.getElementById('inp_C0_D').value);
-    const C0_S = parseFloat(document.getElementById('inp_C0_S').value);
+    // 係数の取得
+    const C0_D = parseFloat(document.getElementById('inp_C0_D').value) || 0.2;
+    const C0_S = parseFloat(document.getElementById('inp_C0_S').value) || 1.0;
+    const Ds = parseFloat(document.getElementById('inp_Ds').value) || 0.4;
+    const Fes = parseFloat(document.getElementById('inp_Fes').value) || 1.0;
     
-    // 必要せん断力 Q = Ci * Wi (Wiは支えている重量)
-    // 1階支える重量: W1+W2, 2階支える重量: W2
     const W_sum1 = b.W1 + b.W2;
     const W_sum2 = b.W2;
     
-    // 損傷限界 (Damage)
+    // 損傷限界 (Damage) - 従来通り
+    // Ci = Z * Rt * Ai * C0
     const Qi_D_1 = b.Z * Rt * Ai1 * C0_D * W_sum1;
     const Qi_D_2 = (b.stories === 2) ? b.Z * Rt * Ai2 * C0_D * W_sum2 : 0;
     
-    // 安全限界 (Safety)
-    const Qi_S_1 = b.Z * Rt * Ai1 * C0_S * W_sum1;
-    const Qi_S_2 = (b.stories === 2) ? b.Z * Rt * Ai2 * C0_S * W_sum2 : 0;
+    // 安全限界 (Safety) - Ds, Fesを追加
+    // Ci = Ds * Fes * Z * Rt * Ai * C0
+    const Qi_S_1 = Ds * Fes * b.Z * Rt * Ai1 * C0_S * W_sum1;
+    const Qi_S_2 = (b.stories === 2) ? Ds * Fes * b.Z * Rt * Ai2 * C0_S * W_sum2 : 0;
     
     return {
         T, Tc, Rt, Ai1, Ai2, alpha2,
-        C0_D, C0_S,
+        C0_D, C0_S, Ds, Fes,
         Qd1: Qi_D_1, Qd2: Qi_D_2,
         Qs1: Qi_S_1, Qs2: Qi_S_2,
         W_total
     };
 }
 
-// 結果表示用HTML生成
-// 結果表示用HTML生成
+// 結果表示用HTML生成 (修正版: 大小関係記号列の追加)
 function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) {
     const f2 = (v) => v.toFixed(2);
     const f3 = (v) => v.toFixed(3);
     const skipY = document.getElementById('chk-skip-y').checked;
     
-    // 判定関数
-    const judge = (limit, req) => {
-        if(!limit) return '<span class="badge badge-ng">NG(交点なし)</span>';
+    // 判定バッジ関数（OK/NG表示用）
+    const judgeBadge = (limit, req) => {
+        if(!limit) return '<span class="badge badge-ng">NG</span>';
         const ratio = limit / req;
         const cls = ratio >= 1.0 ? 'badge-ok' : 'badge-ng';
-        return `<span class="badge ${cls}">${ratio.toFixed(2)}</span>`;
+        return `<span class="badge ${cls}">${ratio >= 1.0 ? 'OK' : 'NG'}</span>`;
+    };
+    
+    // 大小比較記号関数（列追加用）
+    const compareSym = (limit, req) => {
+        if(!limit) return '-';
+        // 安全（Limit >= Req）なら青色で＞、危険なら赤色で＜
+        if(limit >= req) return '<span style="color:#005a9c; font-weight:bold; font-size:1.2em;">＞</span>';
+        return '<span style="color:#dc3545; font-weight:bold; font-size:1.2em;">＜</span>';
     };
 
     let html = '';
@@ -4380,58 +4397,72 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     // 1. 比較結果サマリーテーブル
     html += `<h3>1. 層せん断力 比較判定結果</h3>`;
     
-    // 罫線付きで見やすいスタイルを適用
     const tableStyle = "width:100%; border-collapse:collapse; font-size:0.9em; border:1px solid #999;";
     const thStyle = "background:#e0e0e0; border:1px solid #666; padding:6px; text-align:center; font-weight:bold;";
     const tdStyle = "border:1px solid #666; padding:5px; text-align:center;";
     const tdLabelStyle = "border:1px solid #666; padding:5px; text-align:center; background:#f9f9f9; font-weight:bold;";
 
+    // colspanを「5」に変更（Qlim, 記号, Qreq, 比率, 判定 の5列構成）
     html += `<table style="${tableStyle}">
         <thead>
             <tr>
                 <th rowspan="2" style="${thStyle}">方向</th>
                 <th rowspan="2" style="${thStyle}">階</th>
-                <th colspan="3" style="${thStyle} border-bottom:2px solid #666;">損傷限界 (C0=${stdShear.C0_D})</th>
-                <th colspan="3" style="${thStyle} border-bottom:2px solid #666;">安全限界 (C0=${stdShear.C0_S})</th>
+                <th colspan="5" style="${thStyle} border-bottom:2px solid #666;">損傷限界 (C0=${stdShear.C0_D})</th>
+                <th colspan="5" style="${thStyle} border-bottom:2px solid #666;">安全限界 (C0=${stdShear.C0_S}, Ds=${stdShear.Ds}, Fes=${stdShear.Fes})</th>
             </tr>
             <tr>
                 <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
-                <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
-                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
+                <th style="${thStyle} width:40px;">大小</th> <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
+                <th style="${thStyle}">余裕度<br>Qlim/Qreq</th>
+                <th style="${thStyle}">結果</th>
+
                 <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
-                <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
-                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
+                <th style="${thStyle} width:40px;">大小</th> <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
+                <th style="${thStyle}">余裕度<br>Qlim/Qreq</th>
+                <th style="${thStyle}">結果</th>
             </tr>
         </thead>
         <tbody>`;
         
-    // X方向
+    // 値の取得
     const QlimXd1 = ptXd ? ptXd.QA : 0;
     const QlimXs1 = ptXs ? ptXs.QA : 0;
     const QlimXd2 = (b.stories===2 && ptXd) ? ptXd.Q2 : 0;
     const QlimXs2 = (b.stories===2 && ptXs) ? ptXs.Q2 : 0;
     
+    // --- 行の生成ヘルパー ---
+    const renderRow = (dirLabel, floorLabel, qLimD, qReqD, qLimS, qReqS, isFirstRow = false, rowSpan = 1) => {
+        let tr = '<tr>';
+        if(isFirstRow) {
+            tr += `<td rowspan="${rowSpan}" style="${tdLabelStyle}">${dirLabel}</td>`;
+        }
+        tr += `<td style="${tdLabelStyle}">${floorLabel}</td>`;
+        
+        // 損傷限界データ
+        tr += `<td style="${tdStyle}">${f2(qLimD)}</td>`;
+        tr += `<td style="${tdStyle}">${compareSym(qLimD, qReqD)}</td>`; // 大小記号
+        tr += `<td style="${tdStyle}">${f2(qReqD)}</td>`;
+        tr += `<td style="${tdStyle}">${qLimD ? (qLimD/qReqD).toFixed(2) : '-'}</td>`;
+        tr += `<td style="${tdStyle}">${judgeBadge(qLimD, qReqD)}</td>`; // OK/NGバッジ
+        
+        // 安全限界データ
+        tr += `<td style="${tdStyle}">${f2(qLimS)}</td>`;
+        tr += `<td style="${tdStyle}">${compareSym(qLimS, qReqS)}</td>`; // 大小記号
+        tr += `<td style="${tdStyle}">${f2(qReqS)}</td>`;
+        tr += `<td style="${tdStyle}">${qLimS ? (qLimS/qReqS).toFixed(2) : '-'}</td>`;
+        tr += `<td style="${tdStyle}">${judgeBadge(qLimS, qReqS)}</td>`; // OK/NGバッジ
+        
+        tr += '</tr>';
+        return tr;
+    };
+
+    // X方向
     if(b.stories === 2) {
-        // 2F
-        html += `<tr>
-            <td rowspan="2" style="${tdLabelStyle}">X方向</td>
-            <td style="${tdLabelStyle}">2F</td>
-            <td style="${tdStyle}">${f2(QlimXd2)}</td><td style="${tdStyle}">${f2(stdShear.Qd2)}</td><td style="${tdStyle}">${judge(QlimXd2, stdShear.Qd2)}</td>
-            <td style="${tdStyle}">${f2(QlimXs2)}</td><td style="${tdStyle}">${f2(stdShear.Qs2)}</td><td style="${tdStyle}">${judge(QlimXs2, stdShear.Qs2)}</td>
-        </tr>`;
-        // 1F
-        html += `<tr>
-            <td style="${tdLabelStyle}">1F</td>
-            <td style="${tdStyle}">${f2(QlimXd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimXd1, stdShear.Qd1)}</td>
-            <td style="${tdStyle}">${f2(QlimXs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimXs1, stdShear.Qs1)}</td>
-        </tr>`;
+        html += renderRow('X方向', '2F', QlimXd2, stdShear.Qd2, QlimXs2, stdShear.Qs2, true, 2);
+        html += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1);
     } else {
-        html += `<tr>
-            <td style="${tdLabelStyle}">X方向</td>
-            <td style="${tdLabelStyle}">1F</td>
-            <td style="${tdStyle}">${f2(QlimXd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimXd1, stdShear.Qd1)}</td>
-            <td style="${tdStyle}">${f2(QlimXs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimXs1, stdShear.Qs1)}</td>
-        </tr>`;
+        html += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1, true, 1);
     }
     
     // Y方向
@@ -4442,31 +4473,17 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         const QlimYs2 = (b.stories===2 && ptYs) ? ptYs.Q2 : 0;
         
         if(b.stories === 2) {
-            html += `<tr>
-                <td rowspan="2" style="${tdLabelStyle}">Y方向</td>
-                <td style="${tdLabelStyle}">2F</td>
-                <td style="${tdStyle}">${f2(QlimYd2)}</td><td style="${tdStyle}">${f2(stdShear.Qd2)}</td><td style="${tdStyle}">${judge(QlimYd2, stdShear.Qd2)}</td>
-                <td style="${tdStyle}">${f2(QlimYs2)}</td><td style="${tdStyle}">${f2(stdShear.Qs2)}</td><td style="${tdStyle}">${judge(QlimYs2, stdShear.Qs2)}</td>
-            </tr>`;
-            html += `<tr>
-                <td style="${tdLabelStyle}">1F</td>
-                <td style="${tdStyle}">${f2(QlimYd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimYd1, stdShear.Qd1)}</td>
-                <td style="${tdStyle}">${f2(QlimYs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimYs1, stdShear.Qs1)}</td>
-            </tr>`;
+            html += renderRow('Y方向', '2F', QlimYd2, stdShear.Qd2, QlimYs2, stdShear.Qs2, true, 2);
+            html += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1);
         } else {
-            html += `<tr>
-                <td style="${tdLabelStyle}">Y方向</td>
-                <td style="${tdLabelStyle}">1F</td>
-                <td style="${tdStyle}">${f2(QlimYd1)}</td><td style="${tdStyle}">${f2(stdShear.Qd1)}</td><td style="${tdStyle}">${judge(QlimYd1, stdShear.Qd1)}</td>
-                <td style="${tdStyle}">${f2(QlimYs1)}</td><td style="${tdStyle}">${f2(stdShear.Qs1)}</td><td style="${tdStyle}">${judge(QlimYs1, stdShear.Qs1)}</td>
-            </tr>`;
+            html += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1, true, 1);
         }
     }
     
     html += `</tbody></table>`;
-    html += `<p style="font-size:0.8em; color:#666; margin-top:5px;">※限界時耐力(Qlim)は、限界耐力計算における交点時の各階せん断力を示します。<br>※必要せん断力(Qreq)は、建築基準法施工令第88条に基づく地震層せん断力 \\( Q_i = C_i W_i \\) です。</p>`;
+    html += `<p style="font-size:0.8em; color:#666; margin-top:5px;">※限界時耐力(Qlim) ＞ 必要せん断力(Qreq) であれば OK です。</p>`;
     
-    // 2. 計算ロジックと詳細
+    // 2. 計算ロジックと詳細（ここは変更なしで継続表示）
     html += `<h3>2. 層せん断力の計算過程詳細</h3>`;
     html += `<div style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:5px;">`;
     
@@ -4474,57 +4491,54 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     html += `<h4>2-1. 振動特性係数 \\( R_t \\) の算定</h4>`;
     html += `<p>建物全高 \\( H = ${f2(b.H1+b.H2)} \\, \\text{m} \\)</p>`;
     html += `<p>設計用一次固有周期 \\( T = 0.03 H = 0.03 \\times ${f2(b.H1+b.H2)} = ${f3(stdShear.T)} \\, \\text{s} \\)</p>`;
-    html += `<p>地盤種別による \\( T_c = ${stdShear.Tc} \\, \\text{s} \\)</p>`;
-    html += `<p>振動特性係数 \\( R_t \\)：`;
-    if(stdShear.T < stdShear.Tc) {
-        html += `\\( T < T_c \\) のため \\( R_t = 1.0 \\)`;
-    } else if(stdShear.T < 2*stdShear.Tc) {
-        html += `\\( T_c \\le T < 2T_c \\) のため \\( R_t = 1 - 0.2(T/T_c - 1)^2 = ${f3(stdShear.Rt)} \\)`;
-    } else {
-        html += `\\( 2T_c \\le T \\) のため \\( R_t = 1.6 T_c / T = ${f3(stdShear.Rt)} \\)`;
-    }
-    html += `</p>`;
+    html += `<p>振動特性係数 \\( R_t = ${f3(stdShear.Rt)} \\)</p>`;
     
     // Ai
     html += `<h4>2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
     if(b.stories === 2) {
-        html += `<p><strong>2階：</strong><br>`;
-        html += `支える重量 \\( W_2 = ${f2(b.W2)} \\, \\text{kN} \\)、全重量 \\( \\Sigma W = ${f2(stdShear.W_total)} \\, \\text{kN} \\)<br>`;
-        html += `\\( \\alpha_2 = W_2 / \\Sigma W = ${f3(stdShear.alpha2)} \\)<br>`;
-        html += `\\( A_2 = 1 + (\\frac{1}{\\sqrt{\\alpha_2}} - \\alpha_2)\\frac{2T}{1+3T} = ${f3(stdShear.Ai2)} \\)</p>`;
-        
-        html += `<p><strong>1階：</strong><br>`;
-        html += `\\( \\alpha_1 = 1.0 \\) より \\( A_1 = 1.0 \\)</p>`;
+        html += `<p>2F: \\( A_2 = ${f3(stdShear.Ai2)} \\), 1F: \\( A_1 = 1.0 \\)</p>`;
     } else {
-        html += `<p>平屋のため \\( A_1 = 1.0 \\)</p>`;
+        html += `<p>1F: \\( A_1 = 1.0 \\)</p>`;
     }
     
     // Q計算
     html += `<h4>2-3. 各階の必要地震層せん断力 \\( Q_i \\)</h4>`;
-    html += `<p>計算式：\\( Q_i = C_i \\cdot W_i = (Z \\cdot R_t \\cdot A_i \\cdot C_0) \\cdot W_i \\)</p>`;
-    html += `<p>共通係数：\\( Z = ${b.Z}, \\quad R_t = ${f3(stdShear.Rt)} \\)</p>`;
-    
-    const renderQCalc = (floor, label, C0, Ai, W, resQ) => {
-        return `<p><strong>${floor} (${label}, C0=${C0})：</strong><br>
-        \\( C_i = ${b.Z} \\times ${f3(stdShear.Rt)} \\times ${f3(Ai)} \\times ${C0} = ${f3(b.Z * stdShear.Rt * Ai * C0)} \\)<br>
-        \\( Q_i = ${f3(b.Z * stdShear.Rt * Ai * C0)} \\times ${f2(W)} = \\mathbf{${f2(resQ)} \\, \\text{kN}} \\)</p>`;
-    };
+    html += `<p>損傷限界: \\( C_i = Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)<br>`;
+    html += `安全限界: \\( C_i = D_s \\cdot F_{es} \\cdot Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)</p>`;
+    html += `<p>共通係数: \\( Z = ${b.Z}, \\quad R_t = ${f3(stdShear.Rt)} \\)</p>`;
+    html += `<p>安全限界係数: \\( D_s = ${f2(stdShear.Ds)}, \\quad F_{es} = ${f2(stdShear.Fes)} \\)</p>`;
     
     const W_sum1 = b.W1 + b.W2;
     const W_sum2 = b.W2;
     
+    // 詳細計算式のレンダリング
+    const renderQCalcDamage = (floor, Ai, W, resQ) => {
+        return `<p><strong>${floor} (損傷):</strong><br>
+        \\( C_i = ${b.Z} \\times ${f3(stdShear.Rt)} \\times ${f3(Ai)} \\times ${stdShear.C0_D} = ${f3(b.Z * stdShear.Rt * Ai * stdShear.C0_D)} \\)<br>
+        \\( Q_i = C_i \\times ${f2(W)} = \\mathbf{${f2(resQ)} \\, \\text{kN}} \\)</p>`;
+    };
+
+    const renderQCalcSafety = (floor, Ai, W, resQ) => {
+        return `<p><strong>${floor} (安全):</strong><br>
+        \\( C_i = ${f2(stdShear.Ds)} \\times ${f2(stdShear.Fes)} \\times ${b.Z} \\times ${f3(stdShear.Rt)} \\times ${f3(Ai)} \\times ${stdShear.C0_S} = ${f3(stdShear.Ds * stdShear.Fes * b.Z * stdShear.Rt * Ai * stdShear.C0_S)} \\)<br>
+        \\( Q_i = C_i \\times ${f2(W)} = \\mathbf{${f2(resQ)} \\, \\text{kN}} \\)</p>`;
+    };
+    
     html += `<div style="display:flex; gap:20px; flex-wrap:wrap;">`;
+    
+    // 損傷限界
     html += `<div style="flex:1; min-width:300px; background:#f9f9f9; padding:10px; border-radius:4px;"><h5>損傷限界 (C0=${stdShear.C0_D})</h5>`;
-    if(b.stories === 2) html += renderQCalc('2階', '損傷', stdShear.C0_D, stdShear.Ai2, W_sum2, stdShear.Qd2);
-    html += renderQCalc('1階', '損傷', stdShear.C0_D, stdShear.Ai1, W_sum1, stdShear.Qd1);
+    if(b.stories === 2) html += renderQCalcDamage('2階', stdShear.Ai2, W_sum2, stdShear.Qd2);
+    html += renderQCalcDamage('1階', stdShear.Ai1, W_sum1, stdShear.Qd1);
     html += `</div>`;
     
+    // 安全限界
     html += `<div style="flex:1; min-width:300px; background:#fff5f5; padding:10px; border-radius:4px;"><h5>安全限界 (C0=${stdShear.C0_S})</h5>`;
-    if(b.stories === 2) html += renderQCalc('2階', '安全', stdShear.C0_S, stdShear.Ai2, W_sum2, stdShear.Qs2);
-    html += renderQCalc('1階', '安全', stdShear.C0_S, stdShear.Ai1, W_sum1, stdShear.Qs1);
-    html += `</div>`;
+    if(b.stories === 2) html += renderQCalcSafety('2階', stdShear.Ai2, W_sum2, stdShear.Qs2);
+    html += renderQCalcSafety('1階', stdShear.Ai1, W_sum1, stdShear.Qs1);
     html += `</div>`;
     
+    html += `</div>`;
     html += `</div>`; // End logic
     
     return html;
@@ -4583,6 +4597,8 @@ function collectAllInputData() {
         calcShearForce: document.getElementById('chk_calc_shear_force').checked,
         C0_D: document.getElementById('inp_C0_D').value,
         C0_S: document.getElementById('inp_C0_S').value,
+        Ds: document.getElementById('inp_Ds').value,
+        Fes: document.getElementById('inp_Fes').value,
         T_factor: document.getElementById('inp_T_factor').value,
         // 階データ
         W1: document.getElementById('inp_W1').value,
@@ -4645,6 +4661,8 @@ function restoreAllInputData(data) {
         }
         if(data.C0_D !== undefined) document.getElementById('inp_C0_D').value = data.C0_D;
         if(data.C0_S !== undefined) document.getElementById('inp_C0_S').value = data.C0_S;
+        if(data.Ds !== undefined) document.getElementById('inp_Ds').value = data.Ds;
+        if(data.Fes !== undefined) document.getElementById('inp_Fes').value = data.Fes;
         if(data.T_factor !== undefined) document.getElementById('inp_T_factor').value = data.T_factor;
         
         // 階データ
@@ -4708,6 +4726,8 @@ function saveToCSV() {
     csvContent += "calcShearForce," + data.calcShearForce + "\n";
     csvContent += "C0_D," + data.C0_D + "\n";
     csvContent += "C0_S," + data.C0_S + "\n";
+    csvContent += "Ds," + data.Ds + "\n";
+    csvContent += "Fes," + data.Fes + "\n";
     csvContent += "T_factor," + data.T_factor + "\n";
     
     // 階データ
@@ -4867,6 +4887,8 @@ function parseCSVToData(content) {
         else if(key === 'calcShearForce') data.calcShearForce = (value === 'true');
         else if(key === 'C0_D') data.C0_D = value;
         else if(key === 'C0_S') data.C0_S = value;
+        else if(key === 'Ds') data.Ds = value;
+        else if(key === 'Fes') data.Fes = value;
         else if(key === 'T_factor') data.T_factor = value;
         else if(key === 'W1') data.W1 = value;
         else if(key === 'W2') data.W2 = value;
