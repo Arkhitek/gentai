@@ -6,6 +6,8 @@
     <title>木造限界耐力計算プログラム</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({
             messageStyle: "none",
@@ -85,6 +87,9 @@
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 15px; width: 800px; height: 80%; display: flex; flex-direction: column; border-radius: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .progress-modal { background: #fff; padding: 30px; width: 400px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.4); text-align: center; }
+        .progress-bar { width: 100%; height: 30px; background: #e0e0e0; border-radius: 15px; overflow: hidden; margin: 20px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #005a9c, #0080d0); transition: width 0.3s; border-radius: 15px; }
         #spreadsheet-container { flex: 1; overflow: hidden; margin-bottom: 10px; border: 1px solid #ccc; }
 
         .badge { padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 0.9em; color: white; }
@@ -103,14 +108,17 @@
         .diagram-svg { max-width: 100%; height: auto; }
         .diagram-label { font-size: 10px; fill: #333; font-family: sans-serif; }
 
-        #report-view { display: none; }
+        #report-view { display: none; width: 210mm; }
+        .report-page { width: 210mm; min-height: 297mm; max-height: 297mm; box-sizing: border-box; padding: 15mm 20mm 20mm 20mm; background: white; overflow: hidden; margin: 0 auto; position: relative; }
+        .page-number { position: absolute; top: 10mm; right: 20mm; font-size: 9pt; color: #666; }
+        
         @media print {
             body { background: white; padding: 0; font-size: 9pt; margin:0; }
             .no-print { display: none !important; }
             #report-view { display: block !important; }
             .container { box-shadow: none; padding: 0; max-width: 100%; width: 100%; margin: 0; }
             
-            .report-page { width: 100%; box-sizing: border-box; padding: 8mm; position: relative; page-break-after: always; }
+            .report-page { width: 210mm; min-height: 297mm; max-height: 297mm; box-sizing: border-box; padding: 15mm 20mm; position: relative; page-break-after: always; background: white; overflow: hidden; }
             .report-page:last-child { page-break-after: auto; }
 
             .report-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
@@ -118,20 +126,20 @@
             .report-header .report-title-box { flex: 1; }
             .report-header .report-prop-name { font-size: 12pt; font-weight: bold; text-align: right; }
             
-            .report-section { margin-bottom: 15px; break-inside: avoid; page-break-inside: avoid; }
-            .report-section h3 { font-size: 12pt; border-left: 4px solid #000; padding-left: 8px; background: #eee; margin: 10px 0 5px 0; break-after: avoid; page-break-after: avoid; }
+            .report-section { margin-bottom: 12px; break-inside: avoid; page-break-inside: avoid; }
+            .report-section h3 { font-size: 11pt; border-left: 4px solid #000; padding-left: 8px; background: #eee; margin: 8px 0 5px 0; break-after: avoid; page-break-after: avoid; }
             
-            .report-table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 5px; break-inside: avoid; page-break-inside: avoid; }
-            .report-table th { background: #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #000; border: 1px solid #000; padding: 3px; }
-            .report-table td { border: 1px solid #000; padding: 2px 4px; text-align: center; }
+            .report-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 8px; break-inside: avoid; page-break-inside: avoid; }
+            .report-table th { background: #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #000; border: 1px solid #000; padding: 4px; font-size: 9pt; }
+            .report-table td { border: 1px solid #000; padding: 3px 5px; text-align: center; font-size: 9pt; }
 
             /* Chart Images in Print */
-            .report-chart-img { width: 100%; height: auto; border: 1px solid #ccc; object-fit: contain; }
+            .report-chart-img { width: 100%; max-height: 180mm; height: auto; border: 1px solid #ccc; object-fit: contain; margin: 5px 0; }
             
             /* Log Table in Print - 2分割対応 */
-            .log-print-wrapper { font-size: 7pt; }
-            .log-print-wrapper table { border-collapse: collapse; width: 100%; }
-            .log-print-wrapper th, .log-print-wrapper td { border: 1px solid #666; padding: 2px 3px; text-align: center; }
+            .log-print-wrapper { font-size: 6pt; }
+            .log-print-wrapper table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+            .log-print-wrapper th, .log-print-wrapper td { border: 1px solid #666; padding: 1px 2px; text-align: center; font-size: 6pt; word-wrap: break-word; }
             .log-print-wrapper th { background: #e8e8e8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; }
             .log-print-wrapper .log-header-group th { background: #d0d0d0 !important; }
             
@@ -579,7 +587,7 @@
                         <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
                             <strong style="color:#333;">計算書出力項目:</strong>
                             <label style="cursor:pointer; font-weight:bold; color:#005a9c;">
-                                <input type="checkbox" id="chk-rep-cover" onchange="toggleCoverInput()"> 表紙
+                                <input type="checkbox" id="chk-rep-cover" onchange="toggleCoverInput()"> 表紙・目次
                             </label>
                             <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-overview" checked> 建物概要</label>
                             <label style="cursor:pointer;"><input type="checkbox" id="chk-rep-force" checked> 復元力特性</label>
@@ -625,7 +633,18 @@
                         </div>
                     </div>
                     
-                    <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="printReport()">計算書印刷プレビュー</button>
+                    <button class="btn-calc" style="background:#555; width:auto; padding:10px 30px; margin:0;" onclick="generatePDF()">計算書PDF出力</button>
+                </div>
+            </div>
+            
+            <!-- 進捗表示モーダル -->
+            <div id="progressModal" class="modal-overlay" style="display:none;">
+                <div class="progress-modal">
+                    <h3 style="margin:0 0 15px 0; color:#005a9c;">PDF生成中...</h3>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width:0%"></div>
+                    </div>
+                    <div id="progressText" style="color:#666; font-size:0.9em;">準備中...</div>
                 </div>
             </div>
             
@@ -927,8 +946,25 @@
             </div>
         </div>
 
-        <!-- Page 1: 建物概要 -->
-        <div class="report-page" id="rep-page-overview">
+        <!-- 目次ページ -->
+        <div class="report-page" id="rep-page-toc" style="display:none;">
+            <div class="report-header">
+                <div class="report-title-box">
+                    <h1>構造計算書：木造限界耐力計算</h1>
+                </div>
+                <div id="rep-toc-building-name" class="report-prop-name"></div>
+            </div>
+            
+            <div class="report-section">
+                <h3 style="font-size:18pt; text-align:center; border-bottom:2px solid #000; padding-bottom:10px;">目次</h3>
+                <div id="toc-content" style="margin-top:20px; font-size:11pt; line-height:2;">
+                    <!-- 目次内容が動的に生成される -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 第1章: 建物概要 -->
+        <div class="report-page" id="rep-page-overview" data-chapter="1" data-title="建物概要・諸元">
             <div class="report-header">
                 <div class="report-title-box">
                     <h1>構造計算書：木造限界耐力計算</h1>
@@ -938,7 +974,7 @@
             </div>
             
             <div class="report-section">
-                <h3>1. 建物概要・諸元</h3>
+                <h3>第1章 建物概要・諸元</h3>
                 <table class="report-table">
                     <tr>
                         <th width="15%">地域係数 Z</th><td id="rep-Z" width="15%"></td>
@@ -974,6 +1010,18 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="page-number">- 1 -</div>
+        </div>
+
+        <!-- 第1章 続き (2ページ目) -->
+        <div class="report-page" id="rep-page-overview-2" data-chapter="1" data-title="建物概要・諸元（続き）">
+            <div class="report-header">
+                <div class="report-title-box">
+                    <h1>構造計算書：木造限界耐力計算</h1>
+                </div>
+                <div id="rep-building-name-2" class="report-prop-name"></div>
             </div>
             
             <div class="report-section">
@@ -1021,106 +1069,250 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="page-number">- 2 -</div>
         </div>
 
-        <!-- Page 2: 復元力特性 X方向 -->
-        <div class="report-page" id="rep-page-force-x">
+        <!-- 第2章: 復元力特性 X方向 -->
+        <div class="report-page" id="rep-page-force-x" data-chapter="2" data-section="1" data-title="復元力特性：X方向">
             <div class="report-header">
-                <h1>2. 復元力特性：X方向</h1>
+                <h1>第2章 復元力特性</h1>
             </div>
+            <div class="report-section">
+                <h3>2.1 X方向の復元力特性</h3>
             <div id="rep-force-x-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
             <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
                 <canvas id="rep-chart-force-x"></canvas>
             </div>
+            </div>
+            <div class="page-number">- 3 -</div>
         </div>
         
-        <!-- Page 2-2: 復元力特性 Y方向 -->
-        <div class="report-page" id="rep-page-force-y">
+        <!-- 第2章: 復元力特性 Y方向 -->
+        <div class="report-page" id="rep-page-force-y" data-chapter="2" data-section="2" data-title="復元力特性：Y方向">
             <div class="report-header">
-                <h1>2. 復元力特性：Y方向</h1>
+                <h1>第2章 復元力特性</h1>
             </div>
+            <div class="report-section">
+                <h3>2.2 Y方向の復元力特性</h3>
             <div id="rep-force-y-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
             <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
                 <canvas id="rep-chart-force-y"></canvas>
             </div>
+            </div>
+            <div class="page-number">- 4 -</div>
         </div>
 
-        <!-- Page 3: 判定結果 X方向 -->
-        <div class="report-page" id="rep-page-result-x">
+        <!-- 第3章: 判定結果 X方向 -->
+        <div class="report-page" id="rep-page-result-x" data-chapter="3" data-section="1" data-title="判定結果サマリー：X方向">
             <div class="report-header">
-                <h1>3. 判定結果サマリー：X方向</h1>
+                <h1>第3章 判定結果サマリー</h1>
             </div>
+            <div class="report-section">
+                <h3>3.1 X方向の判定結果</h3>
             <div id="rep-res-x-table" style="margin-bottom:10px;"></div>
             <div style="height:280px; border:1px solid #ccc;">
                 <img id="rep-img-x" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
             </div>
+            </div>
+            <div class="page-number">- 5 -</div>
         </div>
         
-        <!-- Page 3-2: 判定結果 Y方向 -->
-        <div class="report-page" id="rep-page-result-y">
+        <!-- 第3章: 判定結果 Y方向 -->
+        <div class="report-page" id="rep-page-result-y" data-chapter="3" data-section="2" data-title="判定結果サマリー：Y方向">
             <div class="report-header">
-                <h1>3. 判定結果サマリー：Y方向</h1>
+                <h1>第3章 判定結果サマリー</h1>
             </div>
+            <div class="report-section">
+                <h3>3.2 Y方向の判定結果</h3>
             <div id="rep-res-y-table" style="margin-bottom:10px;"></div>
             <div style="height:280px; border:1px solid #ccc;">
                 <img id="rep-img-y" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
             </div>
+            </div>
+            <div class="page-number">- 6 -</div>
         </div>
         
-        <!-- Page 4: 計算ロジック -->
-        <div class="report-page" id="rep-page-logic">
+        <!-- 第4章: 計算ロジック (1/2) -->
+        <div class="report-page" id="rep-page-logic" data-chapter="4" data-title="計算ロジック・詳細項目の解説">
             <div class="report-header">
-                <h1>4. 計算ロジック・詳細項目の解説</h1>
+                <h1>第4章 計算ロジック・詳細項目の解説</h1>
             </div>
-            <div id="report-logic" class="logic-print"></div>
+            <div id="report-logic-1" class="logic-print"></div>
+            <div class="page-number">- 7 -</div>
         </div>
         
-        <!-- Page 5: 詳細計算ログ X方向 (2分割) -->
-        <div class="report-page" id="rep-page-log-x1">
+        <!-- 第4章: 計算ロジック (2/2) -->
+        <div class="report-page" id="rep-page-logic-2" data-chapter="4" data-title="計算ロジック・詳細項目の解説（続き）">
             <div class="report-header">
-                <h1>5. 詳細計算ログ：X方向 (1/2)</h1>
+                <h1>第4章 計算ロジック・詳細項目の解説（続き）</h1>
             </div>
+            <div id="report-logic-2" class="logic-print"></div>
+            <div class="page-number">- 8 -</div>
+        </div>
+        
+        <!-- 第5章: 詳細計算ログ X方向 (3分割) -->
+        <div class="report-page" id="rep-page-log-x1" data-chapter="5" data-section="1" data-title="詳細計算ログ：X方向 (1/3)">
+            <div class="report-header">
+                <h1>第5章 詳細計算ログ</h1>
+            </div>
+            <div class="report-section">
+                <h3>5.1 X方向の詳細計算ログ (1/3)</h3>
             <div id="report-log-x1" class="log-print-wrapper"></div>
-        </div>
-        <div class="report-page" id="rep-page-log-x2">
-            <div class="report-header">
-                <h1>5. 詳細計算ログ：X方向 (2/2)</h1>
             </div>
+            <div class="page-number">- 9 -</div>
+        </div>
+        <div class="report-page" id="rep-page-log-x2" data-chapter="5" data-section="1" data-title="詳細計算ログ：X方向 (2/3)">
+            <div class="report-header">
+                <h1>第5章 詳細計算ログ</h1>
+            </div>
+            <div class="report-section">
+                <h3>5.1 X方向の詳細計算ログ (2/3)</h3>
             <div id="report-log-x2" class="log-print-wrapper"></div>
+            </div>
+            <div class="page-number">- 10 -</div>
+        </div>
+        <div class="report-page" id="rep-page-log-x3" data-chapter="5" data-section="1" data-title="詳細計算ログ：X方向 (3/3)">
+            <div class="report-header">
+                <h1>第5章 詳細計算ログ</h1>
+            </div>
+            <div class="report-section">
+                <h3>5.1 X方向の詳細計算ログ (3/3)</h3>
+            <div id="report-log-x3" class="log-print-wrapper"></div>
+            </div>
+            <div class="page-number">- 11 -</div>
         </div>
 
-        <!-- Page 6: 詳細計算ログ Y方向 (2分割) -->
-        <div class="report-page" id="rep-page-log-y1">
+        <!-- 第5章: 詳細計算ログ Y方向 (3分割) -->
+        <div class="report-page" id="rep-page-log-y1" data-chapter="5" data-section="2" data-title="詳細計算ログ：Y方向 (1/3)">
             <div class="report-header">
-                <h1>6. 詳細計算ログ：Y方向 (1/2)</h1>
+                <h1>第5章 詳細計算ログ</h1>
             </div>
+            <div class="report-section">
+                <h3>5.2 Y方向の詳細計算ログ (1/3)</h3>
             <div id="report-log-y1" class="log-print-wrapper"></div>
-        </div>
-        <div class="report-page" id="rep-page-log-y2">
-            <div class="report-header">
-                <h1>6. 詳細計算ログ：Y方向 (2/2)</h1>
             </div>
+            <div class="page-number">- 12 -</div>
+        </div>
+        <div class="report-page" id="rep-page-log-y2" data-chapter="5" data-section="2" data-title="詳細計算ログ：Y方向 (2/3)">
+            <div class="report-header">
+                <h1>第5章 詳細計算ログ</h1>
+            </div>
+            <div class="report-section">
+                <h3>5.2 Y方向の詳細計算ログ (2/3)</h3>
             <div id="report-log-y2" class="log-print-wrapper"></div>
+            </div>
+            <div class="page-number">- 13 -</div>
+        </div>
+        <div class="report-page" id="rep-page-log-y3" data-chapter="5" data-section="2" data-title="詳細計算ログ：Y方向 (3/3)">
+            <div class="report-header">
+                <h1>第5章 詳細計算ログ</h1>
+            </div>
+            <div class="report-section">
+                <h3>5.2 Y方向の詳細計算ログ (3/3)</h3>
+            <div id="report-log-y3" class="log-print-wrapper"></div>
+            </div>
+            <div class="page-number">- 14 -</div>
         </div>
 
-        <!-- Page 7: 交点詳細計算 -->
-        <div class="report-page" id="rep-page-detail-x">
+        <!-- 第6章: 交点詳細計算 X方向 (4ページ) -->
+        <div class="report-page" id="rep-page-detail-x1" data-chapter="6" data-section="1" data-title="交点詳細計算：X方向 (1/4)">
             <div class="report-header">
-                <h1>7. 交点詳細計算：X方向</h1>
+                <h1>第6章 交点詳細計算</h1>
             </div>
-            <div id="rep-detail-x" class="logic-print" style="font-size:8pt;"></div>
+            <div class="report-section">
+                <h3>6.1 X方向の交点詳細計算 (1/4) - 損傷限界 前半</h3>
+            <div id="rep-detail-x1" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 15 -</div>
         </div>
-        <div class="report-page" id="rep-page-detail-y">
+        <div class="report-page" id="rep-page-detail-x2" data-chapter="6" data-section="1" data-title="交点詳細計算：X方向 (2/4)">
             <div class="report-header">
-                <h1>7. 交点詳細計算：Y方向</h1>
+                <h1>第6章 交点詳細計算</h1>
             </div>
-            <div id="rep-detail-y" class="logic-print" style="font-size:8pt;"></div>
+            <div class="report-section">
+                <h3>6.1 X方向の交点詳細計算 (2/4) - 損傷限界 後半</h3>
+            <div id="rep-detail-x2" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 16 -</div>
         </div>
-        <div class="report-page" id="rep-page-shear">
+        <div class="report-page" id="rep-page-detail-x3" data-chapter="6" data-section="1" data-title="交点詳細計算：X方向 (3/4)">
             <div class="report-header">
-                <h1>8. 層せん断力の比較・検証</h1>
+                <h1>第6章 交点詳細計算</h1>
             </div>
-            <div id="rep-shear-content" class="logic-print"></div>
+            <div class="report-section">
+                <h3>6.1 X方向の交点詳細計算 (3/4) - 安全限界 前半</h3>
+            <div id="rep-detail-x3" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 17 -</div>
+        </div>
+        <div class="report-page" id="rep-page-detail-x4" data-chapter="6" data-section="1" data-title="交点詳細計算：X方向 (4/4)">
+            <div class="report-header">
+                <h1>第6章 交点詳細計算</h1>
+            </div>
+            <div class="report-section">
+                <h3>6.1 X方向の交点詳細計算 (4/4) - 安全限界 後半</h3>
+            <div id="rep-detail-x4" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 18 -</div>
+        </div>
+        
+        <!-- 第6章: 交点詳細計算 Y方向 (4ページ) -->
+        <div class="report-page" id="rep-page-detail-y1" data-chapter="6" data-section="2" data-title="交点詳細計算:Y方向 (1/4)">
+            <div class="report-header">
+                <h1>第6章 交点詳細計算</h1>
+            </div>
+            <div class="report-section">
+                <h3>6.2 Y方向の交点詳細計算 (1/4) - 損傷限界 前半</h3>
+            <div id="rep-detail-y1" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 19 -</div>
+        </div>
+        <div class="report-page" id="rep-page-detail-y2" data-chapter="6" data-section="2" data-title="交点詳細計算：Y方向 (2/4)">
+            <div class="report-header">
+                <h1>第6章 交点詳細計算</h1>
+            </div>
+            <div class="report-section">
+                <h3>6.2 Y方向の交点詳細計算 (2/4) - 損傷限界 後半</h3>
+            <div id="rep-detail-y2" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 20 -</div>
+        </div>
+        <div class="report-page" id="rep-page-detail-y3" data-chapter="6" data-section="2" data-title="交点詳細計算：Y方向 (3/4)">
+            <div class="report-header">
+                <h1>第6章 交点詳細計算</h1>
+            </div>
+            <div class="report-section">
+                <h3>6.2 Y方向の交点詳細計算 (3/4) - 安全限界 前半</h3>
+            <div id="rep-detail-y3" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 21 -</div>
+        </div>
+        <div class="report-page" id="rep-page-detail-y4" data-chapter="6" data-section="2" data-title="交点詳細計算：Y方向 (4/4)">
+            <div class="report-header">
+                <h1>第6章 交点詳細計算</h1>
+            </div>
+            <div class="report-section">
+                <h3>6.2 Y方向の交点詳細計算 (4/4) - 安全限界 後半</h3>
+            <div id="rep-detail-y4" class="logic-print" style="font-size:8pt;"></div>
+            </div>
+            <div class="page-number">- 22 -</div>
+        </div>
+        
+        <!-- 第7章: 層せん断力の比較・検証 (2ページ) -->
+        <div class="report-page" id="rep-page-shear1" data-chapter="7" data-title="層せん断力の比較・検証 (1/2)">
+            <div class="report-header">
+                <h1>第7章 層せん断力の比較・検証</h1>
+            </div>
+            <div id="rep-shear-content1" class="logic-print"></div>
+            <div class="page-number">- 23 -</div>
+        </div>
+        <div class="report-page" id="rep-page-shear2" data-chapter="7" data-title="層せん断力の比較・検証 (2/2)">
+            <div class="report-header">
+                <h1>第7章 層せん断力の比較・検証</h1>
+            </div>
+            <div id="rep-shear-content2" class="logic-print"></div>
+            <div class="page-number">- 24 -</div>
         </div>
     </div>
 </div>
@@ -3199,6 +3391,32 @@ function showDetailDir(dir) {
     document.getElementById('btn-detail-y').style.color = (dir === 'y') ? '#fff' : '#333';
 }
 
+// HTML文字列を「4. 減衰定数・低減係数」の前で分割するヘルパー関数
+function splitAtDampingSection(html) {
+    // 「4. 減衰定数・低減係数」のセクションを検索
+    const splitMarker = '>4. 減衰定数・低減係数</h5>';
+    const idx = html.indexOf(splitMarker);
+    if (idx === -1) {
+        return { part1: html, part2: '' };
+    }
+    // セクション4の開始位置（<!-- 4. 減衰定数・低減係数 -->の直前の</div>）を探す
+    const beforeMarker = html.substring(0, idx);
+    // </table>の後の</div>を探す
+    const lastTableClose = beforeMarker.lastIndexOf('</table>');
+    if (lastTableClose !== -1) {
+        const afterTable = beforeMarker.substring(lastTableClose);
+        const divCloseAfterTable = afterTable.indexOf('</div>');
+        if (divCloseAfterTable !== -1) {
+            const splitPoint = lastTableClose + divCloseAfterTable + 6;
+            return {
+                part1: html.substring(0, splitPoint),
+                part2: html.substring(splitPoint)
+            };
+        }
+    }
+    return { part1: html, part2: '' };
+}
+
 // 交点詳細を生成・表示（画面用と印刷用の両方を更新）
 function renderIntersectionDetail(dir, b, res, ptD, ptS) {
     const dirName = (dir === 'x') ? 'X方向' : 'Y方向';
@@ -3207,10 +3425,12 @@ function renderIntersectionDetail(dir, b, res, ptD, ptS) {
     let html = `<h3 style="color:#005a9c; border-bottom:2px solid #005a9c; padding-bottom:5px;">${dirName} 交点計算詳細</h3>`;
     
     // 損傷限界の詳細
-    html += renderPointDetail(b, res, ptD, '損傷限界', '#28a745', is1F);
+    const htmlD = renderPointDetail(b, res, ptD, '損傷限界', '#28a745', is1F);
     
     // 安全限界の詳細
-    html += renderPointDetail(b, res, ptS, '安全限界', '#dc3545', is1F);
+    const htmlS = renderPointDetail(b, res, ptS, '安全限界', '#dc3545', is1F);
+    
+    html += htmlD + htmlS;
     
     // 1. 画面表示用コンテナへの反映
     const screenContainer = document.getElementById('detail-' + dir);
@@ -3219,11 +3439,32 @@ function renderIntersectionDetail(dir, b, res, ptD, ptS) {
         if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, screenContainer]);
     }
 
-    // 2. 計算書(印刷)用コンテナへの反映
-    const repContainer = document.getElementById('rep-detail-' + dir);
-    if(repContainer) {
-        repContainer.innerHTML = html;
-        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer]);
+    // 2. 計算書(印刷)用コンテナへの反映 - 4ページに分割
+    const repContainer1 = document.getElementById('rep-detail-' + dir + '1');
+    const repContainer2 = document.getElementById('rep-detail-' + dir + '2');
+    const repContainer3 = document.getElementById('rep-detail-' + dir + '3');
+    const repContainer4 = document.getElementById('rep-detail-' + dir + '4');
+    if(repContainer1 && repContainer2 && repContainer3 && repContainer4) {
+        // 損傷限界を「4. 減衰定数・低減係数」の前で分割
+        const htmlDParts = splitAtDampingSection(htmlD);
+        // 安全限界を「4. 減衰定数・低減係数」の前で分割
+        const htmlSParts = splitAtDampingSection(htmlS);
+        
+        // 1ページ目: タイトル + 損傷限界の前半（1-3まで）
+        repContainer1.innerHTML = `<h3 style="color:#005a9c; border-bottom:2px solid #005a9c; padding-bottom:5px;">${dirName} 交点計算詳細</h3>` + htmlDParts.part1;
+        // 2ページ目: 損傷限界の後半（4-5）
+        repContainer2.innerHTML = htmlDParts.part2;
+        // 3ページ目: 安全限界の前半（1-3まで）
+        repContainer3.innerHTML = htmlSParts.part1;
+        // 4ページ目: 安全限界の後半（4-5）
+        repContainer4.innerHTML = htmlSParts.part2;
+        
+        if(window.MathJax) {
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer1]);
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer2]);
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer3]);
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer4]);
+        }
     }
 }
 
@@ -3437,8 +3678,8 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         </div>
         
         <!-- 4. 減衰定数・低減係数 -->
-        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">4. 減衰定数・低減係数</h5>
+        <div style="background:#fff; border:2px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:${color}; margin:0 0 10px 0;">4. 減衰定数・低減係数</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -3501,8 +3742,8 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         </div>
         
         <!-- 5. 応答スペクトル・必要耐力 -->
-        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">5. 応答スペクトル・必要耐力</h5>
+        <div style="background:#fff; border:2px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:${color}; margin:0 0 10px 0;">5. 応答スペクトル・必要耐力</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -3945,11 +4186,12 @@ function drawChart(id, steps, ptD, ptS) {
     });
 }
 
-function printReport() {
+// PDF生成関数（プレビュー機能を置き換え）
+function generatePDF() {
     if(!calcRes.b) { alert('計算を実行してください'); return; }
     
     // チェックボックスの状態を取得
-    const showCover = document.getElementById('chk-rep-cover').checked; // 追加
+    const showCover = document.getElementById('chk-rep-cover').checked;
     const showOverview = document.getElementById('chk-rep-overview').checked;
     const showForce = document.getElementById('chk-rep-force').checked;
     const showResult = document.getElementById('chk-rep-result').checked;
@@ -3959,22 +4201,26 @@ function printReport() {
     const showShear = document.getElementById('chk-rep-shear').checked;
     const skipY = calcRes.skipY || false;
     
-    // report-viewを一時的に表示（Chart.jsがcanvasサイズを取得するため）
+    // report-viewを一時的に表示
     const reportView = document.getElementById('report-view');
     reportView.style.display = 'block';
     reportView.style.position = 'absolute';
     reportView.style.left = '-9999px';
     
-    // --- 表紙の処理 (追加部分) ---
+    // 表紙の処理
     const coverPage = document.getElementById('rep-page-cover');
+    const tocPage = document.getElementById('rep-page-toc');
+    
     if (showCover) {
         coverPage.style.display = 'block';
+        tocPage.style.display = 'block';
+        
         // 入力値を反映
-        document.getElementById('rep-cover-project-name').innerText = document.getElementById('inp_cover_project_name').value;
+        const projectName = document.getElementById('inp_cover_project_name').value;
+        document.getElementById('rep-cover-project-name').innerText = projectName;
         document.getElementById('rep-cover-date').innerText = document.getElementById('inp_cover_date').value;
         document.getElementById('rep-cover-company').innerText = document.getElementById('inp_cover_company').value;
         
-        // 空欄でなければラベル付きで表示
         const offReg = document.getElementById('inp_cover_office_reg').value;
         document.getElementById('rep-cover-office-reg').innerText = offReg ? "事務所登録: " + offReg : "";
         
@@ -3984,26 +4230,44 @@ function printReport() {
         const mgrName = document.getElementById('inp_cover_manager_name').value;
         document.getElementById('rep-cover-manager-name').innerText = mgrName ? "管理建築士: " + mgrName : "";
         
+        // 目次に建物名を表示
+        document.getElementById('rep-toc-building-name').innerText = projectName;
+        
+        // overview-2ページの建物名も設定
+        document.getElementById('rep-building-name-2').innerText = projectName;
+        
+        // 目次を生成
+        generateTableOfContents(showOverview, showForce, showResult, showLogic, showLog, showDetail, showShear, skipY);
     } else {
         coverPage.style.display = 'none';
+        tocPage.style.display = 'none';
     }
-    // ---------------------------
 
     // ページの表示/非表示を設定
     document.getElementById('rep-page-overview').style.display = showOverview ? 'block' : 'none';
+    document.getElementById('rep-page-overview-2').style.display = showOverview ? 'block' : 'none';
     document.getElementById('rep-page-force-x').style.display = showForce ? 'block' : 'none';
     document.getElementById('rep-page-force-y').style.display = (showForce && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-result-x').style.display = showResult ? 'block' : 'none';
     document.getElementById('rep-page-result-y').style.display = (showResult && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-logic').style.display = showLogic ? 'block' : 'none';
+    document.getElementById('rep-page-logic-2').style.display = showLogic ? 'block' : 'none';
     document.getElementById('rep-page-log-x1').style.display = showLog ? 'block' : 'none';
     document.getElementById('rep-page-log-x2').style.display = showLog ? 'block' : 'none';
+    document.getElementById('rep-page-log-x3').style.display = showLog ? 'block' : 'none';
     document.getElementById('rep-page-log-y1').style.display = (showLog && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-log-y2').style.display = (showLog && !skipY) ? 'block' : 'none';
-    document.getElementById('rep-page-detail-x').style.display = showDetail ? 'block' : 'none';
-    document.getElementById('rep-page-detail-y').style.display = (showDetail && !skipY) ? 'block' : 'none';
-    // 層せん断力比較ページ
-    document.getElementById('rep-page-shear').style.display = (showShear && document.getElementById('chk_calc_shear_force').checked) ? 'block' : 'none';
+    document.getElementById('rep-page-log-y3').style.display = (showLog && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-detail-x1').style.display = showDetail ? 'block' : 'none';
+    document.getElementById('rep-page-detail-x2').style.display = showDetail ? 'block' : 'none';
+    document.getElementById('rep-page-detail-x3').style.display = showDetail ? 'block' : 'none';
+    document.getElementById('rep-page-detail-x4').style.display = showDetail ? 'block' : 'none';
+    document.getElementById('rep-page-detail-y1').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-detail-y2').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-detail-y3').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-detail-y4').style.display = (showDetail && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-shear1').style.display = (showShear && document.getElementById('chk_calc_shear_force').checked) ? 'block' : 'none';
+    document.getElementById('rep-page-shear2').style.display = (showShear && document.getElementById('chk_calc_shear_force').checked) ? 'block' : 'none';
     
     const charts = skipY ? ['chart-x'] : ['chart-x', 'chart-y']; 
     charts.forEach(id => {
@@ -4035,43 +4299,208 @@ function printReport() {
             if(!skipY) drawForceChart('rep-chart-force-y', 'y');
         }
         
-        // report-viewの位置をリセット
+        // PDF生成を実行
+        executePDFGeneration(reportView);
+    }, 300);
+}
+
+// PDF生成実行関数（jsPDF + html2canvas使用）
+async function executePDFGeneration(reportView) {
+    try {
+        const { jsPDF } = window.jspdf;
+        
+        // 進捗モーダル表示
+        const modal = document.getElementById('progressModal');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        modal.style.display = 'flex';
+        
+        function updateProgress(percent, text) {
+            progressFill.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+        
+        updateProgress(5, '準備中...');
+        
+        // MathJax処理待ち
+        if (window.MathJax && window.MathJax.Hub) {
+            updateProgress(10, '数式をレンダリング中...');
+            await new Promise(resolve => {
+                MathJax.Hub.Queue(['Typeset', MathJax.Hub, reportView]);
+                MathJax.Hub.Queue(resolve);
+            });
+        }
+        await new Promise(r => setTimeout(r, 300));
+        
+        // レポートビューを可視化（opacity:0で非表示だが描画される）
+        reportView.style.position = 'fixed';
+        reportView.style.left = '0';
+        reportView.style.top = '0';
+        reportView.style.opacity = '0';
+        reportView.style.pointerEvents = 'none';
+        reportView.style.zIndex = '-1';
+        reportView.style.width = '210mm';
+        
+        // すべてのページ要素を取得
+        const pages = reportView.querySelectorAll('.report-page');
+        if (pages.length === 0) {
+            throw new Error('ページが見つかりません');
+        }
+        
+        updateProgress(15, `${pages.length}ページを処理中...`);
+        
+        // PDF初期化（A4サイズ）
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        const pageWidth = 210;  // A4幅(mm)
+        const pageHeight = 297; // A4高さ(mm)
+        
+        let firstPage = true;
+        
+        // 各ページを処理
+        for (let i = 0; i < pages.length; i++) {
+            const page = pages[i];
+            
+            // 非表示ページはスキップ
+            if (page.style.display === 'none') continue;
+            
+            const pageNum = i + 1;
+            const progress = 15 + Math.floor((i / pages.length) * 75);
+            updateProgress(progress, `ページ ${pageNum}/${pages.length} を処理中...`);
+            
+            // ページサイズを固定
+            page.style.width = '210mm';
+            page.style.minHeight = '297mm';
+            page.style.maxHeight = '297mm';
+            
+            // 少し待機してレンダリング完了を確保
+            await new Promise(r => setTimeout(r, 100));
+            
+            // html2canvasでキャプチャ（A4サイズに合わせた設定）
+            const canvas = await html2canvas(page, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                width: page.offsetWidth,
+                height: Math.max(page.offsetHeight, 1122), // 297mm = 約1122px (at 96dpi)
+                windowWidth: page.offsetWidth,
+                windowHeight: Math.max(page.offsetHeight, 1122)
+            });
+            
+            // Canvas画像をPDFに追加
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            
+            // 新しいページを追加（初ページ以外）
+            if (!firstPage) {
+                pdf.addPage();
+            }
+            firstPage = false;
+            
+            // A4サイズぴったりに配置
+            pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        }
+        
+        // レポートビューを非表示に戻す
+        reportView.style.position = 'absolute';
+        reportView.style.left = '-9999px';
+        reportView.style.opacity = '1';
+        reportView.style.display = 'none';
+        
+        // PDF保存
+        updateProgress(90, 'PDFファイルを保存中...');
+        await new Promise(r => setTimeout(r, 200));
+        
+        const filename = '構造計算書_限界耐力計算.pdf';
+        pdf.save(filename);
+        
+        updateProgress(100, '完了しました！');
+        await new Promise(r => setTimeout(r, 500));
+        
+        // モーダルを閉じる
+        modal.style.display = 'none';
+        
+        alert('PDFが正常に生成されました。');
+        
+    } catch (error) {
+        console.error('PDF生成エラー:', error);
+        document.getElementById('progressModal').style.display = 'none';
+        
+        // レポートビューを非表示に戻す
         reportView.style.position = '';
         reportView.style.left = '';
-        reportView.style.display = 'none'; // CSSの @media print で display:block !important されるため画面上だけ消える
+        reportView.style.display = 'none';
         
-        // ▼▼▼ 【修正部分】空白ページ対策 ▼▼▼
-        // CSSの :last-child はDOM構造に依存するため、display:noneの要素があると
-        // 意図せず page-break-after: always が効いてしまう。
-        // JSで「表示されている最後のページ」を特定し、改ページ設定を解除する。
-        const pages = document.querySelectorAll('.report-page');
-        let lastVisiblePage = null;
+        alert('PDF生成中にエラーが発生しました: ' + error.message);
+    }
+}
 
-        pages.forEach(p => {
-            // JSで display: none がセットされていないページを対象にする
-            if (p.style.display !== 'none') {
-                p.style.pageBreakAfter = 'always'; // 基本は改ページあり
-                lastVisiblePage = p;
-            }
-        });
-
-        // 実際に表示される最後のページのみ改ページを解除
-        if (lastVisiblePage) {
-            lastVisiblePage.style.pageBreakAfter = 'auto';
+// 目次生成関数
+function generateTableOfContents(showOverview, showForce, showResult, showLogic, showLog, showDetail, showShear, skipY) {
+    const tocContent = document.getElementById('toc-content');
+    let html = '<div style="line-height:2.2;">';
+    let pageNum = 1; // 表紙と目次自体を除く
+    
+    if (showOverview) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第1章　建物概要・諸元</span><span>${pageNum}-${pageNum+1}</span></div>`;
+        pageNum += 2;
+    }
+    
+    if (showForce) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第2章　復元力特性</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>2.1　X方向の復元力特性</span><span>${pageNum}</span></div>`;
+        pageNum++;
+        if (!skipY) {
+            html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>2.2　Y方向の復元力特性</span><span>${pageNum}</span></div>`;
+            pageNum++;
         }
-        // ▲▲▲ 【修正部分ここまで】 ▲▲▲
-
-        setTimeout(() => {
-            if(typeof MathJax !== 'undefined' && MathJax.Hub) {
-                // MathJax 2.x 用
-                MathJax.Hub.Queue(["Typeset", MathJax.Hub], function() {
-                    window.print();
-                });
-            } else {
-                window.print();
-            }
-        }, 300);
-    }, 300);
+    }
+    
+    if (showResult) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第3章　判定結果サマリー</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>3.1　X方向の判定結果</span><span>${pageNum}</span></div>`;
+        pageNum++;
+        if (!skipY) {
+            html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>3.2　Y方向の判定結果</span><span>${pageNum}</span></div>`;
+            pageNum++;
+        }
+    }
+    
+    if (showLogic) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第4章　計算ロジック・詳細項目の解説</span><span>${pageNum}-${pageNum+1}</span></div>`;
+        pageNum += 2;
+    }
+    
+    if (showLog) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第5章　詳細計算ログ</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>5.1　X方向の詳細計算ログ</span><span>${pageNum}-${pageNum+2}</span></div>`;
+        pageNum += 3;
+        if (!skipY) {
+            html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>5.2　Y方向の詳細計算ログ</span><span>${pageNum}-${pageNum+2}</span></div>`;
+            pageNum += 3;
+        }
+    }
+    
+    if (showDetail) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第6章　交点詳細計算</span></div>`;
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>6.1　X方向の交点詳細計算</span><span>${pageNum}-${pageNum+3}</span></div>`;
+        pageNum += 4;
+        if (!skipY) {
+            html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>6.2　Y方向の交点詳細計算</span><span>${pageNum}-${pageNum+3}</span></div>`;
+            pageNum += 4;
+        }
+    }
+    
+    if (showShear && document.getElementById('chk_calc_shear_force').checked) {
+        html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第7章　層せん断力の比較・検証</span><span>${pageNum}-${pageNum+1}</span></div>`;
+    }
+    
+    html += '</div>';
+    tocContent.innerHTML = html;
 }
 
 // Gsスペクトル情報を計算書に出力
@@ -4664,62 +5093,80 @@ function drawForceChart(canvasId, dir) {
     });
 }
 
-// 詳細計算ログを2分割出力
+// 詳細計算ログを3分割出力（行数を大幅削減）
 function renderLogSplit(dir, steps) {
     const fmtR = (v) => { if(v<=0) return '-'; return `1/${Math.round(1/v)}`; };
     const is1F = (calcRes.b.stories === 1);
     
-    // テーブル1: 変位・剛性・等価1自由度系・減衰
+    // ステップを大幅に間引いて表示（20行おきに表示 + 最終行）
+    const filteredSteps = steps.filter((s, idx) => idx % 20 === 0 || idx === steps.length - 1);
+    
+    // テーブル1: 変位・剛性（基本情報）
     let h1 = `<table class="log-table"><thead><tr class="log-header-group">`;
     h1 += `<th rowspan="2">層間<br>変形角R</th>`;
     h1 += is1F ? `<th colspan="2">層せん断力・剛性</th>` : `<th colspan="4">層せん断力・剛性</th>`;
-    h1 += `<th colspan="6">等価1自由度系</th>`;
-    h1 += `<th colspan="6">減衰</th></tr><tr>`;
+    h1 += `<th colspan="4">等価1自由度系</th></tr><tr>`;
     if(!is1F) h1 += `<th>Q2</th><th>K2</th>`;
     h1 += `<th>Q1</th><th>K1</th>`;
-    h1 += `<th>Me</th><th>Δ</th><th>Qa</th><th>Ke</th><th>Te</th><th>He</th>`;
-    h1 += `<th>heq1</th><th>heq2</th><th>ΔW</th><th>Wa</th><th>h</th><th>Fh</th>`;
+    h1 += `<th>Me</th><th>Δ</th><th>Qa</th><th>Ke</th>`;
     h1 += `</tr></thead><tbody>`;
 
-    steps.forEach(s => {
+    filteredSteps.forEach(s => {
         h1 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
         if(!is1F) h1 += `<td>${s.Q2.toFixed(1)}</td><td>${s.K2.toFixed(0)}</td>`;
         h1 += `<td>${s.Q1.toFixed(1)}</td><td>${s.K1.toFixed(0)}</td>`;
         h1 += `<td>${s.MU.toFixed(2)}</td><td>${s.D.toFixed(4)}</td><td style="background:#eef;">${s.QA.toFixed(1)}</td>`;
-        h1 += `<td>${s.Ke.toFixed(0)}</td><td>${s.Te.toFixed(3)}</td><td>${s.H.toFixed(2)}</td>`;
-        h1 += `<td>${s.heq1.toFixed(4)}</td><td>${s.heq2.toFixed(4)}</td><td>${s.dW.toFixed(1)}</td>`;
-        h1 += `<td>${s.WA.toFixed(1)}</td><td>${s.h.toFixed(3)}</td><td>${s.Fh.toFixed(2)}</td></tr>`;
+        h1 += `<td>${s.Ke.toFixed(0)}</td></tr>`;
     });
     h1 += '</tbody></table>';
     document.getElementById(`report-log-${dir}1`).innerHTML = h1;
 
-    // テーブル2: 変形角・損傷限界・安全限界
+    // テーブル2: 周期・減衰
     let h2 = `<table class="log-table"><thead><tr class="log-header-group">`;
     h2 += `<th rowspan="2">層間<br>変形角R</th>`;
-    h2 += `<th colspan="2">調整係数</th>`;
-    h2 += `<th colspan="6">損傷限界</th>`;
-    h2 += `<th colspan="6">安全限界</th></tr><tr>`;
-    h2 += `<th>p</th><th>q</th>`;
-    h2 += `<th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>`;
-    h2 += `<th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th>`;
+    h2 += `<th colspan="2">等価系</th>`;
+    h2 += `<th colspan="6">減衰</th></tr><tr>`;
+    h2 += `<th>Te</th><th>He</th>`;
+    h2 += `<th>heq1</th><th>heq2</th><th>ΔW</th><th>Wa</th><th>h</th><th>Fh</th>`;
     h2 += `</tr></thead><tbody>`;
 
-    steps.forEach(s => {
+    filteredSteps.forEach(s => {
         h2 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
-        h2 += `<td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>`;
-        h2 += `<td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td>`;
-        h2 += `<td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td><td>${fmtR(s.reqRd)}</td>`;
-        h2 += `<td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td>`;
-        h2 += `<td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td><td>${fmtR(s.reqRs)}</td></tr>`;
+        h2 += `<td>${s.Te.toFixed(3)}</td><td>${s.H.toFixed(2)}</td>`;
+        h2 += `<td>${s.heq1.toFixed(4)}</td><td>${s.heq2.toFixed(4)}</td><td>${s.dW.toFixed(1)}</td>`;
+        h2 += `<td>${s.WA.toFixed(1)}</td><td>${s.h.toFixed(3)}</td><td>${s.Fh.toFixed(2)}</td></tr>`;
     });
     h2 += '</tbody></table>';
     document.getElementById(`report-log-${dir}2`).innerHTML = h2;
+    
+    // テーブル3: 損傷限界・安全限界
+    let h3 = `<table class="log-table"><thead><tr class="log-header-group">`;
+    h3 += `<th rowspan="2">層間<br>変形角R</th>`;
+    h3 += `<th colspan="2">調整係数</th>`;
+    h3 += `<th colspan="6">損傷限界</th>`;
+    h3 += `<th colspan="6">安全限界</th></tr><tr>`;
+    h3 += `<th>p</th><th>q</th>`;
+    h3 += `<th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>`;
+    h3 += `<th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th>`;
+    h3 += `</tr></thead><tbody>`;
+
+    filteredSteps.forEach(s => {
+        h3 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
+        h3 += `<td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>`;
+        h3 += `<td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td>`;
+        h3 += `<td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td><td>${fmtR(s.reqRd)}</td>`;
+        h3 += `<td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td>`;
+        h3 += `<td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td><td>${fmtR(s.reqRs)}</td></tr>`;
+    });
+    h3 += '</tbody></table>';
+    document.getElementById(`report-log-${dir}3`).innerHTML = h3;
 }
 
 // 計算ロジックの解説を出力（1ページにまとめて表示）
 // 計算ロジックの解説を出力（省略なく全て記載）
 function renderLogicSection() {
-    const logicHtml = `
+    // 第1ページ目の内容（項目1-6）
+    const logicHtml1 = `
     <div style="font-size:7pt; line-height:1.4;">
         <!-- 1. 振動モデル・質量 -->
         <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
@@ -4783,7 +5230,11 @@ function renderLogicSection() {
             \\( F_h = \\frac{1.5}{1 + 10h} \\)　（h：総合減衰定数）<br>
             減衰が大きいほど応答が低減される
         </div>
-        
+    </div>`;
+    
+    // 第2ページ目の内容（項目7-13）
+    const logicHtml2 = `
+    <div style="font-size:7pt; line-height:1.4;">
         <!-- 7. 加速度応答スペクトル -->
         <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
             <strong style="color:#005a9c;">7. 加速度応答スペクトル</strong><br>
@@ -4854,7 +5305,9 @@ function renderLogicSection() {
             この応答変形角における層間変形角が限界値を超えないことを確認
         </div>
     </div>`;
-    document.getElementById('report-logic').innerHTML = logicHtml;
+    
+    document.getElementById('report-logic-1').innerHTML = logicHtml1;
+    document.getElementById('report-logic-2').innerHTML = logicHtml2;
 }
 
 // --- 地震波からの応答スペクトル計算機能 ---
@@ -5158,18 +5611,18 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         return '<span style="color:#dc3545; font-weight:bold; font-size:1.2em;">＜</span>';
     };
 
-    let html = '';
+    let html1 = '';
+    let html2 = '';
     
-    // 1. 比較結果サマリーテーブル
-    html += `<h3>1. 層せん断力 比較判定結果</h3>`;
+    // 1ページ目: 比較結果サマリーテーブル
+    html1 += `<h3>7.1 層せん断力 比較判定結果</h3>`;
     
     const tableStyle = "width:100%; border-collapse:collapse; font-size:0.9em; border:1px solid #999;";
     const thStyle = "background:#e0e0e0; border:1px solid #666; padding:6px; text-align:center; font-weight:bold;";
     const tdStyle = "border:1px solid #666; padding:5px; text-align:center;";
     const tdLabelStyle = "border:1px solid #666; padding:5px; text-align:center; background:#f9f9f9; font-weight:bold;";
 
-    // colspanを「5」に変更（Qlim, 記号, Qreq, 比率, 判定 の5列構成）
-    html += `<table style="${tableStyle}">
+    html1 += `<table style="${tableStyle}">
         <thead>
             <tr>
                 <th rowspan="2" style="${thStyle}">方向</th>
@@ -5207,17 +5660,17 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         
         // 損傷限界データ
         tr += `<td style="${tdStyle}">${f2(qLimD)}</td>`;
-        tr += `<td style="${tdStyle}">${compareSym(qLimD, qReqD)}</td>`; // 大小記号
+        tr += `<td style="${tdStyle}">${compareSym(qLimD, qReqD)}</td>`;
         tr += `<td style="${tdStyle}">${f2(qReqD)}</td>`;
         tr += `<td style="${tdStyle}">${qLimD ? (qLimD/qReqD).toFixed(2) : '-'}</td>`;
-        tr += `<td style="${tdStyle}">${judgeBadge(qLimD, qReqD)}</td>`; // OK/NGバッジ
+        tr += `<td style="${tdStyle}">${judgeBadge(qLimD, qReqD)}</td>`;
         
         // 安全限界データ
         tr += `<td style="${tdStyle}">${f2(qLimS)}</td>`;
-        tr += `<td style="${tdStyle}">${compareSym(qLimS, qReqS)}</td>`; // 大小記号
+        tr += `<td style="${tdStyle}">${compareSym(qLimS, qReqS)}</td>`;
         tr += `<td style="${tdStyle}">${f2(qReqS)}</td>`;
         tr += `<td style="${tdStyle}">${qLimS ? (qLimS/qReqS).toFixed(2) : '-'}</td>`;
-        tr += `<td style="${tdStyle}">${judgeBadge(qLimS, qReqS)}</td>`; // OK/NGバッジ
+        tr += `<td style="${tdStyle}">${judgeBadge(qLimS, qReqS)}</td>`;
         
         tr += '</tr>';
         return tr;
@@ -5225,10 +5678,10 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
 
     // X方向
     if(b.stories === 2) {
-        html += renderRow('X方向', '2F', QlimXd2, stdShear.Qd2, QlimXs2, stdShear.Qs2, true, 2);
-        html += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1);
+        html1 += renderRow('X方向', '2F', QlimXd2, stdShear.Qd2, QlimXs2, stdShear.Qs2, true, 2);
+        html1 += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1);
     } else {
-        html += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1, true, 1);
+        html1 += renderRow('X方向', '1F', QlimXd1, stdShear.Qd1, QlimXs1, stdShear.Qs1, true, 1);
     }
     
     // Y方向
@@ -5239,40 +5692,39 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         const QlimYs2 = (b.stories===2 && ptYs) ? ptYs.Q2 : 0;
         
         if(b.stories === 2) {
-            html += renderRow('Y方向', '2F', QlimYd2, stdShear.Qd2, QlimYs2, stdShear.Qs2, true, 2);
-            html += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1);
+            html1 += renderRow('Y方向', '2F', QlimYd2, stdShear.Qd2, QlimYs2, stdShear.Qs2, true, 2);
+            html1 += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1);
         } else {
-            html += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1, true, 1);
+            html1 += renderRow('Y方向', '1F', QlimYd1, stdShear.Qd1, QlimYs1, stdShear.Qs1, true, 1);
         }
     }
     
-    html += `</tbody></table>`;
-    html += `<p style="font-size:0.8em; color:#666; margin-top:5px;">※限界時耐力(Qlim) ＞ 必要せん断力(Qreq) であれば OK です。</p>`;
+    html1 += `</tbody></table>`;
     
-    // 2. 計算ロジックと詳細（ここは変更なしで継続表示）
-    html += `<h3>2. 層せん断力の計算過程詳細</h3>`;
-    html += `<div style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:5px;">`;
+    // 2ページ目: 計算ロジックと詳細
+    html2 += `<h3>7.2 層せん断力の計算過程詳細</h3>`;
+    html2 += `<div style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:5px;">`;
     
     // 諸元
-    html += `<h4>2-1. 振動特性係数 \\( R_t \\) の算定</h4>`;
-    html += `<p>建物全高 \\( H = ${f2(b.H1+b.H2)} \\, \\text{m} \\)</p>`;
-    html += `<p>設計用一次固有周期 \\( T = 0.03 H = 0.03 \\times ${f2(b.H1+b.H2)} = ${f3(stdShear.T)} \\, \\text{s} \\)</p>`;
-    html += `<p>振動特性係数 \\( R_t = ${f3(stdShear.Rt)} \\)</p>`;
+    html2 += `<h4>7.2-1. 振動特性係数 \\( R_t \\) の算定</h4>`;
+    html2 += `<p>建物全高 \\( H = ${f2(b.H1+b.H2)} \\, \\text{m} \\)</p>`;
+    html2 += `<p>設計用一次固有周期 \\( T = 0.03 H = 0.03 \\times ${f2(b.H1+b.H2)} = ${f3(stdShear.T)} \\, \\text{s} \\)</p>`;
+    html2 += `<p>振動特性係数 \\( R_t = ${f3(stdShear.Rt)} \\)</p>`;
     
     // Ai
-    html += `<h4>2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
+    html2 += `<h4>7.2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
     if(b.stories === 2) {
-        html += `<p>2F: \\( A_2 = ${f3(stdShear.Ai2)} \\), 1F: \\( A_1 = 1.0 \\)</p>`;
+        html2 += `<p>2F: \\( A_2 = ${f3(stdShear.Ai2)} \\), 1F: \\( A_1 = 1.0 \\)</p>`;
     } else {
-        html += `<p>1F: \\( A_1 = 1.0 \\)</p>`;
+        html2 += `<p>1F: \\( A_1 = 1.0 \\)</p>`;
     }
     
     // Q計算
-    html += `<h4>2-3. 各階の必要地震層せん断力 \\( Q_i \\)</h4>`;
-    html += `<p>損傷限界: \\( C_i = Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)<br>`;
-    html += `安全限界: \\( C_i = D_s \\cdot F_{es} \\cdot Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)</p>`;
-    html += `<p>共通係数: \\( Z = ${b.Z}, \\quad R_t = ${f3(stdShear.Rt)} \\)</p>`;
-    html += `<p>安全限界係数: \\( D_s = ${f2(stdShear.Ds)}, \\quad F_{es} = ${f2(stdShear.Fes)} \\)</p>`;
+    html2 += `<h4>7.2-3. 各階の必要地震層せん断力 \\( Q_i \\)</h4>`;
+    html2 += `<p>損傷限界: \\( C_i = Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)<br>`;
+    html2 += `安全限界: \\( C_i = D_s \\cdot F_{es} \\cdot Z \\cdot R_t \\cdot A_i \\cdot C_0 \\)</p>`;
+    html2 += `<p>共通係数: \\( Z = ${b.Z}, \\quad R_t = ${f3(stdShear.Rt)} \\)</p>`;
+    html2 += `<p>安全限界係数: \\( D_s = ${f2(stdShear.Ds)}, \\quad F_{es} = ${f2(stdShear.Fes)} \\)</p>`;
     
     const W_sum1 = b.W1 + b.W2;
     const W_sum2 = b.W2;
@@ -5290,50 +5742,47 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         \\( Q_i = C_i \\times ${f2(W)} = \\mathbf{${f2(resQ)} \\, \\text{kN}} \\)</p>`;
     };
     
-    html += `<div style="display:flex; gap:20px; flex-wrap:wrap;">`;
+    html2 += `<div style="display:flex; gap:20px; flex-wrap:wrap;">`;
     
     // 損傷限界
-    html += `<div style="flex:1; min-width:300px; background:#f9f9f9; padding:10px; border-radius:4px;"><h5>損傷限界 (C0=${stdShear.C0_D})</h5>`;
-    if(b.stories === 2) html += renderQCalcDamage('2階', stdShear.Ai2, W_sum2, stdShear.Qd2);
-    html += renderQCalcDamage('1階', stdShear.Ai1, W_sum1, stdShear.Qd1);
-    html += `</div>`;
+    html2 += `<div style="flex:1; min-width:300px; background:#f9f9f9; padding:10px; border-radius:4px;"><h5>損傷限界 (C0=${stdShear.C0_D})</h5>`;
+    if(b.stories === 2) html2 += renderQCalcDamage('2階', stdShear.Ai2, W_sum2, stdShear.Qd2);
+    html2 += renderQCalcDamage('1階', stdShear.Ai1, W_sum1, stdShear.Qd1);
+    html2 += `</div>`;
     
     // 安全限界
-    html += `<div style="flex:1; min-width:300px; background:#fff5f5; padding:10px; border-radius:4px;"><h5>安全限界 (C0=${stdShear.C0_S})</h5>`;
-    if(b.stories === 2) html += renderQCalcSafety('2階', stdShear.Ai2, W_sum2, stdShear.Qs2);
-    html += renderQCalcSafety('1階', stdShear.Ai1, W_sum1, stdShear.Qs1);
-    html += `</div>`;
+    html2 += `<div style="flex:1; min-width:300px; background:#fff5f5; padding:10px; border-radius:4px;"><h5>安全限界 (C0=${stdShear.C0_S})</h5>`;
+    if(b.stories === 2) html2 += renderQCalcSafety('2階', stdShear.Ai2, W_sum2, stdShear.Qs2);
+    html2 += renderQCalcSafety('1階', stdShear.Ai1, W_sum1, stdShear.Qs1);
+    html2 += `</div>`;
     
-    html += `</div>`;
-    html += `</div>`; // End logic
+    html2 += `</div>`;
+    html2 += `</div>`; // End logic
     
-    return html;
+    return { html1, html2 };
 }
-
-// executeCalculation の末尾に追加するためのフック処理
-// 既存のexecuteCalculation関数内の末尾（HTML更新後）に以下のような処理を追加する必要があります。
-// しかし、既存コードを直接書き換える形になるため、
-// 既存のexecuteCalculationをオーバーライドするか、
-// ユーザーが手動でマージする形になります。
-// ここでは、新しい関数 `updateShearTab` を作成し、
-// これを `executeCalculation` の最後に呼び出すように指示します。
 
 function updateShearTab(b, resX, resY, ptXd, ptXs, ptYd, ptYs) {
     if(!document.getElementById('chk_calc_shear_force').checked) return;
     
     const stdShear = calcStandardShear(b);
-    const html = renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs);
+    const { html1, html2 } = renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs);
     
-    // 画面表示用
+    // 画面表示用(統合表示)
     const container = document.getElementById('shear-result-container');
-    container.innerHTML = html;
+    container.innerHTML = html1 + html2;
     if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, container]);
     
-    // レポート用
-    const repContainer = document.getElementById('rep-shear-content');
-    if(repContainer) {
-        repContainer.innerHTML = html;
-        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer]);
+    // レポート用(2ページに分割)
+    const repContainer1 = document.getElementById('rep-shear-content1');
+    const repContainer2 = document.getElementById('rep-shear-content2');
+    if(repContainer1) {
+        repContainer1.innerHTML = html1;
+        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer1]);
+    }
+    if(repContainer2) {
+        repContainer2.innerHTML = html2;
+        if(window.MathJax) MathJax.Hub.Queue(["Typeset", MathJax.Hub, repContainer2]);
     }
 }
 
