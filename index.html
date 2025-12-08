@@ -4836,10 +4836,10 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     
     // 判定バッジ関数（OK/NG表示用）
     const judgeBadge = (limit, req) => {
-        if(!limit) return '<span class="badge badge-ng">NG</span>';
+        if(!limit) return '<span class="badge badge-ng">限界時耐力小</span>';
         const ratio = limit / req;
-        const cls = ratio >= 1.0 ? 'badge-ok' : 'badge-ng';
-        return `<span class="badge ${cls}">${ratio >= 1.0 ? 'OK' : 'NG'}</span>`;
+        const cls = ratio >= 1.0 ? 'badge-ng' : 'badge-ok';
+        return `<span class="badge ${cls}">${ratio >= 1.0 ? '限界時耐力大' : '限界時耐力小'}</span>`;
     };
     
     // 大小比較記号関数（列追加用）
@@ -4872,12 +4872,12 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
             <tr>
                 <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
                 <th style="${thStyle} width:40px;">大小</th> <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
-                <th style="${thStyle}">余裕度<br>Qlim/Qreq</th>
+                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
                 <th style="${thStyle}">結果</th>
 
                 <th style="${thStyle}">限界時耐力<br>Qlim (kN)</th>
                 <th style="${thStyle} width:40px;">大小</th> <th style="${thStyle}">必要せん断力<br>Qreq (kN)</th>
-                <th style="${thStyle}">余裕度<br>Qlim/Qreq</th>
+                <th style="${thStyle}">耐力比<br>Qlim/Qreq</th>
                 <th style="${thStyle}">結果</th>
             </tr>
         </thead>
