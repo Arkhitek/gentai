@@ -368,7 +368,7 @@
     <!-- 復元力特性 X方向タブ -->
     <div id="tab-force-x" class="tab-content no-print">
         <h2>復元力特性 X方向 (Q - δ)</h2>
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
         <div class="force-editor">
             <div class="force-column" id="col-x1">
                 <div class="force-header"><span>X方向 1階</span></div>
@@ -380,6 +380,21 @@
                         <button class="btn-add-wall" onclick="addWall('x1')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x1"></div>
+                </div>
+                <div class="wall-selector" style="background:#fef9e7; border-color:#f9e79f;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#856404; margin-bottom:5px;">筋交い/ブレース（角度補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-brace-x1"></select>
+                        <input type="number" id="width-brace-x1" value="0.91" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-brace-x1" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addBrace('x1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-brace-x1"></div>
+                    <div style="font-size:0.7em; color:#856404; margin-top:3px; line-height:1.3;">
+                        ※耐力値はブレース角度θによるcosθで自動補正されます
+                    </div>
                 </div>
                 <div class="input-chart-wrapper"><canvas id="chart-in-x1"></canvas></div>
                 <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
@@ -408,6 +423,21 @@
                     </div>
                     <div class="wall-list" id="list-wall-x2"></div>
                 </div>
+                <div class="wall-selector" style="background:#fef9e7; border-color:#f9e79f;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#856404; margin-bottom:5px;">筋交い/ブレース（角度補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-brace-x2"></select>
+                        <input type="number" id="width-brace-x2" value="0.91" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-brace-x2" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addBrace('x2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-brace-x2"></div>
+                    <div style="font-size:0.7em; color:#856404; margin-top:3px; line-height:1.3;">
+                        ※耐力値はブレース角度θによるcosθで自動補正されます
+                    </div>
+                </div>
                 <div class="input-chart-wrapper"><canvas id="chart-in-x2"></canvas></div>
                 <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
                 <div class="free-input-list" id="free-list-x2"></div>
@@ -435,7 +465,7 @@
             </label>
         </div>
         <div id="force-y-input-area">
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
         <div class="force-editor">
             <div class="force-column" id="col-y1">
                 <div class="force-header"><span>Y方向 1階</span></div>
@@ -447,6 +477,21 @@
                         <button class="btn-add-wall" onclick="addWall('y1')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y1"></div>
+                </div>
+                <div class="wall-selector" style="background:#fef9e7; border-color:#f9e79f;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#856404; margin-bottom:5px;">筋交い/ブレース（角度補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-brace-y1"></select>
+                        <input type="number" id="width-brace-y1" value="0.91" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-brace-y1" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addBrace('y1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-brace-y1"></div>
+                    <div style="font-size:0.7em; color:#856404; margin-top:3px; line-height:1.3;">
+                        ※耐力値はブレース角度θによるcosθで自動補正されます
+                    </div>
                 </div>
                 <div class="input-chart-wrapper"><canvas id="chart-in-y1"></canvas></div>
                 <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
@@ -474,6 +519,21 @@
                         <button class="btn-add-wall" onclick="addWall('y2')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y2"></div>
+                </div>
+                <div class="wall-selector" style="background:#fef9e7; border-color:#f9e79f;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#856404; margin-bottom:5px;">筋交い/ブレース（角度補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-brace-y2"></select>
+                        <input type="number" id="width-brace-y2" value="0.91" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-brace-y2" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addBrace('y2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-brace-y2"></div>
+                    <div style="font-size:0.7em; color:#856404; margin-top:3px; line-height:1.3;">
+                        ※耐力値はブレース角度θによるcosθで自動補正されます
+                    </div>
                 </div>
                 <div class="input-chart-wrapper"><canvas id="chart-in-y2"></canvas></div>
                 <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
@@ -702,6 +762,31 @@
                                 例：壁A（自動計算 heq=0.05, Q=50kN）+ 自由入力B（直接入力 heq=0.10, Q=30kN）<br>
                                 \( h_{eq,階} = \frac{0.05 \times 50 + 0.10 \times 30}{50 + 30} = \frac{2.5 + 3.0}{80} = 0.069 \)
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                 <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
+                    <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">3-3. 筋交い/ブレースの角度補正</h4>
+                    <div class="formula-grid">
+                        <div class="formula-item">
+                            <strong>基準データ</strong><br>
+                            <div class="formula-desc">brace_data.csvに格納されているデータは、壁幅0.91m、階高2.73mでの試験値です。<br>実際の設置条件に応じて、ブレース角度θによるcosθで耐力値を自動補正します。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>ブレース角度θ</strong><br>
+                            <span class="formula-eq">\( \theta = \tan^{-1}\left(\frac{H}{W}\right) \)</span><br>
+                            <div class="formula-desc">H: 階高(m)、W: 壁幅(m)<br>基準角度 \( \theta_{base} = \tan^{-1}(2.73/0.91) \approx 71.6° \)</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>補正係数</strong><br>
+                            <span class="formula-eq">\( \alpha = \frac{\cos\theta_{actual}}{\cos\theta_{base}} \)</span><br>
+                            <div class="formula-desc">実際のブレース角度θと基準角度θbaseのcosθの比率により、水平方向の耐力成分を補正します。</div>
+                        </div>
+                        <div class="formula-item">
+                            <strong>補正後の耐力</strong><br>
+                            <span class="formula-eq">\( Q_{brace} = Q_{base} \times \alpha \times n \)</span><br>
+                            <div class="formula-desc">Q_base: CSV記載の基準耐力値、n: 箇所数<br>壁幅と階高を入力すると、自動的に補正された耐力が計算に反映されます。</div>
                         </div>
                     </div>
                 </div>
@@ -1112,8 +1197,14 @@ let currentSaType = 'd'; // 現在編集中のタイプ ('d' or 's')
 // 耐力壁データ（CSVからロードするため初期値は空、letに変更）
 let WALL_DATA = {};
 
+// 筋交い/ブレースデータ（brace_data.csvから読み込む）
+let BRACE_DATA = {};
+
 // --- 各壁要素の初期剛性キャッシュ ---
 let WALL_K0 = {};
+
+// 筋交い/ブレースの初期剛性キャッシュ
+let BRACE_K0 = {};
 
 // 初期剛性を算出してキャッシュ
 function initWallK0() {
@@ -1127,10 +1218,22 @@ function initWallK0() {
             WALL_K0[name] = 10000;
         }
     }
+    
+    // 筋交い/ブレースの初期剛性も計算
+    for (let name in BRACE_DATA) {
+        let data = BRACE_DATA[name];
+        if (data.length > 0) {
+            let p = data[0];
+            BRACE_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+        } else {
+            BRACE_K0[name] = 10000;
+        }
+    }
 }
 
 let calcRes = {}, chartObjs = {}, inputChartObjs = {}, currSheetTarget = '', hot = null;
 let addedWalls = { x1: [], x2: [], y1: [], y2: [] }; // Added state for walls
+let addedBraces = { x1: [], x2: [], y1: [], y2: [] }; // Added state for braces
 let freeInputData = { x1: [], x2: [], y1: [], y2: [] }; // 複数の自由入力項目を管理
 let currentEditingFreeItem = null; // Excel貼付時に編集中の項目を追跡
 
@@ -1160,7 +1263,8 @@ window.onload = async function() {
     toggleStories(); 
     
     // ▼▼▼ 変更: CSVデータをロードしてから初期化 ▼▼▼
-    await loadWallDataFromServer(); 
+    await loadWallDataFromServer();
+    await loadBraceDataFromServer(); // 筋交い/ブレースデータ読み込み
     // initWallSelectors(); // loadWallDataFromServer内で呼び出すためコメントアウトまたは削除
     // initWallK0();      // 同上
     // ▲▲▲ 変更ここまで ▲▲▲
@@ -1224,6 +1328,29 @@ async function loadWallDataFromServer() {
     }
 }
 
+// --- 筋交い/ブレースデータの読み込み関数 ---
+async function loadBraceDataFromServer() {
+    try {
+        const response = await fetch('./brace_data.csv'); 
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        parseBraceCSV(text);
+        
+        // データロード後に初期化処理を実行
+        initBraceSelectors();
+        
+        console.log("筋交い/ブレースデータを読み込みました:", Object.keys(BRACE_DATA).length + "件");
+        
+    } catch (e) {
+        console.error("筋交い/ブレースデータの読み込みに失敗しました:", e);
+        alert("筋交い/ブレースデータの読み込みに失敗しました。\nサーバー環境で実行されているか、brace_data.csvが存在するか確認してください。");
+    }
+}
+
 // CSVテキストをパースしてWALL_DATAに格納する（修正版）
 function parseWallCSV(text) {
     WALL_DATA = {}; // リセット
@@ -1265,11 +1392,67 @@ function parseWallCSV(text) {
     }
 }
 
+// CSVテキストをパースしてBRACE_DATAに格納する（筋交い/ブレース用）
+function parseBraceCSV(text) {
+    BRACE_DATA = {}; // リセット
+    const lines = text.split(/\r?\n/);
+    
+    lines.forEach(line => {
+        // 空行やコメント行(#)、ヘッダー行はスキップ
+        if (!line.trim() || line.startsWith('#') || line.toLowerCase().includes('名称')) return;
+        
+        // カンマ区切り: 名称, r, q, heq(任意), 壁幅, 階高
+        const parts = line.split(',');
+        if (parts.length < 6) return;
+        
+        const name = parts[0].trim();
+        const r = parseFloat(parts[1]);
+        const q = parseFloat(parts[2]);
+        
+        // 4列目があれば heq として読み込む（なければ null）
+        let heq = null;
+        if (parts.length >= 4 && parts[3].trim()) {
+            const val = parseFloat(parts[3]);
+            if (!isNaN(val)) {
+                heq = val;
+            }
+        }
+        
+        // 5列目、6列目: 壁幅と階高（基準値）
+        const baseWidth = parseFloat(parts[4]);
+        const baseHeight = parseFloat(parts[5]);
+        
+        if (name && !isNaN(r) && !isNaN(q) && !isNaN(baseWidth) && !isNaN(baseHeight)) {
+            if (!BRACE_DATA[name]) {
+                BRACE_DATA[name] = {
+                    baseWidth: baseWidth,
+                    baseHeight: baseHeight,
+                    data: []
+                };
+            }
+            BRACE_DATA[name].data.push({ r: r, q: q, heq: heq });
+        }
+    });
+    
+    // データ内でrの昇順にソートしておく
+    for (let key in BRACE_DATA) {
+        BRACE_DATA[key].data.sort((a, b) => a.r - b.r);
+    }
+}
+
 function initWallSelectors() {
     const opts = '<option value="">--- 耐力壁を選択 ---</option>' + 
         Object.keys(WALL_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
     ['x1','x2','y1','y2'].forEach(id => {
         document.getElementById(`sel-wall-${id}`).innerHTML = opts;
+    });
+}
+
+function initBraceSelectors() {
+    const opts = '<option value="">--- 筋交い/ブレースを選択 ---</option>' + 
+        Object.keys(BRACE_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+    ['x1','x2','y1','y2'].forEach(id => {
+        document.getElementById(`sel-brace-${id}`).innerHTML = opts;
     });
 }
 
@@ -1325,6 +1508,84 @@ function renderWallList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         div.innerHTML = `<span>${w.name} × ${w.qty}</span> <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>`;
+        list.appendChild(div);
+    });
+}
+
+// --- Brace Management (筋交い/ブレース) ---
+function addBrace(id) {
+    checkAndRemoveDefault(id);
+    
+    const sel = document.getElementById(`sel-brace-${id}`);
+    const name = sel.value;
+    const widthInput = document.getElementById(`width-brace-${id}`);
+    const width = parseFloat(widthInput.value);
+    const qtyInput = document.getElementById(`qty-brace-${id}`);
+    const qty = parseInt(qtyInput.value);
+    
+    if(!name || name === '') {
+        alert('筋交い/ブレースを選択してください。');
+        return;
+    }
+    if(width <= 0 || isNaN(width)) {
+        alert('壁幅を入力してください。');
+        return;
+    }
+    if(qty <= 0 || isNaN(qty)) {
+        alert('箇所数を入力してください。');
+        return;
+    }
+    
+    // 階高を取得
+    const floor = id.includes('2') ? '2' : '1';
+    const height = parseFloat(document.getElementById('inp_H' + floor).value) || 3.0;
+    
+    // cosθによる補正率を計算
+    const braceInfo = BRACE_DATA[name];
+    if (!braceInfo) {
+        alert('選択した筋交い/ブレースのデータが見つかりません。');
+        return;
+    }
+    
+    const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
+    const baseCos = Math.cos(baseTheta);
+    
+    const actualTheta = Math.atan2(height, width);
+    const actualCos = Math.cos(actualTheta);
+    
+    const correctionFactor = actualCos / baseCos;
+    
+    addedBraces[id].push({ 
+        name: name, 
+        width: width, 
+        qty: qty, 
+        height: height,
+        correctionFactor: correctionFactor 
+    });
+    
+    renderBraceList(id);
+    updateInputGraph(id);
+    
+    // Reset inputs
+    widthInput.value = "0.91";
+    qtyInput.value = "1";
+    sel.value = "";
+}
+
+function removeBrace(id, idx) {
+    addedBraces[id].splice(idx, 1);
+    renderBraceList(id);
+    updateInputGraph(id);
+}
+
+function renderBraceList(id) {
+    const list = document.getElementById(`list-brace-${id}`);
+    list.innerHTML = '';
+    addedBraces[id].forEach((b, i) => {
+        const div = document.createElement('div');
+        div.className = 'wall-item';
+        const factor = (b.correctionFactor * 100).toFixed(1);
+        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)</span> <button class="btn-sm" style="color:red;" onclick="removeBrace('${id}', ${i})">削除</button>`;
         list.appendChild(div);
     });
 }
@@ -1444,6 +1705,14 @@ function getCompositeForce(id) {
         }
     });
     
+    // Add brace key points (筋交い/ブレース)
+    addedBraces[id].forEach(b => {
+        let braceInfo = BRACE_DATA[b.name];
+        if(braceInfo && braceInfo.data) {
+            braceInfo.data.forEach(d => allRads.add(d.r));
+        }
+    });
+    
     // Sort radians
     let sortedRads = Array.from(allRads).sort((a,b) => a - b);
     
@@ -1518,6 +1787,45 @@ function getCompositeForce(id) {
                     // heq = (d - Q/K0) / d * 2 / (4π)
                     if (d > 0 && K0_wall > 0) {
                         let elasticDef = q_single / K0_wall; // 弾性変形
+                        heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
+                        if (heq_elem < 0) heq_elem = 0;
+                    }
+                }
+                
+                totalQ += q_elem;
+                sumHeqQ += heq_elem * q_elem;
+            }
+        });
+        
+        // --- Brace items の処理 (筋交い/ブレース) ---
+        addedBraces[id].forEach(b => {
+            let braceInfo = BRACE_DATA[b.name];
+            if(braceInfo && braceInfo.data) {
+                // cosθ補正を適用した耐力
+                let q_base = interpRadQ(braceInfo.data, rad);
+                let q_elem = q_base * b.correctionFactor * b.qty;
+                
+                // データ内に有効な heq が定義されているかチェック
+                const hasExplicitHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                
+                let heq_elem = 0;
+
+                if (hasExplicitHeq) {
+                    // heq指定あり：CSVの値を補間して使用
+                    heq_elem = interpRadHeq(braceInfo.data, rad);
+                } else {
+                    // heq指定なし：従来通りの剛性低下率による自動計算
+                    let q_single = q_elem / b.qty; // 1箇所あたりのQ
+                    
+                    // ブレースの初期剛性 K0 (変位ベース: kN/m)
+                    let K0_brace_rad = BRACE_K0[b.name] || 10000;
+                    // cosθ補正を初期剛性にも適用
+                    K0_brace_rad = K0_brace_rad * b.correctionFactor;
+                    let K0_brace = K0_brace_rad / h; // 変位ベースに変換
+                    
+                    // heq = (d - Q/K0) / d * 2 / (4π)
+                    if (d > 0 && K0_brace > 0) {
+                        let elasticDef = q_single / K0_brace; // 弾性変形
                         heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
                         if (heq_elem < 0) heq_elem = 0;
                     }
