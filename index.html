@@ -101,7 +101,7 @@
         .story-2-only { transition: all 0.3s; }
         
         /* Input Graph Styles */
-        .input-chart-wrapper { height: 180px; width: 100%; background: white; border: 1px solid #eee; margin-bottom: 5px; }
+        .input-chart-wrapper { height: 250px; width: 100%; background: white; border: 1px solid #eee; margin-bottom: 5px; }
 
         /* SVG Diagram Styles */
         .diagram-container { text-align: center; margin: 15px 0; border: 1px solid #eee; padding: 10px; background: white; }
@@ -247,7 +247,7 @@
             </div>
         </div>
         
-        <h3>1-3. 地盤種別 (Gsスペクトル設定)</h3>
+        <h3>1-3. 地盤種別 (表層地盤による加速度増幅率Gs設定)</h3>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
             <div style="min-width:200px;">
                 <div class="input-group" style="margin-bottom:10px;">
@@ -256,7 +256,7 @@
                         <option value="1">第1種 (岩盤・硬質砂礫等)</option>
                         <option value="2" selected>第2種 (通常の地盤)</option>
                         <option value="3">第3種 (軟弱地盤)</option>
-                        <option value="custom">Gsスペクトル自由入力</option>
+                        <option value="custom">表層地盤による加速度増幅率Gs自由入力</option>
                     </select>
                 </div>
                 <div id="inp_Tc_custom_input" style="display:none; background:#eee; padding:10px; border-radius:5px;">
@@ -269,7 +269,7 @@
                 </div>
             </div>
             <div style="flex:1; min-width:350px; max-width:600px;">
-                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">Gsスペクトルグラフ</div>
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">表層地盤による加速度増幅率Gsグラフ</div>
                 <div style="height:200px; border:1px solid #ccc; background:#fff; padding:5px;">
                     <canvas id="chart-gs"></canvas>
                 </div>
@@ -975,40 +975,33 @@
             
             <div class="report-section">
                 <h3>第1章 建物概要・諸元</h3>
-                <table class="report-table">
+                <table class="report-table" style="border: 1px solid #333;">
                     <tr>
-                        <th width="15%">地域係数 Z</th><td id="rep-Z" width="15%"></td>
-                        <th width="15%">地盤種別</th><td id="rep-Tc"></td>
-                        <th width="15%">p, q考慮</th><td id="rep-PQ"></td>
+                        <th width="15%" style="border: 1px solid #333;">地域係数 Z</th><td id="rep-Z" width="15%" style="border: 1px solid #333;"></td>
+                        <th width="15%" style="border: 1px solid #333;">地盤種別</th><td id="rep-Tc" style="border: 1px solid #333;"></td>
+                        <th width="15%" style="border: 1px solid #333;">p, q考慮</th><td id="rep-PQ" style="border: 1px solid #333;"></td>
                     </tr>
                     <tr>
-                         <th>損傷限界</th><td id="rep-lim-d"></td>
-                         <th>安全限界</th><td id="rep-lim-s"></td>
-                         <td colspan="2"></td>
+                         <th style="border: 1px solid #333;">損傷限界</th><td id="rep-lim-d" style="border: 1px solid #333;"></td>
+                         <th style="border: 1px solid #333;">安全限界</th><td id="rep-lim-s" style="border: 1px solid #333;"></td>
+                         <td colspan="2" style="border: 1px solid #333;"></td>
                     </tr>
                 </table>
-                <table class="report-table" style="margin-top:5px;">
-                    <thead><tr><th>階</th><th>階高H(m)</th><th>重量W(kN)</th><th>累計重量(kN)</th><th>初期剛性Ki(kN/m)</th></tr></thead>
+                <table class="report-table" style="margin-top:5px; border: 1px solid #333;">
+                    <thead><tr><th style="border: 1px solid #333;">階</th><th style="border: 1px solid #333;">階高H(m)</th><th style="border: 1px solid #333;">重量W(kN)</th><th style="border: 1px solid #333;">累計重量(kN)</th><th style="border: 1px solid #333;">初期剛性Ki(kN/m)</th></tr></thead>
                     <tbody id="rep-bldg-tbody"></tbody>
                 </table>
             </div>
             
             <div class="report-section">
-                <h3>1-2. 地盤種別・Gsスペクトル</h3>
-                <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <div style="flex:1;">
-                        <table class="report-table">
-                            <tr><th width="30%">地盤種別</th><td id="rep-Tc-detail"></td></tr>
-                            <tr><th>設定方法</th><td id="rep-Tc-mode"></td></tr>
-                        </table>
-                        <div id="rep-gs-data-table" style="margin-top:5px; font-size:7pt;"></div>
-                    </div>
-                    <div style="flex:1; max-width:350px;">
-                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">Gsスペクトルグラフ</div>
-                        <div style="height:150px; border:1px solid #ccc;">
-                            <canvas id="rep-chart-gs"></canvas>
-                        </div>
-                    </div>
+                <h3>1-2. 地盤種別・表層地盤による加速度増幅率Gs</h3>
+                <table class="report-table" style="border: 1px solid #333;">
+                    <tr><th width="30%" style="border: 1px solid #333;">地盤種別</th><td id="rep-Tc-detail" style="border: 1px solid #333;"></td></tr>
+                    <tr><th style="border: 1px solid #333;">設定方法</th><td id="rep-Tc-mode" style="border: 1px solid #333;"></td></tr>
+                </table>
+                <div style="font-size:8pt; font-weight:bold; margin:10px 0 3px;">表層地盤による加速度増幅率Gsグラフ</div>
+                <div style="height:180px; border:1px solid #ccc; width:100%;">
+                    <canvas id="rep-chart-gs"></canvas>
                 </div>
             </div>
             
@@ -1029,44 +1022,28 @@
                 <table class="report-table" style="font-size:8pt; margin-bottom:5px;">
                     <tr><th width="25%">入力モード</th><td id="rep-sa-mode"></td></tr>
                 </table>
-                <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <div style="flex:1;">
-                        <div id="rep-sa-desc" style="font-size:7pt; line-height:1.4;">
-                            <p><strong>加速度応答スペクトル Sa0(T)</strong></p>
-                            <p>岩盤上の加速度応答スペクトルを表します。</p>
-                            <p>● 損傷限界: 稀に発生する地震動 (50年に1回程度)</p>
-                            <p>● 安全限界: 極めて稀に発生する地震動 (500年に1回程度)</p>
-                            <p>※安全限界は損傷限界の5倍</p>
-                        </div>
-                        <table class="report-table" style="font-size:7pt; margin-top:5px;">
-                            <thead><tr><th>T(s)</th><th>Sa0(損傷)</th><th>Sa0(安全)</th></tr></thead>
-                            <tbody id="rep-sa0-tbody"></tbody>
-                        </table>
-                    </div>
-                    <div style="flex:1; max-width:350px;">
-                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">Saスペクトルグラフ</div>
-                        <div style="height:150px; border:1px solid #ccc;">
-                            <canvas id="rep-chart-sa0"></canvas>
-                        </div>
-                    </div>
+                <div id="rep-sa-desc" style="font-size:7pt; line-height:1.4; margin-bottom:10px;">
+                    <p><strong>加速度応答スペクトル Sa0(T)</strong></p>
+                    <p>岩盤上の加速度応答スペクトルを表します。</p>
+                    <p>● 損傷限界: 稀に発生する地震動 (50年に1回程度)</p>
+                    <p>● 安全限界: 極めて稀に発生する地震動 (500年に1回程度)</p>
+                    <p>※安全限界は損傷限界の5倍</p>
+                </div>
+                <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">Saスペクトルグラフ</div>
+                <div style="height:200px; border:1px solid #ccc; width:100%;">
+                    <canvas id="rep-chart-sa0"></canvas>
                 </div>
             </div>
             
             <div class="report-section" id="rep-pq-section">
                 <h3>1-4. p, q 調整係数</h3>
-                <div style="display:flex; gap:15px; align-items:flex-start;">
-                    <div style="flex:1;">
-                        <table class="report-table">
-                            <tr><th width="30%">p, q 考慮</th><td id="rep-pq-mode"></td></tr>
-                        </table>
-                        <div id="rep-pq-desc" style="margin-top:5px; font-size:7pt;"></div>
-                    </div>
-                    <div style="flex:1; max-width:350px;">
-                        <div style="font-size:8pt; font-weight:bold; margin-bottom:3px;">p係数グラフ (Te-p)</div>
-                        <div style="height:150px; border:1px solid #ccc;">
-                            <canvas id="rep-chart-p"></canvas>
-                        </div>
-                    </div>
+                <table class="report-table" style="border: 1px solid #333;">
+                    <tr><th width="30%" style="border: 1px solid #333;">p, q 考慮</th><td id="rep-pq-mode" style="border: 1px solid #333;"></td></tr>
+                </table>
+                <div id="rep-pq-desc" style="margin-top:5px; font-size:7pt;"></div>
+                <div style="font-size:8pt; font-weight:bold; margin:10px 0 3px;">p係数グラフ (Te-p)</div>
+                <div style="height:180px; border:1px solid #ccc; width:100%;">
+                    <canvas id="rep-chart-p"></canvas>
                 </div>
             </div>
             
@@ -1081,7 +1058,7 @@
             <div class="report-section">
                 <h3>2.1 X方向の復元力特性</h3>
             <div id="rep-force-x-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
-            <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
+            <div style="height:280px; border:1px solid #ccc; margin-top:5px;">
                 <canvas id="rep-chart-force-x"></canvas>
             </div>
             </div>
@@ -1096,7 +1073,7 @@
             <div class="report-section">
                 <h3>2.2 Y方向の復元力特性</h3>
             <div id="rep-force-y-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
-            <div style="height:200px; border:1px solid #ccc; margin-top:5px;">
+            <div style="height:280px; border:1px solid #ccc; margin-top:5px;">
                 <canvas id="rep-chart-force-y"></canvas>
             </div>
             </div>
@@ -1338,7 +1315,7 @@
 <div id="gs-modal" class="modal-overlay">
     <div class="modal-content" style="max-width:500px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <h3 style="margin:0;">Gsスペクトル入力</h3>
+            <h3 style="margin:0;">表層地盤による加速度増幅率Gs入力</h3>
             <button onclick="closeGsSpreadsheet()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
         </div>
         <p style="font-size:0.85em; color:#666; margin:0 0 10px 0;">ExcelからT(s)とGsの2列データを貼り付けてください。</p>
@@ -1367,6 +1344,10 @@
 // --- Global Constants & State ---
 const G_ACC = 9.80665; 
 const DEF_GS = [ {t:0.1,g:2.5}, {t:0.6,g:2.5}, {t:0.7,g:2.14}, {t:1.0,g:1.5} ];
+
+// ▼▼▼ 追加: Chart.jsグローバル設定で高解像度化 ▼▼▼
+Chart.defaults.devicePixelRatio = 3; // 計算書グラフ解像度を3倍に
+// ▲▲▲ 追加ここまで ▲▲▲
 
 // ▼▼▼ 追加: レポート用チャートのインスタンス保持用変数 ▼▼▼
 let repChartGs = null;
@@ -1699,9 +1680,29 @@ function renderWallList(id) {
     addedWalls[id].forEach((w, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        div.innerHTML = `<span>${w.name} × ${w.qty}</span> <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>`;
+        div.innerHTML = `<span>${w.name} × ${w.qty}</span>
+            <span>
+                <button class="btn-sm" onclick="editWall('${id}', ${i})">編集</button>
+                <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>
+            </span>`;
         list.appendChild(div);
     });
+}
+
+// 耐力壁の編集ダイアログ
+function editWall(id, idx) {
+    const wall = addedWalls[id][idx];
+    const newQty = prompt(`「${wall.name}」の数量を入力してください（現在: ${wall.qty}）:`, wall.qty);
+    if(newQty !== null) {
+        const qty = parseFloat(newQty);
+        if(!isNaN(qty) && qty > 0) {
+            addedWalls[id][idx].qty = qty;
+            renderWallList(id);
+            updateInputGraph(id);
+        } else {
+            alert('有効な数値を入力してください。');
+        }
+    }
 }
 
 // --- Brace Management (筋交い/ブレース) ---
@@ -1777,9 +1778,52 @@ function renderBraceList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         const factor = (b.correctionFactor * 100).toFixed(1);
-        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)</span> <button class="btn-sm" style="color:red;" onclick="removeBrace('${id}', ${i})">削除</button>`;
+        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)</span>
+            <span>
+                <button class="btn-sm" onclick="editBrace('${id}', ${i})">編集</button>
+                <button class="btn-sm" style="color:red;" onclick="removeBrace('${id}', ${i})">削除</button>
+            </span>`;
         list.appendChild(div);
     });
+}
+
+// 筋交い/ブレースの編集ダイアログ
+function editBrace(id, idx) {
+    const brace = addedBraces[id][idx];
+    const newWidth = prompt(`「${brace.name}」の壁幅(m)を入力してください（現在: ${brace.width}m）:`, brace.width);
+    if(newWidth === null) return;
+    
+    const width = parseFloat(newWidth);
+    if(isNaN(width) || width <= 0) {
+        alert('有効な壁幅を入力してください。');
+        return;
+    }
+    
+    const newQty = prompt(`「${brace.name}」の箇所数を入力してください（現在: ${brace.qty}箇所）:`, brace.qty);
+    if(newQty === null) return;
+    
+    const qty = parseInt(newQty);
+    if(isNaN(qty) || qty <= 0) {
+        alert('有効な箇所数を入力してください。');
+        return;
+    }
+    
+    // 補正率を再計算
+    const braceInfo = BRACE_DATA[brace.name];
+    if(braceInfo) {
+        const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
+        const baseCos = Math.cos(baseTheta);
+        const actualTheta = Math.atan2(brace.height, width);
+        const actualCos = Math.cos(actualTheta);
+        const correctionFactor = actualCos / baseCos;
+        
+        addedBraces[id][idx].width = width;
+        addedBraces[id][idx].qty = qty;
+        addedBraces[id][idx].correctionFactor = correctionFactor;
+        
+        renderBraceList(id);
+        updateInputGraph(id);
+    }
 }
 
 // --- Free Input Item Management (複数自由入力対応) ---
@@ -2107,21 +2151,96 @@ function updateInputGraph(id) {
     // Use deformation angle (rad) for X-axis
     let chartData = compositeData.map(p => ({ x: p.r, y: p.q }));
 
+    // 個別のQ-δデータセットを構築
+    let datasets = [];
+    const colors = ['#005a9c', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997'];
+    let colorIndex = 0;
+    
+    // 耐力壁の個別データ
+    addedWalls[id].forEach((w, i) => {
+        let data = WALL_DATA[w.name];
+        if(data) {
+            let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+            datasets.push({
+                label: `${w.name}×${w.qty}`,
+                data: wallData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [3, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 筋交いの個別データ
+    addedBraces[id].forEach((b, i) => {
+        let braceInfo = BRACE_DATA[b.name];
+        if(braceInfo && braceInfo.data) {
+            let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+            datasets.push({
+                label: `${b.name}×${b.qty}`,
+                data: braceData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [5, 5],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 自由入力の個別データ
+    freeInputData[id].forEach((item, i) => {
+        if(item.data.length > 0) {
+            let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+            datasets.push({
+                label: `${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
+                data: freeData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [2, 2],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 合計を太線で追加
+    datasets.push({
+        label: '合計',
+        data: chartData,
+        borderColor: '#000000',
+        borderWidth: 3,
+        showLine: true,
+        pointRadius: 0,
+        fill: false
+    });
+
     if (!inputChartObjs[id]) {
         const ctx = document.getElementById(`chart-in-${id}`);
         if(ctx) {
             inputChartObjs[id] = new Chart(ctx.getContext('2d'), {
                 type: 'scatter',
-                data: { datasets: [{ label: 'Total Q-δ', data: chartData, borderColor: '#005a9c', showLine: true, borderWidth: 2 }] },
+                data: { datasets: datasets },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { x: { title: {display:true, text:'変形角(rad)'}, min:0 }, y: { title: {display:true, text:'Q(kN)'}, min:0 } },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } } }
+                    plugins: { 
+                        legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 20, padding: 5 } },
+                        tooltip: { callbacks: { label: c => `${c.dataset.label}: (${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } }
+                    }
                 }
             });
         }
     } else {
-        inputChartObjs[id].data.datasets[0].data = chartData;
+        inputChartObjs[id].data.datasets = datasets;
         inputChartObjs[id].update();
     }
 }
@@ -2655,7 +2774,7 @@ function applyGsData() {
 
 // Gsデータをクリア
 function clearGsData() {
-    if(confirm('Gsスペクトルデータをクリアしますか？')) {
+    if(confirm('表層地盤による加速度増幅率Gsデータをクリアしますか？')) {
         gsData = [];
         renderGsDataList();
         updateGsChart();
@@ -3301,7 +3420,7 @@ function getRating(ratio) {
 
 function executeCalculation() {
     const b = getBldg();
-    if(b.tcMode==='custom' && b.gsPts.length === 0) { alert('Gsスペクトルが入力されていません。'); return; }
+    if(b.tcMode==='custom' && b.gsPts.length === 0) { alert('表層地盤による加速度増幅率Gsが入力されていません。'); return; }
     
     const skipY = document.getElementById('chk-skip-y').checked;
     
@@ -3857,9 +3976,9 @@ function drawStickModel(canvasId, b, ptD, ptS) {
     // 変位が極端に小さい場合のゼロ除算防止（最小値を設定）
     const dispLimit = Math.max(maxDisp, totalH * 1/1000); 
     
-    // 【修正2】描画エリア一杯までグラフを拡大する計算式に変更
-    // (W/2 - margin.right) は中心から右端までの描画可能幅
-    const scaleX = (W / 2 - margin.right) / dispLimit;
+    // 【修正2】描画エリアの80%までに制限してはみ出しを防止
+    const maxDrawWidth = (W / 2 - margin.right) * 0.8;
+    const scaleX = maxDrawWidth / dispLimit;
     const scaleY = chartH / totalH;
     
     const toY = (h) => H - margin.bottom - (h * scaleY);
@@ -4503,7 +4622,7 @@ function generateTableOfContents(showOverview, showForce, showResult, showLogic,
     tocContent.innerHTML = html;
 }
 
-// Gsスペクトル情報を計算書に出力
+// 表層地盤による加速度増幅率Gs情報を計算書に出力
 function renderGsSpectrumReport() {
     const tcMode = document.getElementById('inp_Tc_mode').value;
     const typeNames = { '1': '第1種 (岩盤・硬質砂礫等)', '2': '第2種 (通常の地盤)', '3': '第3種 (軟弱地盤)', 'custom': '自由入力' };
@@ -4511,35 +4630,13 @@ function renderGsSpectrumReport() {
         '1': 'Tc=0.4s, 岩盤・硬質砂礫層その他これに類する地盤',
         '2': 'Tc=0.6s, 第1種・第3種以外の地盤',
         '3': 'Tc=0.8s, 腐植土・泥土その他これに類する軟弱地盤',
-        'custom': 'Gsスペクトルを直接指定'
+        'custom': '表層地盤による加速度増幅率Gsを直接指定'
     };
     
     document.getElementById('rep-Tc-detail').innerText = typeNames[tcMode] || '第2種';
     document.getElementById('rep-Tc-mode').innerText = tcDesc[tcMode] || '-';
     
-    // 自由入力の場合はデータテーブルを表示
-    const gsTableContainer = document.getElementById('rep-gs-data-table');
-    if(tcMode === 'custom' && gsData.length > 0) {
-        let html = '<table class="report-table" style="font-size:7pt;"><thead><tr><th>T (s)</th><th>Gs</th></tr></thead><tbody>';
-        gsData.forEach(d => {
-            html += `<tr><td>${d.t.toFixed(3)}</td><td>${d.g.toFixed(3)}</td></tr>`;
-        });
-        html += '</tbody></table>';
-        gsTableContainer.innerHTML = html;
-    } else {
-        // 標準スペクトルの場合は代表的な値を表示
-        let html = '<div style="font-size:7pt; margin-top:3px;">標準Gsスペクトル（告示値）</div>';
-        html += '<table class="report-table" style="font-size:7pt;"><thead><tr><th>T (s)</th><th>Gs</th></tr></thead><tbody>';
-        const sampleT = [0, 0.3, 0.576, 0.64, 0.864, 1.0, 1.5, 2.0];
-        sampleT.forEach(t => {
-            const gs = getGsForChart(tcMode, t);
-            html += `<tr><td>${t.toFixed(2)}</td><td>${gs.toFixed(3)}</td></tr>`;
-        });
-        html += '</tbody></table>';
-        gsTableContainer.innerHTML = html;
-    }
-    
-    // Gsスペクトルグラフを描画
+    // 表層地盤による加速度増幅率Gsグラフを描画
     const canvas = document.getElementById('rep-chart-gs');
     if(!canvas) return;
     
@@ -4599,7 +4696,6 @@ function renderGsSpectrumReport() {
 // 応答スペクトルSa0情報を計算書に出力
 function renderSa0Report() {
     const saMode = document.getElementById('inp_Sa_mode')?.value || 'standard';
-    const tbody = document.getElementById('rep-sa0-tbody');
     const canvas = document.getElementById('rep-chart-sa0');
     const modeEl = document.getElementById('rep-sa-mode');
     const descEl = document.getElementById('rep-sa-desc');
@@ -4630,24 +4726,6 @@ function renderSa0Report() {
                 <p style="margin-left:10px;">ΔW/(4πWA) ≧ 0.05 → h = ΔW/(4πWA)</p>
                 <p style="margin-left:10px;">Fh = 1.5 / (1 + 10h)</p>
             `;
-        }
-        
-        // テーブル出力（損傷限界と安全限界を両方表示）
-        const sampleT = [0, 0.1, 0.16, 0.3, 0.5, 0.64, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0];
-        let html = '';
-        sampleT.forEach(T => {
-            const saD = hasCustomD ? (getSaCustom(saDataD, T) || getSao(T, 'd')) : getSao(T, 'd');
-            const saS = hasCustomS ? (getSaCustom(saDataS, T) || getSao(T, 's')) : getSao(T, 's');
-            const markD = hasCustomD ? '' : '*';
-            const markS = hasCustomS ? '' : '*';
-            html += `<tr><td>${T.toFixed(2)}</td><td>${saD.toFixed(3)}${markD}</td><td>${saS.toFixed(3)}${markS}</td></tr>`;
-        });
-        tbody.innerHTML = html;
-        
-        // テーブルヘッダーを変更
-        const thead = tbody.parentElement.querySelector('thead');
-        if(thead) {
-            thead.innerHTML = '<tr><th>T(s)</th><th>Sa(損傷)</th><th>Sa(安全)</th></tr>';
         }
         
         if(canvas) {
@@ -4755,21 +4833,6 @@ function renderSa0Report() {
             `;
         }
         
-        const sampleT = [0, 0.1, 0.16, 0.3, 0.5, 0.64, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0];
-        let html = '';
-        sampleT.forEach(T => {
-            const sa0d = getSao(T, 'd');
-            const sa0s = getSao(T, 's');
-            html += `<tr><td>${T.toFixed(2)}</td><td>${sa0d.toFixed(3)}</td><td>${sa0s.toFixed(3)}</td></tr>`;
-        });
-        tbody.innerHTML = html;
-        
-        // テーブルヘッダーを標準に戻す
-        const thead = tbody.parentElement.querySelector('thead');
-        if(thead) {
-            thead.innerHTML = '<tr><th>T(s)</th><th>Sa0(損傷)</th><th>Sa0(安全)</th></tr>';
-        }
-        
         if(canvas) {
             // ▼▼▼ 修正1: 既存チャートの破棄処理を追加 ▼▼▼
             if(repChartSa0) {
@@ -4863,23 +4926,6 @@ function renderPqReport() {
     html += '<p>・高次モード影響を考慮した調整係数</p>';
     html += '<p>・Me/(m1+m2)<0.75 → q=0.75/(Me/(m1+m2)), それ以外 → q=1.0</p>';
     html += '</div>';
-    
-    // p係数の代表値テーブル
-    html += '<table class="report-table" style="font-size:7pt; margin-top:5px;"><thead><tr><th>Te(s)</th><th>p</th></tr></thead><tbody>';
-    const sampleTe = [0, 0.05, 0.10, 0.16, 0.20, 0.30, 0.40];
-    sampleTe.forEach(Te => {
-        let p;
-        if(stories === 2) {
-            if(Te <= 0.16) p = 1.0 - (0.15/0.16) * Te;
-            else p = 0.85;
-        } else {
-            if(Te <= 0.16) p = 1.0 - (0.20/0.16) * Te;
-            else p = 0.80;
-        }
-        if(p < 0.7) p = 0.7;
-        html += `<tr><td>${Te.toFixed(2)}</td><td>${p.toFixed(3)}</td></tr>`;
-    });
-    html += '</tbody></table>';
     descContainer.innerHTML = html;
     
     // p係数グラフを描画
@@ -4947,9 +4993,10 @@ function renderForceDetails() {
         const id2 = `${dir}2`;
         const is1F = (calcRes.b.stories === 1);
         
-        // 要素一覧テーブル
+        // 要素一覧テーブル（罫線付き）
+        const cellStyle = 'border: 1px solid #333;';
         let html = `<h4 style="margin:5px 0; background:#f0f0f0; padding:3px;">耐力要素一覧</h4>`;
-        html += `<table class="report-table" style="font-size:7pt;"><thead><tr><th>階</th><th>要素名</th><th>数量</th><th>K0(kN/m)</th><th>最大Q(kN)</th><th>heq入力</th></tr></thead><tbody>`;
+        html += `<table class="report-table" style="font-size:7pt; border: 1px solid #333;"><thead><tr><th style="${cellStyle}">階</th><th style="${cellStyle}">種別</th><th style="${cellStyle}">要素名</th><th style="${cellStyle}">数量</th><th style="${cellStyle}">K0(kN/m)</th><th style="${cellStyle}">最大Q(kN)</th><th style="${cellStyle}">heq入力</th></tr></thead><tbody>`;
         
         // 1階の壁要素
         addedWalls[id1].forEach(w => {
@@ -4957,7 +5004,18 @@ function renderForceDetails() {
             if(data) {
                 let K0 = WALL_K0[w.name] || 0;
                 let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
-                html += `<tr><td>1F</td><td>${w.name}</td><td>${w.qty.toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>自動</td></tr>`;
+                html += `<tr><td style="${cellStyle}">1F</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name}</td><td style="${cellStyle}">${w.qty.toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
+            }
+        });
+        
+        // 1階の筋交い
+        addedBraces[id1].forEach(b => {
+            let braceInfo = BRACE_DATA[b.name];
+            if(braceInfo && braceInfo.data) {
+                let K0 = (BRACE_K0[b.name] || 0) * b.correctionFactor;
+                let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * b.qty;
+                let hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                html += `<tr><td style="${cellStyle}">1F</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m</td><td style="${cellStyle}">${b.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
             }
         });
         
@@ -4967,7 +5025,7 @@ function renderForceDetails() {
                 let K0 = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 0;
                 let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
                 let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
-                html += `<tr><td>1F</td><td>${item.name}</td><td>${(item.qty||1).toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                html += `<tr><td style="${cellStyle}">1F</td><td style="${cellStyle}">自由入力</td><td style="${cellStyle}">${item.name}</td><td style="${cellStyle}">${(item.qty||1).toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
             }
         });
         
@@ -4977,21 +5035,33 @@ function renderForceDetails() {
                 if(data) {
                     let K0 = WALL_K0[w.name] || 0;
                     let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
-                    html += `<tr><td>2F</td><td>${w.name}</td><td>${w.qty.toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>自動</td></tr>`;
+                    html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name}</td><td style="${cellStyle}">${w.qty.toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
                 }
             });
+            
+            // 2階の筋交い
+            addedBraces[id2].forEach(b => {
+                let braceInfo = BRACE_DATA[b.name];
+                if(braceInfo && braceInfo.data) {
+                    let K0 = (BRACE_K0[b.name] || 0) * b.correctionFactor;
+                    let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * b.qty;
+                    let hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                    html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m</td><td style="${cellStyle}">${b.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                }
+            });
+            
             freeInputData[id2].forEach(item => {
                 if(item.data.length > 0) {
                     let K0 = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 0;
                     let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
                     let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
-                    html += `<tr><td>2F</td><td>${item.name}</td><td>${(item.qty||1).toFixed(2)}</td><td>${K0.toFixed(0)}</td><td>${maxQ.toFixed(1)}</td><td>${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                    html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">自由入力</td><td style="${cellStyle}">${item.name}</td><td style="${cellStyle}">${(item.qty||1).toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                 }
             });
         }
         html += `</tbody></table>`;
         
-        // 各変形角での耐力・heq詳細テーブル
+        // 各変形角での耐力・heq詳細テーブル（罫線付き）
         html += `<h4 style="margin:10px 0 5px; background:#f0f0f0; padding:3px;">各変形角での耐力・heq</h4>`;
         let composite1 = getCompositeForce(id1);
         let composite2 = is1F ? [] : getCompositeForce(id2);
@@ -4999,17 +5069,17 @@ function renderForceDetails() {
         // 主要変形角のみ抽出
         let keyRads = [1/480, 1/240, 1/120, 1/60, 1/45, 1/30, 1/20, 1/15];
         
-        html += `<table class="report-table" style="font-size:7pt;"><thead><tr><th>変形角</th>`;
-        if(!is1F) html += `<th>2F Q(kN)</th><th>2F heq</th>`;
-        html += `<th>1F Q(kN)</th><th>1F heq</th></tr></thead><tbody>`;
+        html += `<table class="report-table" style="font-size:7pt; border: 1px solid #333;"><thead><tr><th style="${cellStyle}">変形角</th>`;
+        if(!is1F) html += `<th style="${cellStyle}">2F Q(kN)</th><th style="${cellStyle}">2F heq</th>`;
+        html += `<th style="${cellStyle}">1F Q(kN)</th><th style="${cellStyle}">1F heq</th></tr></thead><tbody>`;
         
         keyRads.forEach(r => {
             let c1 = composite1.find(c => Math.abs(c.r - r) < 0.0001) || interpComposite(composite1, r);
             let c2 = is1F ? null : (composite2.find(c => Math.abs(c.r - r) < 0.0001) || interpComposite(composite2, r));
             let radStr = `1/${Math.round(1/r)}`;
-            html += `<tr><td>${radStr}</td>`;
-            if(!is1F) html += `<td>${c2 ? c2.q.toFixed(1) : '-'}</td><td>${c2 ? c2.heq.toFixed(4) : '-'}</td>`;
-            html += `<td>${c1.q.toFixed(1)}</td><td>${c1.heq.toFixed(4)}</td></tr>`;
+            html += `<tr><td style="${cellStyle}">${radStr}</td>`;
+            if(!is1F) html += `<td style="${cellStyle}">${c2 ? c2.q.toFixed(1) : '-'}</td><td style="${cellStyle}">${c2 ? c2.heq.toFixed(4) : '-'}</td>`;
+            html += `<td style="${cellStyle}">${c1.q.toFixed(1)}</td><td style="${cellStyle}">${c1.heq.toFixed(4)}</td></tr>`;
         });
         html += `</tbody></table>`;
         
@@ -5047,33 +5117,159 @@ function drawForceChart(canvasId, dir) {
     }
     
     const is1F = (calcRes.b.stories === 1);
-    let composite1 = getCompositeForce(`${dir}1`);
-    let composite2 = is1F ? [] : getCompositeForce(`${dir}2`);
+    const colors = ['#005a9c', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997'];
+    let colorIndex = 0;
+    let datasets = [];
     
-    let datasets = [{
-        label: '1階 復元力',
+    // --- 1階の個別要素 ---
+    const id1 = `${dir}1`;
+    
+    // 1階 耐力壁の個別データ
+    addedWalls[id1].forEach((w, i) => {
+        let data = WALL_DATA[w.name];
+        if(data) {
+            let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+            datasets.push({
+                label: `1F ${w.name}×${w.qty}`,
+                data: wallData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [3, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 1階 筋交いの個別データ
+    addedBraces[id1].forEach((b, i) => {
+        let braceInfo = BRACE_DATA[b.name];
+        if(braceInfo && braceInfo.data) {
+            let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+            datasets.push({
+                label: `1F ${b.name}×${b.qty}`,
+                data: braceData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [5, 5],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 1階 自由入力の個別データ
+    freeInputData[id1].forEach((item, i) => {
+        if(item.data.length > 0) {
+            let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+            datasets.push({
+                label: `1F ${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
+                data: freeData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 1,
+                borderDash: [2, 2],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 1階の合計
+    let composite1 = getCompositeForce(id1);
+    datasets.push({
+        label: '1階 合計',
         data: composite1.map(c => ({ x: c.r, y: c.q })),
         borderColor: '#005a9c',
-        borderWidth: 2,
+        borderWidth: 3,
         showLine: true,
-        pointRadius: 1,
+        pointRadius: 0,
         fill: false
-    }];
+    });
     
+    // --- 2階の個別要素 ---
     if(!is1F) {
+        const id2 = `${dir}2`;
+        colorIndex = 0; // 色をリセット
+        
+        // 2階 耐力壁の個別データ
+        addedWalls[id2].forEach((w, i) => {
+            let data = WALL_DATA[w.name];
+            if(data) {
+                let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+                datasets.push({
+                    label: `2F ${w.name}×${w.qty}`,
+                    data: wallData,
+                    borderColor: colors[(colorIndex + 4) % colors.length],
+                    borderWidth: 1,
+                    borderDash: [3, 3],
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: false
+                });
+                colorIndex++;
+            }
+        });
+        
+        // 2階 筋交いの個別データ
+        addedBraces[id2].forEach((b, i) => {
+            let braceInfo = BRACE_DATA[b.name];
+            if(braceInfo && braceInfo.data) {
+                let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+                datasets.push({
+                    label: `2F ${b.name}×${b.qty}`,
+                    data: braceData,
+                    borderColor: colors[(colorIndex + 4) % colors.length],
+                    borderWidth: 1,
+                    borderDash: [5, 5],
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: false
+                });
+                colorIndex++;
+            }
+        });
+        
+        // 2階 自由入力の個別データ
+        freeInputData[id2].forEach((item, i) => {
+            if(item.data.length > 0) {
+                let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+                datasets.push({
+                    label: `2F ${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
+                    data: freeData,
+                    borderColor: colors[(colorIndex + 4) % colors.length],
+                    borderWidth: 1,
+                    borderDash: [2, 2],
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: false
+                });
+                colorIndex++;
+            }
+        });
+        
+        // 2階の合計
+        let composite2 = getCompositeForce(id2);
         datasets.push({
-            label: '2階 復元力',
+            label: '2階 合計',
             data: composite2.map(c => ({ x: c.r, y: c.q })),
             borderColor: '#28a745',
-            borderWidth: 2,
+            borderWidth: 3,
             showLine: true,
-            pointRadius: 1,
+            pointRadius: 0,
             fill: false
         });
     }
     
-    let maxX = Math.max(...composite1.map(c => c.r), ...(is1F ? [0] : composite2.map(c => c.r))) * 1.1;
-    let maxY = Math.max(...composite1.map(c => c.q), ...(is1F ? [0] : composite2.map(c => c.q))) * 1.1;
+    // 軸範囲の計算
+    let allData = datasets.flatMap(ds => ds.data);
+    let maxX = Math.max(...allData.map(p => p.x)) * 1.1;
+    let maxY = Math.max(...allData.map(p => p.y)) * 1.1;
     
     repForceCharts[canvasId] = new Chart(canvas.getContext('2d'), {
         type: 'scatter',
@@ -5087,7 +5283,7 @@ function drawForceChart(canvasId, dir) {
                 y: { title: { display: true, text: 'せん断力 Q (kN)' }, max: maxY, beginAtZero: true }
             },
             plugins: {
-                legend: { display: !is1F, position: 'top' }
+                legend: { display: true, position: 'bottom', labels: { font: { size: 7 }, boxWidth: 15, padding: 3 } }
             }
         }
     });
