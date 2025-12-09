@@ -538,6 +538,9 @@
                 <div class="input-chart-wrapper"><canvas id="chart-in-x2"></canvas></div>
             </div>
         </div>
+        <div style="text-align:center; margin-top:20px;">
+            <img src="./tairyoku.png" alt="復元力特性説明図" style="width:50%; height:auto; border:1px solid #ddd; border-radius:5px;">
+        </div>
     </div>
     
     <!-- 復元力特性 Y方向タブ -->
@@ -704,6 +707,9 @@
             </div>
         </div>
         </div>
+        <div style="text-align:center; margin-top:20px;">
+            <img src="./tairyoku.png" alt="復元力特性説明図" style="width:50%; height:auto; border:1px solid #ddd; border-radius:5px;">
+        </div>
     </div>
 
     <div id="tab-result" class="tab-content no-print">
@@ -863,6 +869,9 @@
 
                 <div style="background:#fff; border:1px solid #ddd; padding:15px; margin-bottom:15px; border-radius:5px;">
                     <h4 style="margin-top:0; color:#005a9c; border-bottom:1px solid #ccc; padding-bottom:5px;">3. 減衰性能と要求スペクトル</h4>
+                    <div style="text-align:center; margin:10px 0;">
+                        <img src="./graph.png" alt="減衰性能と要求スペクトルの説明図" style="width:25%; max-height:50mm; height:auto; border:1px solid #ddd; border-radius:5px; object-fit:contain;">
+                    </div>
                     <div class="formula-grid">
                         <div class="formula-item">
                             <strong>\( W_A \) (ポテンシャルエネルギー)</strong><br>
@@ -4706,8 +4715,8 @@ function drawStickModel(canvasId, b, ptD, ptS) {
     const canvas = document.getElementById(canvasId);
     if(!canvas) return;
     
-    // 1. デバイスピクセル比を取得
-    const dpr = window.devicePixelRatio || 1;
+    // 1. デバイスピクセル比を取得（計算書用に高解像度化）
+    const dpr = canvasId.includes('print') ? 3 : (window.devicePixelRatio || 1);
 
     // 2. 表示サイズ（CSSサイズ）の決定
     let rect = canvas.parentElement.getBoundingClientRect();
@@ -6303,6 +6312,9 @@ function renderLogicSection() {
         <!-- 5. 等価粘性減衰定数 -->
         <div style="border:1px solid #ddd; padding:6px; background:#fafafa; margin-bottom:6px;">
             <strong style="color:#005a9c;">5. 等価粘性減衰定数 heq</strong><br>
+            <div style="text-align:center; margin:5px 0;">
+                <img src="./graph.png" alt="減衰性能と要求スペクトルの説明図" style="width:40%; max-height:45mm; height:auto; border:1px solid #ccc; border-radius:3px; object-fit:contain;">
+            </div>
             各壁要素のheq：\\( h_{eq,i} = 0.2 \\times (1 - \\sqrt{K_i / K_{i0}}) \\)　（剛性低下率から算定）<br>
             直接入力がある場合はその値を使用<br>
             階全体の合成heq：\\( h_{eq,階} = \\frac{\\sum (h_{eq,i} \\times Q_i)}{\\sum Q_i} \\)　（耐力加重平均）<br>
