@@ -376,11 +376,30 @@
     <!-- 復元力特性 X方向タブ -->
     <div id="tab-force-x" class="tab-content no-print">
         <h2>復元力特性 X方向 (Q - δ)</h2>
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <div style="display:flex; gap:10px; margin:10px 0; flex-wrap:wrap;">
+            <button class="btn-sm" onclick="downloadAllCSV()" style="background:#28a745; color:white;">📥 初期設定データをダウンロード</button>
+            <button class="btn-sm" onclick="uploadCSV()" style="background:#007bff; color:white;">📤 編集済みデータをアップロード</button>
+            <input type="file" id="csv-upload-input" accept=".csv" style="display:none;" onchange="handleCSVUpload(event)">
+        </div>
         <div class="force-editor">
             <div class="force-column" id="col-x1">
                 <div class="force-header"><span>X方向 1階</span></div>
-                <div class="wall-selector">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-x1"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-x1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-x1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('x1')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('x1')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-x1" style="display:none;">
+                    <thead><tr><th width="30%">1/N</th><th width="35%">変位(mm)</th><th width="25%">Q(kN)</th><th width="10%"></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="wall-selector" style="margin-top:10px;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x1"></select>
                         <input type="number" id="qty-wall-x1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
@@ -404,25 +423,59 @@
                         ※耐力値はブレース角度θによるcosθで自動補正されます
                     </div>
                 </div>
-                <div class="input-chart-wrapper"><canvas id="chart-in-x1"></canvas></div>
-                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
-                <div class="free-input-list" id="free-list-x1"></div>
-                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="free-name-x1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
-                    <button class="btn-sheet" onclick="openSpreadsheet('x1')">Excel貼付</button>
-                    <button class="btn-sm" onclick="addFreeInputItem('x1')">+ 項目追加</button>
+                <div class="wall-selector" style="background:#e8f5e9; border-color:#a5d6a7;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">貫/ほぞ等（階高補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-nuki-x1"></select>
+                        <input type="number" id="qty-nuki-x1" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addNuki('x1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-nuki-x1"></div>
+                    <div style="font-size:0.7em; color:#2e7d32; margin-top:3px; line-height:1.3;">
+                        ※耐力値は（基準壁高/配置階高）で自動補正されます
+                    </div>
                 </div>
-                <table class="data-table" id="table-x1" style="display:none;">
-                    <thead><tr><th width="30%">1/N</th><th width="35%">変位(mm)</th><th width="25%">Q(kN)</th><th width="10%"></th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <div class="wall-selector" style="background:#fce4ec; border-color:#f8bbd9;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#c2185b; margin-bottom:5px;">小壁（壁幅・残存率補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-kokabe-x1"></select>
+                        <input type="number" id="width-kokabe-x1" value="1.82" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                    </div>
+                    <div class="wall-selector-row" style="margin-top:3px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">残存率</span>
+                        <input type="number" id="zanzon-kokabe-x1" value="33" step="1" min="1" max="100" placeholder="%" title="残存率(%)" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">%</span>
+                        <input type="number" id="qty-kokabe-x1" value="1" step="1" placeholder="箇所" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addKokabe('x1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-kokabe-x1"></div>
+                    <div style="font-size:0.7em; color:#c2185b; margin-top:3px; line-height:1.3;">
+                        ※耐力値は壁幅比と残存率比で自動補正されます
+                    </div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-x1"></canvas></div>
             </div>
 
             <div class="force-column story-2-only" id="col-x2">
                 <div class="force-header"><span>X方向 2階</span></div>
-                <div class="wall-selector">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-x2"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-x2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-x2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('x2')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('x2')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-x2" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="wall-selector" style="margin-top:10px;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x2"></select>
                         <input type="number" id="qty-wall-x2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
@@ -446,20 +499,40 @@
                         ※耐力値はブレース角度θによるcosθで自動補正されます
                     </div>
                 </div>
-                <div class="input-chart-wrapper"><canvas id="chart-in-x2"></canvas></div>
-                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
-                <div class="free-input-list" id="free-list-x2"></div>
-                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="free-name-x2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
-                    <button class="btn-sheet" onclick="openSpreadsheet('x2')">Excel貼付</button>
-                    <button class="btn-sm" onclick="addFreeInputItem('x2')">+ 項目追加</button>
+                <div class="wall-selector" style="background:#e8f5e9; border-color:#a5d6a7;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">貫/ほぞ等（階高補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-nuki-x2"></select>
+                        <input type="number" id="qty-nuki-x2" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addNuki('x2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-nuki-x2"></div>
+                    <div style="font-size:0.7em; color:#2e7d32; margin-top:3px; line-height:1.3;">
+                        ※耐力値は（基準壁高/配置階高）で自動補正されます
+                    </div>
                 </div>
-                <table class="data-table" id="table-x2" style="display:none;">
-                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <div class="wall-selector" style="background:#fce4ec; border-color:#f8bbd9;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#c2185b; margin-bottom:5px;">小壁（壁幅・残存率補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-kokabe-x2"></select>
+                        <input type="number" id="width-kokabe-x2" value="1.82" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                    </div>
+                    <div class="wall-selector-row" style="margin-top:3px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">残存率</span>
+                        <input type="number" id="zanzon-kokabe-x2" value="33" step="1" min="1" max="100" placeholder="%" title="残存率(%)" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">%</span>
+                        <input type="number" id="qty-kokabe-x2" value="1" step="1" placeholder="箇所" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addKokabe('x2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-kokabe-x2"></div>
+                    <div style="font-size:0.7em; color:#c2185b; margin-top:3px; line-height:1.3;">
+                        ※耐力値は壁幅比と残存率比で自動補正されます
+                    </div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-x2"></canvas></div>
             </div>
         </div>
     </div>
@@ -473,11 +546,25 @@
             </label>
         </div>
         <div id="force-y-input-area">
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
         <div class="force-editor">
             <div class="force-column" id="col-y1">
                 <div class="force-header"><span>Y方向 1階</span></div>
-                <div class="wall-selector">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-y1"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-y1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-y1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('y1')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('y1')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-y1" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="wall-selector" style="margin-top:10px;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y1"></select>
                         <input type="number" id="qty-wall-y1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
@@ -501,25 +588,59 @@
                         ※耐力値はブレース角度θによるcosθで自動補正されます
                     </div>
                 </div>
-                <div class="input-chart-wrapper"><canvas id="chart-in-y1"></canvas></div>
-                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
-                <div class="free-input-list" id="free-list-y1"></div>
-                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="free-name-y1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
-                    <button class="btn-sheet" onclick="openSpreadsheet('y1')">Excel貼付</button>
-                    <button class="btn-sm" onclick="addFreeInputItem('y1')">+ 項目追加</button>
+                <div class="wall-selector" style="background:#e8f5e9; border-color:#a5d6a7;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">貫/ほぞ等（階高補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-nuki-y1"></select>
+                        <input type="number" id="qty-nuki-y1" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addNuki('y1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-nuki-y1"></div>
+                    <div style="font-size:0.7em; color:#2e7d32; margin-top:3px; line-height:1.3;">
+                        ※耐力値は（基準壁高/配置階高）で自動補正されます
+                    </div>
                 </div>
-                <table class="data-table" id="table-y1" style="display:none;">
-                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <div class="wall-selector" style="background:#fce4ec; border-color:#f8bbd9;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#c2185b; margin-bottom:5px;">小壁（壁幅・残存率補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-kokabe-y1"></select>
+                        <input type="number" id="width-kokabe-y1" value="1.82" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                    </div>
+                    <div class="wall-selector-row" style="margin-top:3px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">残存率</span>
+                        <input type="number" id="zanzon-kokabe-y1" value="33" step="1" min="1" max="100" placeholder="%" title="残存率(%)" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">%</span>
+                        <input type="number" id="qty-kokabe-y1" value="1" step="1" placeholder="箇所" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addKokabe('y1')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-kokabe-y1"></div>
+                    <div style="font-size:0.7em; color:#c2185b; margin-top:3px; line-height:1.3;">
+                        ※耐力値は壁幅比と残存率比で自動補正されます
+                    </div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-y1"></canvas></div>
             </div>
 
             <div class="force-column story-2-only" id="col-y2">
                 <div class="force-header"><span>Y方向 2階</span></div>
-                <div class="wall-selector">
+                <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px; color:#555;">▼ 自由入力</div>
+                <div class="free-input-list" id="free-list-y2"></div>
+                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="free-name-y2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
+                    <input type="number" id="free-qty-y2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
+                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <button class="btn-sheet" onclick="openSpreadsheet('y2')">Excel貼付</button>
+                    <button class="btn-sm" onclick="addFreeInputItem('y2')">+ 項目追加</button>
+                </div>
+                <table class="data-table" id="table-y2" style="display:none;">
+                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="wall-selector" style="margin-top:10px;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y2"></select>
                         <input type="number" id="qty-wall-y2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
@@ -543,20 +664,40 @@
                         ※耐力値はブレース角度θによるcosθで自動補正されます
                     </div>
                 </div>
-                <div class="input-chart-wrapper"><canvas id="chart-in-y2"></canvas></div>
-                <div style="font-size:0.85em; font-weight:bold; margin-top:10px; color:#555;">▼ 自由入力</div>
-                <div class="free-input-list" id="free-list-y2"></div>
-                <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="free-name-y2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
-                    <button class="btn-sheet" onclick="openSpreadsheet('y2')">Excel貼付</button>
-                    <button class="btn-sm" onclick="addFreeInputItem('y2')">+ 項目追加</button>
+                <div class="wall-selector" style="background:#e8f5e9; border-color:#a5d6a7;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">貫/ほぞ等（階高補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-nuki-y2"></select>
+                        <input type="number" id="qty-nuki-y2" value="1" step="1" placeholder="箇所数" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addNuki('y2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-nuki-y2"></div>
+                    <div style="font-size:0.7em; color:#2e7d32; margin-top:3px; line-height:1.3;">
+                        ※耐力値は（基準壁高/配置階高）で自動補正されます
+                    </div>
                 </div>
-                <table class="data-table" id="table-y2" style="display:none;">
-                    <thead><tr><th>1/N</th><th>変位(mm)</th><th>Q(kN)</th><th></th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <div class="wall-selector" style="background:#fce4ec; border-color:#f8bbd9;">
+                    <div style="font-size:0.8em; font-weight:bold; color:#c2185b; margin-bottom:5px;">小壁（壁幅・残存率補正あり）</div>
+                    <div class="wall-selector-row">
+                        <select id="sel-kokabe-y2"></select>
+                        <input type="number" id="width-kokabe-y2" value="1.82" step="0.01" placeholder="壁幅(m)" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                    </div>
+                    <div class="wall-selector-row" style="margin-top:3px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">残存率</span>
+                        <input type="number" id="zanzon-kokabe-y2" value="33" step="1" min="1" max="100" placeholder="%" title="残存率(%)" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">%</span>
+                        <input type="number" id="qty-kokabe-y2" value="1" step="1" placeholder="箇所" title="箇所数" style="width:50px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
+                        <button class="btn-add-wall" onclick="addKokabe('y2')">追加</button>
+                    </div>
+                    <div class="wall-list" id="list-kokabe-y2"></div>
+                    <div style="font-size:0.7em; color:#c2185b; margin-top:3px; line-height:1.3;">
+                        ※耐力値は壁幅比と残存率比で自動補正されます
+                    </div>
+                </div>
+                <div class="input-chart-wrapper"><canvas id="chart-in-y2"></canvas></div>
             </div>
         </div>
         </div>
@@ -1373,11 +1514,23 @@ let WALL_DATA = {};
 // 筋交い/ブレースデータ（brace_data.csvから読み込む）
 let BRACE_DATA = {};
 
+// 貫/ほぞ等データ（nuki_data.csvから読み込む）
+let NUKI_DATA = {};
+
+// 小壁データ（kokabe_data.csvから読み込む）
+let KOKABE_DATA = {};
+
 // --- 各壁要素の初期剛性キャッシュ ---
 let WALL_K0 = {};
 
 // 筋交い/ブレースの初期剛性キャッシュ
 let BRACE_K0 = {};
+
+// 貫/ほぞの初期剛性キャッシュ
+let NUKI_K0 = {};
+
+// 小壁の初期剛性キャッシュ
+let KOKABE_K0 = {};
 
 // 初期剛性を算出してキャッシュ
 function initWallK0() {
@@ -1394,12 +1547,34 @@ function initWallK0() {
     
     // 筋交い/ブレースの初期剛性も計算
     for (let name in BRACE_DATA) {
-        let data = BRACE_DATA[name];
-        if (data.length > 0) {
-            let p = data[0];
+        let braceInfo = BRACE_DATA[name];
+        if (braceInfo && braceInfo.data && braceInfo.data.length > 0) {
+            let p = braceInfo.data[0];
             BRACE_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
         } else {
             BRACE_K0[name] = 10000;
+        }
+    }
+    
+    // 貫/ほぞの初期剛性も計算
+    for (let name in NUKI_DATA) {
+        let nukiInfo = NUKI_DATA[name];
+        if (nukiInfo && nukiInfo.data && nukiInfo.data.length > 0) {
+            let p = nukiInfo.data[0];
+            NUKI_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+        } else {
+            NUKI_K0[name] = 10000;
+        }
+    }
+    
+    // 小壁の初期剛性も計算
+    for (let name in KOKABE_DATA) {
+        let kokabeInfo = KOKABE_DATA[name];
+        if (kokabeInfo && kokabeInfo.data && kokabeInfo.data.length > 0) {
+            let p = kokabeInfo.data[0];
+            KOKABE_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+        } else {
+            KOKABE_K0[name] = 10000;
         }
     }
 }
@@ -1407,6 +1582,8 @@ function initWallK0() {
 let calcRes = {}, chartObjs = {}, inputChartObjs = {}, currSheetTarget = '', hot = null;
 let addedWalls = { x1: [], x2: [], y1: [], y2: [] }; // Added state for walls
 let addedBraces = { x1: [], x2: [], y1: [], y2: [] }; // Added state for braces
+let addedNukis = { x1: [], x2: [], y1: [], y2: [] }; // Added state for nukis (貫/ほぞ)
+let addedKokabes = { x1: [], x2: [], y1: [], y2: [] }; // Added state for kokabes (小壁)
 let freeInputData = { x1: [], x2: [], y1: [], y2: [] }; // 複数の自由入力項目を管理
 let currentEditingFreeItem = null; // Excel貼付時に編集中の項目を追跡
 
@@ -1438,6 +1615,8 @@ window.onload = async function() {
     // ▼▼▼ 変更: CSVデータをロードしてから初期化 ▼▼▼
     await loadWallDataFromServer();
     await loadBraceDataFromServer(); // 筋交い/ブレースデータ読み込み
+    await loadNukiDataFromServer(); // 貫/ほぞデータ読み込み
+    await loadKokabeDataFromServer(); // 小壁データ読み込み
     // initWallSelectors(); // loadWallDataFromServer内で呼び出すためコメントアウトまたは削除
     // initWallK0();      // 同上
     // ▲▲▲ 変更ここまで ▲▲▲
@@ -1521,6 +1700,29 @@ async function loadBraceDataFromServer() {
     } catch (e) {
         console.error("筋交い/ブレースデータの読み込みに失敗しました:", e);
         alert("筋交い/ブレースデータの読み込みに失敗しました。\nサーバー環境で実行されているか、brace_data.csvが存在するか確認してください。");
+    }
+}
+
+// --- 貫/ほぞデータの読み込み関数 ---
+async function loadNukiDataFromServer() {
+    try {
+        const response = await fetch('./nuki_data.csv'); 
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        parseNukiCSV(text);
+        
+        // データロード後に初期化処理を実行
+        initNukiSelectors();
+        
+        console.log("貫/ほぞデータを読み込みました:", Object.keys(NUKI_DATA).length + "件");
+        
+    } catch (e) {
+        console.error("貫/ほぞデータの読み込みに失敗しました:", e);
+        alert("貫/ほぞデータの読み込みに失敗しました。\nサーバー環境で実行されているか、nuki_data.csvが存在するか確認してください。");
     }
 }
 
@@ -1627,6 +1829,220 @@ function initBraceSelectors() {
     ['x1','x2','y1','y2'].forEach(id => {
         document.getElementById(`sel-brace-${id}`).innerHTML = opts;
     });
+}
+
+// CSVテキストをパースしてNUKI_DATAに格納する（貫/ほぞ用）
+function parseNukiCSV(text) {
+    NUKI_DATA = {}; // リセット
+    const lines = text.split(/\r?\n/);
+    
+    lines.forEach(line => {
+        // 空行やコメント行(#)、ヘッダー行はスキップ
+        if (!line.trim() || line.startsWith('#') || line.toLowerCase().includes('名称')) return;
+        
+        // クォートを考慮したCSVパース
+        const parts = parseCSVLine(line);
+        if (parts.length < 5) return;
+        
+        const name = parts[0].trim().replace(/^"|"$/g, ''); // 残りのクォートを除去
+        const r = parseFloat(parts[1]);
+        const q = parseFloat(parts[2]);
+        
+        // 4列目があれば heq として読み込む（なければ null）
+        let heq = null;
+        if (parts.length >= 4 && parts[3].trim()) {
+            const val = parseFloat(parts[3]);
+            if (!isNaN(val)) {
+                heq = val;
+            }
+        }
+        
+        // 5列目: 基準壁高
+        const baseHeight = parseFloat(parts[4]);
+        
+        if (name && !isNaN(r) && !isNaN(q) && !isNaN(baseHeight)) {
+            if (!NUKI_DATA[name]) {
+                NUKI_DATA[name] = {
+                    baseHeight: baseHeight,
+                    data: []
+                };
+            }
+            NUKI_DATA[name].data.push({ r: r, q: q, heq: heq });
+        }
+    });
+    
+    // データ内でrの昇順にソートしておく
+    for (let key in NUKI_DATA) {
+        NUKI_DATA[key].data.sort((a, b) => a.r - b.r);
+    }
+    
+    console.log('Parsed NUKI_DATA:', NUKI_DATA); // デバッグ用
+}
+
+function initNukiSelectors() {
+    const opts = '<option value="">--- 貫/ほぞ等を選択 ---</option>' + 
+        Object.keys(NUKI_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+    ['x1','x2','y1','y2'].forEach(id => {
+        document.getElementById(`sel-nuki-${id}`).innerHTML = opts;
+    });
+}
+
+// --- 小壁データの読み込み関数 ---
+async function loadKokabeDataFromServer() {
+    try {
+        const response = await fetch('./kokabe_data.csv'); 
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const text = await response.text();
+        parseKokabeCSV(text);
+        
+        // データロード後に初期化処理を実行
+        initKokabeSelectors();
+        
+        console.log("小壁データを読み込みました:", Object.keys(KOKABE_DATA).length + "件");
+        
+    } catch (e) {
+        console.error("小壁データの読み込みに失敗しました:", e);
+        // 小壁は任意機能なのでアラートは出さない
+    }
+}
+
+// CSVテキストをパースしてKOKABE_DATAに格納する（小壁用）
+function parseKokabeCSV(text) {
+    KOKABE_DATA = {}; // リセット
+    const lines = text.split(/\r?\n/);
+    
+    lines.forEach(line => {
+        // 空行やコメント行(#)、ヘッダー行はスキップ
+        if (!line.trim() || line.startsWith('#') || line.toLowerCase().includes('名称')) return;
+        
+        // クォートを考慮したCSVパース
+        const parts = parseCSVLine(line);
+        if (parts.length < 6) return;
+        
+        const name = parts[0].trim().replace(/^"|"$/g, ''); // 残りのクォートを除去
+        const r = parseFloat(parts[1]);
+        const q = parseFloat(parts[2]);
+        
+        // 4列目があれば heq として読み込む（なければ null）
+        let heq = null;
+        if (parts.length >= 4 && parts[3].trim()) {
+            const val = parseFloat(parts[3]);
+            if (!isNaN(val)) {
+                heq = val;
+            }
+        }
+        
+        // 5列目: 基準壁幅
+        const baseWidth = parseFloat(parts[4]);
+        // 6列目: 基準残存率
+        const baseZanzon = parseFloat(parts[5]);
+        
+        if (name && !isNaN(r) && !isNaN(q) && !isNaN(baseWidth) && !isNaN(baseZanzon)) {
+            if (!KOKABE_DATA[name]) {
+                KOKABE_DATA[name] = {
+                    baseWidth: baseWidth,
+                    baseZanzon: baseZanzon,
+                    data: []
+                };
+            }
+            KOKABE_DATA[name].data.push({ r: r, q: q, heq: heq });
+        }
+    });
+    
+    // データ内でrの昇順にソートしておく
+    for (let key in KOKABE_DATA) {
+        KOKABE_DATA[key].data.sort((a, b) => a.r - b.r);
+    }
+    
+    console.log('Parsed KOKABE_DATA:', KOKABE_DATA); // デバッグ用
+}
+
+function initKokabeSelectors() {
+    const opts = '<option value="">--- 小壁を選択 ---</option>' + 
+        Object.keys(KOKABE_DATA).map(k => `<option value="${k}">${k}</option>`).join('');
+    ['x1','x2','y1','y2'].forEach(id => {
+        document.getElementById(`sel-kokabe-${id}`).innerHTML = opts;
+    });
+}
+
+// --- CSVデータダウンロード/アップロード機能 ---
+function downloadAllCSV() {
+    // すべてのCSVファイルをZIPでダウンロード、または個別ダウンロード
+    const csvFiles = ['wall_data.csv', 'brace_data.csv', 'nuki_data.csv', 'kokabe_data.csv'];
+    
+    // 確認ダイアログ
+    const choice = confirm('耐力要素の初期設定データ（CSV）をダウンロードします。\n\n' +
+        '・wall_data.csv（耐力壁）\n' +
+        '・brace_data.csv（筋交い/ブレース）\n' +
+        '・nuki_data.csv（貫/ほぞ）\n' +
+        '・kokabe_data.csv（小壁）\n\n' +
+        'OKを押すと順番にダウンロードされます。');
+    
+    if (!choice) return;
+    
+    // 各CSVを順番にダウンロード
+    csvFiles.forEach((filename, index) => {
+        setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = './' + filename;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }, index * 500); // 500msずつずらしてダウンロード
+    });
+}
+
+function uploadCSV() {
+    document.getElementById('csv-upload-input').click();
+}
+
+async function handleCSVUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const filename = file.name.toLowerCase();
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const text = e.target.result;
+        
+        try {
+            if (filename.includes('wall') && filename.endsWith('.csv')) {
+                parseWallCSV(text);
+                initWallSelectors();
+                initWallK0();
+                alert('耐力壁データを読み込みました: ' + Object.keys(WALL_DATA).length + '件');
+            } else if (filename.includes('brace') && filename.endsWith('.csv')) {
+                parseBraceCSV(text);
+                initBraceSelectors();
+                alert('筋交い/ブレースデータを読み込みました: ' + Object.keys(BRACE_DATA).length + '件');
+            } else if (filename.includes('nuki') && filename.endsWith('.csv')) {
+                parseNukiCSV(text);
+                initNukiSelectors();
+                alert('貫/ほぞデータを読み込みました: ' + Object.keys(NUKI_DATA).length + '件');
+            } else if (filename.includes('kokabe') && filename.endsWith('.csv')) {
+                parseKokabeCSV(text);
+                initKokabeSelectors();
+                alert('小壁データを読み込みました: ' + Object.keys(KOKABE_DATA).length + '件');
+            } else {
+                alert('ファイル名から種類を判別できませんでした。\n' +
+                      'ファイル名に wall, brace, nuki, kokabe のいずれかを含めてください。\n' +
+                      '例: my_wall_data.csv, custom_brace_data.csv');
+            }
+        } catch (err) {
+            alert('CSVの読み込みに失敗しました: ' + err.message);
+        }
+    };
+    
+    reader.readAsText(file);
+    
+    // ファイル選択をリセット（同じファイルを再選択可能にする）
+    event.target.value = '';
 }
 
 // 【新規追加】デフォルトデータ削除用のヘルパー関数
@@ -1826,6 +2242,234 @@ function editBrace(id, idx) {
     }
 }
 
+// --- Nuki Management (貫/ほぞ等) ---
+function addNuki(id) {
+    checkAndRemoveDefault(id);
+    
+    const sel = document.getElementById(`sel-nuki-${id}`);
+    const name = sel.value;
+    const qtyInput = document.getElementById(`qty-nuki-${id}`);
+    const qty = parseInt(qtyInput.value);
+    
+    if(!name || name === '') {
+        alert('貫/ほぞ等を選択してください。');
+        return;
+    }
+    if(qty <= 0 || isNaN(qty)) {
+        alert('箇所数を入力してください。');
+        return;
+    }
+    
+    // 階高を取得
+    const floor = id.includes('2') ? '2' : '1';
+    const height = parseFloat(document.getElementById('inp_H' + floor).value) || 3.0;
+    
+    // 貫/ほぞの情報を取得
+    const nukiInfo = NUKI_DATA[name];
+    if (!nukiInfo) {
+        alert('選択した貫/ほぞ等のデータが見つかりません。');
+        return;
+    }
+    
+    // 階高補正率を計算（基準壁高/配置階高）
+    const correctionFactor = nukiInfo.baseHeight / height;
+    
+    addedNukis[id].push({ 
+        name: name, 
+        qty: qty, 
+        height: height,
+        baseHeight: nukiInfo.baseHeight,
+        correctionFactor: correctionFactor 
+    });
+    
+    renderNukiList(id);
+    updateInputGraph(id);
+    
+    // Reset inputs
+    qtyInput.value = "1";
+    sel.value = "";
+}
+
+function removeNuki(id, idx) {
+    addedNukis[id].splice(idx, 1);
+    renderNukiList(id);
+    updateInputGraph(id);
+}
+
+function renderNukiList(id) {
+    const list = document.getElementById(`list-nuki-${id}`);
+    list.innerHTML = '';
+    addedNukis[id].forEach((n, i) => {
+        const div = document.createElement('div');
+        div.className = 'wall-item';
+        const factor = (n.correctionFactor * 100).toFixed(1);
+        div.innerHTML = `<span>${n.name} H=${n.height.toFixed(2)}m × ${n.qty}箇所 (補正率:${factor}%)</span>
+            <span>
+                <button class="btn-sm" onclick="editNuki('${id}', ${i})">編集</button>
+                <button class="btn-sm" style="color:red;" onclick="removeNuki('${id}', ${i})">削除</button>
+            </span>`;
+        list.appendChild(div);
+    });
+}
+
+// 貫/ほぞの編集ダイアログ
+function editNuki(id, idx) {
+    const nuki = addedNukis[id][idx];
+    
+    const newQty = prompt(`「${nuki.name}」の箇所数を入力してください（現在: ${nuki.qty}箇所）:`, nuki.qty);
+    if(newQty === null) return;
+    
+    const qty = parseInt(newQty);
+    if(isNaN(qty) || qty <= 0) {
+        alert('有効な箇所数を入力してください。');
+        return;
+    }
+    
+    addedNukis[id][idx].qty = qty;
+    
+    renderNukiList(id);
+    updateInputGraph(id);
+}
+
+// --- Kokabe Management (小壁) ---
+function addKokabe(id) {
+    checkAndRemoveDefault(id);
+    
+    const sel = document.getElementById(`sel-kokabe-${id}`);
+    const name = sel.value;
+    const widthInput = document.getElementById(`width-kokabe-${id}`);
+    const zanzonInput = document.getElementById(`zanzon-kokabe-${id}`);
+    const qtyInput = document.getElementById(`qty-kokabe-${id}`);
+    
+    const width = parseFloat(widthInput.value);
+    const zanzonPercent = parseFloat(zanzonInput.value); // 残存率（%）
+    const qty = parseInt(qtyInput.value);
+    
+    if(!name || name === '') {
+        alert('小壁を選択してください。');
+        return;
+    }
+    if(isNaN(width) || width <= 0) {
+        alert('壁幅を入力してください。');
+        return;
+    }
+    if(isNaN(zanzonPercent) || zanzonPercent < 1 || zanzonPercent > 100) {
+        alert('残存率（1～100%）を入力してください。');
+        return;
+    }
+    if(qty <= 0 || isNaN(qty)) {
+        alert('箇所数を入力してください。');
+        return;
+    }
+    
+    // 小壁の情報を取得
+    const kokabeInfo = KOKABE_DATA[name];
+    if (!kokabeInfo) {
+        alert('選択した小壁のデータが見つかりません。');
+        return;
+    }
+    
+    // 壁幅比と残存率比を計算
+    const widthRatio = width / kokabeInfo.baseWidth;
+    const zanzon = zanzonPercent / 100; // 実際の残存率（%から小数へ）
+    const zanzonRatio = zanzon / kokabeInfo.baseZanzon;
+    
+    // 補正率 = 壁幅比 × 残存率比
+    const correctionFactor = widthRatio * zanzonRatio;
+    
+    addedKokabes[id].push({ 
+        name: name, 
+        qty: qty,
+        width: width,
+        zanzonPercent: zanzonPercent,
+        zanzon: zanzon,
+        baseWidth: kokabeInfo.baseWidth,
+        baseZanzon: kokabeInfo.baseZanzon,
+        widthRatio: widthRatio,
+        zanzonRatio: zanzonRatio,
+        correctionFactor: correctionFactor 
+    });
+    
+    renderKokabeList(id);
+    updateInputGraph(id);
+    
+    // Reset inputs
+    qtyInput.value = "1";
+    sel.value = "";
+}
+
+function removeKokabe(id, idx) {
+    addedKokabes[id].splice(idx, 1);
+    renderKokabeList(id);
+    updateInputGraph(id);
+}
+
+function renderKokabeList(id) {
+    const list = document.getElementById(`list-kokabe-${id}`);
+    list.innerHTML = '';
+    addedKokabes[id].forEach((k, i) => {
+        const div = document.createElement('div');
+        div.className = 'wall-item';
+        const factor = (k.correctionFactor * 100).toFixed(1);
+        div.innerHTML = `<span>${k.name} W=${k.width}m ${k.zanzonPercent}% × ${k.qty}箇所 (補正率:${factor}%)</span>
+            <span>
+                <button class="btn-sm" onclick="editKokabe('${id}', ${i})">編集</button>
+                <button class="btn-sm" style="color:red;" onclick="removeKokabe('${id}', ${i})">削除</button>
+            </span>`;
+        list.appendChild(div);
+    });
+}
+
+// 小壁の編集ダイアログ
+function editKokabe(id, idx) {
+    const kokabe = addedKokabes[id][idx];
+    
+    const newWidth = prompt(`「${kokabe.name}」の壁幅(m)を入力してください（現在: ${kokabe.width}m）:`, kokabe.width);
+    if(newWidth === null) return;
+    
+    const width = parseFloat(newWidth);
+    if(isNaN(width) || width <= 0) {
+        alert('有効な壁幅を入力してください。');
+        return;
+    }
+    
+    const newZanzon = prompt(`残存率(%)を入力してください（現在: ${kokabe.zanzonPercent}%）:`, kokabe.zanzonPercent);
+    if(newZanzon === null) return;
+    
+    const zanzonPercent = parseFloat(newZanzon);
+    if(isNaN(zanzonPercent) || zanzonPercent < 1 || zanzonPercent > 100) {
+        alert('有効な残存率（1～100%）を入力してください。');
+        return;
+    }
+    
+    const newQty = prompt(`箇所数を入力してください（現在: ${kokabe.qty}箇所）:`, kokabe.qty);
+    if(newQty === null) return;
+    
+    const qty = parseInt(newQty);
+    if(isNaN(qty) || qty <= 0) {
+        alert('有効な箇所数を入力してください。');
+        return;
+    }
+    
+    // 補正率を再計算
+    const kokabeInfo = KOKABE_DATA[kokabe.name];
+    const widthRatio = width / kokabeInfo.baseWidth;
+    const zanzon = zanzonPercent / 100;
+    const zanzonRatio = zanzon / kokabeInfo.baseZanzon;
+    const correctionFactor = widthRatio * zanzonRatio;
+    
+    addedKokabes[id][idx].width = width;
+    addedKokabes[id][idx].zanzonPercent = zanzonPercent;
+    addedKokabes[id][idx].zanzon = zanzon;
+    addedKokabes[id][idx].widthRatio = widthRatio;
+    addedKokabes[id][idx].zanzonRatio = zanzonRatio;
+    addedKokabes[id][idx].correctionFactor = correctionFactor;
+    addedKokabes[id][idx].qty = qty;
+    
+    renderKokabeList(id);
+    updateInputGraph(id);
+}
+
 // --- Free Input Item Management (複数自由入力対応) ---
 function addFreeInputItem(id) {
     // ▼▼▼ 追加部分: デフォルト値があれば削除 ▼▼▼
@@ -1946,6 +2590,22 @@ function getCompositeForce(id) {
         let braceInfo = BRACE_DATA[b.name];
         if(braceInfo && braceInfo.data) {
             braceInfo.data.forEach(d => allRads.add(d.r));
+        }
+    });
+    
+    // Add nuki key points (貫/ほぞ)
+    addedNukis[id].forEach(n => {
+        let nukiInfo = NUKI_DATA[n.name];
+        if(nukiInfo && nukiInfo.data) {
+            nukiInfo.data.forEach(d => allRads.add(d.r));
+        }
+    });
+    
+    // Add kokabe key points (小壁)
+    addedKokabes[id].forEach(k => {
+        let kokabeInfo = KOKABE_DATA[k.name];
+        if(kokabeInfo && kokabeInfo.data) {
+            kokabeInfo.data.forEach(d => allRads.add(d.r));
         }
     });
     
@@ -2072,6 +2732,84 @@ function getCompositeForce(id) {
             }
         });
         
+        // --- Nuki items の処理 (貫/ほぞ) ---
+        addedNukis[id].forEach(n => {
+            let nukiInfo = NUKI_DATA[n.name];
+            if(nukiInfo && nukiInfo.data) {
+                // 階高補正を適用した耐力（基準壁高/配置階高で補正）
+                let q_base = interpRadQ(nukiInfo.data, rad);
+                let q_elem = q_base * n.correctionFactor * n.qty;
+                
+                // データ内に有効な heq が定義されているかチェック
+                const hasExplicitHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                
+                let heq_elem = 0;
+
+                if (hasExplicitHeq) {
+                    // heq指定あり：CSVの値を補間して使用
+                    heq_elem = interpRadHeq(nukiInfo.data, rad);
+                } else {
+                    // heq指定なし：従来通りの剛性低下率による自動計算
+                    let q_single = q_elem / n.qty; // 1箇所あたりのQ
+                    
+                    // 貫/ほぞの初期剛性 K0 (変位ベース: kN/m)
+                    let K0_nuki_rad = NUKI_K0[n.name] || 10000;
+                    // 階高補正を初期剛性にも適用
+                    K0_nuki_rad = K0_nuki_rad * n.correctionFactor;
+                    let K0_nuki = K0_nuki_rad / h; // 変位ベースに変換
+                    
+                    // heq = (d - Q/K0) / d * 2 / (4π)
+                    if (d > 0 && K0_nuki > 0) {
+                        let elasticDef = q_single / K0_nuki; // 弾性変形
+                        heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
+                        if (heq_elem < 0) heq_elem = 0;
+                    }
+                }
+                
+                totalQ += q_elem;
+                sumHeqQ += heq_elem * q_elem;
+            }
+        });
+        
+        // --- Kokabe items の処理 (小壁) ---
+        addedKokabes[id].forEach(k => {
+            let kokabeInfo = KOKABE_DATA[k.name];
+            if(kokabeInfo && kokabeInfo.data) {
+                // 壁幅比と残存率比で補正した耐力
+                let q_base = interpRadQ(kokabeInfo.data, rad);
+                let q_elem = q_base * k.correctionFactor * k.qty;
+                
+                // データ内に有効な heq が定義されているかチェック
+                const hasExplicitHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                
+                let heq_elem = 0;
+
+                if (hasExplicitHeq) {
+                    // heq指定あり：CSVの値を補間して使用
+                    heq_elem = interpRadHeq(kokabeInfo.data, rad);
+                } else {
+                    // heq指定なし：従来通りの剛性低下率による自動計算
+                    let q_single = q_elem / k.qty; // 1箇所あたりのQ
+                    
+                    // 小壁の初期剛性 K0 (変位ベース: kN/m)
+                    let K0_kokabe_rad = KOKABE_K0[k.name] || 10000;
+                    // 補正係数を初期剛性にも適用
+                    K0_kokabe_rad = K0_kokabe_rad * k.correctionFactor;
+                    let K0_kokabe = K0_kokabe_rad / h; // 変位ベースに変換
+                    
+                    // heq = (d - Q/K0) / d * 2 / (4π)
+                    if (d > 0 && K0_kokabe > 0) {
+                        let elasticDef = q_single / K0_kokabe; // 弾性変形
+                        heq_elem = (d - elasticDef) / d * 2 / (4 * Math.PI);
+                        if (heq_elem < 0) heq_elem = 0;
+                    }
+                }
+                
+                totalQ += q_elem;
+                sumHeqQ += heq_elem * q_elem;
+            }
+        });
+        
         // 階全体の加重平均 heq
         let heq_story = (totalQ > 0) ? sumHeqQ / totalQ : 0;
         
@@ -2160,12 +2898,12 @@ function updateInputGraph(id) {
     addedWalls[id].forEach((w, i) => {
         let data = WALL_DATA[w.name];
         if(data) {
-            let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * w.qty }))];
             datasets.push({
                 label: `${w.name}×${w.qty}`,
                 data: wallData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [3, 3],
                 showLine: true,
                 pointRadius: 0,
@@ -2179,13 +2917,51 @@ function updateInputGraph(id) {
     addedBraces[id].forEach((b, i) => {
         let braceInfo = BRACE_DATA[b.name];
         if(braceInfo && braceInfo.data) {
-            let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+            let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }))];
             datasets.push({
                 label: `${b.name}×${b.qty}`,
                 data: braceData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [5, 5],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 貫/ほぞの個別データ
+    addedNukis[id].forEach((n, i) => {
+        let nukiInfo = NUKI_DATA[n.name];
+        if(nukiInfo && nukiInfo.data) {
+            let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * n.qty }))];
+            datasets.push({
+                label: `${n.name}×${n.qty}`,
+                data: nukiData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 2,
+                borderDash: [1, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 小壁の個別データ
+    addedKokabes[id].forEach((k, i) => {
+        let kokabeInfo = KOKABE_DATA[k.name];
+        if(kokabeInfo && kokabeInfo.data) {
+            let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * k.qty }))];
+            datasets.push({
+                label: `${k.name}×${k.qty}`,
+                data: kokabeData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 2,
+                borderDash: [6, 2],
                 showLine: true,
                 pointRadius: 0,
                 fill: false
@@ -2197,12 +2973,12 @@ function updateInputGraph(id) {
     // 自由入力の個別データ
     freeInputData[id].forEach((item, i) => {
         if(item.data.length > 0) {
-            let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+            let freeData = [{x: 0, y: 0}, ...item.data.map(d => ({ x: d.r, y: d.q * item.qty }))];
             datasets.push({
                 label: `${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
                 data: freeData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [2, 2],
                 showLine: true,
                 pointRadius: 0,
@@ -5019,6 +5795,28 @@ function renderForceDetails() {
             }
         });
         
+        // 1階の貫/ほぞ
+        addedNukis[id1].forEach(n => {
+            let nukiInfo = NUKI_DATA[n.name];
+            if(nukiInfo && nukiInfo.data) {
+                let K0 = (NUKI_K0[n.name] || 0) * n.correctionFactor;
+                let maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * n.correctionFactor * n.qty;
+                let hasInputHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                html += `<tr><td style="${cellStyle}">1F</td><td style="${cellStyle}">貫/ほぞ</td><td style="${cellStyle}">${n.name}</td><td style="${cellStyle}">${n.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+            }
+        });
+        
+        // 1階の小壁
+        addedKokabes[id1].forEach(k => {
+            let kokabeInfo = KOKABE_DATA[k.name];
+            if(kokabeInfo && kokabeInfo.data) {
+                let K0 = (KOKABE_K0[k.name] || 0) * k.correctionFactor;
+                let maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * k.correctionFactor * k.qty;
+                let hasInputHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                html += `<tr><td style="${cellStyle}">1F</td><td style="${cellStyle}">小壁</td><td style="${cellStyle}">${k.name} W=${k.width}m 1/${k.zanzonDenom}</td><td style="${cellStyle}">${k.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+            }
+        });
+        
         // 1階の自由入力
         freeInputData[id1].forEach(item => {
             if(item.data.length > 0) {
@@ -5047,6 +5845,28 @@ function renderForceDetails() {
                     let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * b.qty;
                     let hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
                     html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m</td><td style="${cellStyle}">${b.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                }
+            });
+            
+            // 2階の貫/ほぞ
+            addedNukis[id2].forEach(n => {
+                let nukiInfo = NUKI_DATA[n.name];
+                if(nukiInfo && nukiInfo.data) {
+                    let K0 = (NUKI_K0[n.name] || 0) * n.correctionFactor;
+                    let maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * n.correctionFactor * n.qty;
+                    let hasInputHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                    html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">貫/ほぞ</td><td style="${cellStyle}">${n.name}</td><td style="${cellStyle}">${n.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                }
+            });
+            
+            // 2階の小壁
+            addedKokabes[id2].forEach(k => {
+                let kokabeInfo = KOKABE_DATA[k.name];
+                if(kokabeInfo && kokabeInfo.data) {
+                    let K0 = (KOKABE_K0[k.name] || 0) * k.correctionFactor;
+                    let maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * k.correctionFactor * k.qty;
+                    let hasInputHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                    html += `<tr><td style="${cellStyle}">2F</td><td style="${cellStyle}">小壁</td><td style="${cellStyle}">${k.name} W=${k.width}m 1/${k.zanzonDenom}</td><td style="${cellStyle}">${k.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                 }
             });
             
@@ -5128,12 +5948,12 @@ function drawForceChart(canvasId, dir) {
     addedWalls[id1].forEach((w, i) => {
         let data = WALL_DATA[w.name];
         if(data) {
-            let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * w.qty }))];
             datasets.push({
                 label: `1F ${w.name}×${w.qty}`,
                 data: wallData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [3, 3],
                 showLine: true,
                 pointRadius: 0,
@@ -5147,13 +5967,51 @@ function drawForceChart(canvasId, dir) {
     addedBraces[id1].forEach((b, i) => {
         let braceInfo = BRACE_DATA[b.name];
         if(braceInfo && braceInfo.data) {
-            let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+            let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }))];
             datasets.push({
                 label: `1F ${b.name}×${b.qty}`,
                 data: braceData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [5, 5],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 1階 貫/ほぞの個別データ
+    addedNukis[id1].forEach((n, i) => {
+        let nukiInfo = NUKI_DATA[n.name];
+        if(nukiInfo && nukiInfo.data) {
+            let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * n.qty }))];
+            datasets.push({
+                label: `1F ${n.name}×${n.qty}`,
+                data: nukiData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 2,
+                borderDash: [1, 3],
+                showLine: true,
+                pointRadius: 0,
+                fill: false
+            });
+            colorIndex++;
+        }
+    });
+    
+    // 1階 小壁の個別データ
+    addedKokabes[id1].forEach((k, i) => {
+        let kokabeInfo = KOKABE_DATA[k.name];
+        if(kokabeInfo && kokabeInfo.data) {
+            let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * k.qty }))];
+            datasets.push({
+                label: `1F ${k.name}×${k.qty}`,
+                data: kokabeData,
+                borderColor: colors[colorIndex % colors.length],
+                borderWidth: 2,
+                borderDash: [6, 2],
                 showLine: true,
                 pointRadius: 0,
                 fill: false
@@ -5165,12 +6023,12 @@ function drawForceChart(canvasId, dir) {
     // 1階 自由入力の個別データ
     freeInputData[id1].forEach((item, i) => {
         if(item.data.length > 0) {
-            let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+            let freeData = [{x: 0, y: 0}, ...item.data.map(d => ({ x: d.r, y: d.q * item.qty }))];
             datasets.push({
                 label: `1F ${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
                 data: freeData,
                 borderColor: colors[colorIndex % colors.length],
-                borderWidth: 1,
+                borderWidth: 2,
                 borderDash: [2, 2],
                 showLine: true,
                 pointRadius: 0,
@@ -5201,12 +6059,12 @@ function drawForceChart(canvasId, dir) {
         addedWalls[id2].forEach((w, i) => {
             let data = WALL_DATA[w.name];
             if(data) {
-                let wallData = data.map(d => ({ x: d.r, y: d.q * w.qty }));
+                let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * w.qty }))];
                 datasets.push({
                     label: `2F ${w.name}×${w.qty}`,
                     data: wallData,
                     borderColor: colors[(colorIndex + 4) % colors.length],
-                    borderWidth: 1,
+                    borderWidth: 2,
                     borderDash: [3, 3],
                     showLine: true,
                     pointRadius: 0,
@@ -5220,13 +6078,51 @@ function drawForceChart(canvasId, dir) {
         addedBraces[id2].forEach((b, i) => {
             let braceInfo = BRACE_DATA[b.name];
             if(braceInfo && braceInfo.data) {
-                let braceData = braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }));
+                let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }))];
                 datasets.push({
                     label: `2F ${b.name}×${b.qty}`,
                     data: braceData,
                     borderColor: colors[(colorIndex + 4) % colors.length],
-                    borderWidth: 1,
+                    borderWidth: 2,
                     borderDash: [5, 5],
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: false
+                });
+                colorIndex++;
+            }
+        });
+        
+        // 2階 貫/ほぞの個別データ
+        addedNukis[id2].forEach((n, i) => {
+            let nukiInfo = NUKI_DATA[n.name];
+            if(nukiInfo && nukiInfo.data) {
+                let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * n.qty }))];
+                datasets.push({
+                    label: `2F ${n.name}×${n.qty}`,
+                    data: nukiData,
+                    borderColor: colors[(colorIndex + 4) % colors.length],
+                    borderWidth: 2,
+                    borderDash: [1, 3],
+                    showLine: true,
+                    pointRadius: 0,
+                    fill: false
+                });
+                colorIndex++;
+            }
+        });
+        
+        // 2階 小壁の個別データ
+        addedKokabes[id2].forEach((k, i) => {
+            let kokabeInfo = KOKABE_DATA[k.name];
+            if(kokabeInfo && kokabeInfo.data) {
+                let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * k.qty }))];
+                datasets.push({
+                    label: `2F ${k.name}×${k.qty}`,
+                    data: kokabeData,
+                    borderColor: colors[(colorIndex + 4) % colors.length],
+                    borderWidth: 2,
+                    borderDash: [6, 2],
                     showLine: true,
                     pointRadius: 0,
                     fill: false
@@ -5238,12 +6134,12 @@ function drawForceChart(canvasId, dir) {
         // 2階 自由入力の個別データ
         freeInputData[id2].forEach((item, i) => {
             if(item.data.length > 0) {
-                let freeData = item.data.map(d => ({ x: d.r, y: d.q * item.qty }));
+                let freeData = [{x: 0, y: 0}, ...item.data.map(d => ({ x: d.r, y: d.q * item.qty }))];
                 datasets.push({
                     label: `2F ${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
                     data: freeData,
                     borderColor: colors[(colorIndex + 4) % colors.length],
-                    borderWidth: 1,
+                    borderWidth: 2,
                     borderDash: [2, 2],
                     showLine: true,
                     pointRadius: 0,
