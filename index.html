@@ -2501,13 +2501,13 @@ const DEFAULT_FREE_DATA_2F = [
 window.onload = async function() {
     toggleStories(); 
     
-    // ▼▼▼ 変更: CSVデータをロードしてから初期化 ▼▼▼
-    await loadWallDataFromServer();
-    await loadBraceDataFromServer(); // 筋交い/ブレースデータ読み込み
-    await loadNukiDataFromServer(); // 貫/ほぞデータ読み込み
-    await loadKokabeDataFromServer(); // 小壁データ読み込み
-    // initWallSelectors(); // loadWallDataFromServer内で呼び出すためコメントアウトまたは削除
-    // initWallK0();      // 同上
+    // ▼▼▼ 変更: CSVデータを並列ロードして初期化を高速化 ▼▼▼
+    await Promise.all([
+        loadWallDataFromServer(),
+        loadBraceDataFromServer(),
+        loadNukiDataFromServer(),
+        loadKokabeDataFromServer()
+    ]);
     // ▲▲▲ 変更ここまで ▲▲▲
     
     // デフォルト値を設定（5階対応）
