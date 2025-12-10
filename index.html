@@ -4096,6 +4096,14 @@ function updateInputGraph(id) {
 // 最大階数定数
 const MAX_STORIES = 5;
 
+// 物件名の同期関数 (表紙と基本情報の物件名を同期)
+function syncProjectName(source) {
+    // 現在は表紙側のみ存在するため、特に処理なし
+    // 将来的に基本情報側に物件名フィールドが追加された場合は、
+    // sourceが'cover'なら基本情報側に反映、'main'なら表紙側に反映する
+    // 現時点ではエラー回避のための空関数として定義
+}
+
 function toggleStories() {
     const s = parseInt(document.getElementById('inp_Stories').value);
     
