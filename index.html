@@ -2552,6 +2552,12 @@ window.onload = async function() {
     const dateStr = today.getFullYear() + "年" + (today.getMonth() + 1) + "月" + today.getDate() + "日";
     document.getElementById('inp_cover_date').value = dateStr;
 
+    // 表紙用デフォルト値設定
+    document.getElementById('inp_cover_company').value = 'アルキテック株式会社一級建築士事務所';
+    document.getElementById('inp_cover_office_reg').value = '一級建築士事務所(東京都知事登録 第60722号)';
+    document.getElementById('inp_cover_arch_reg').value = '一級建築士登録番号 第327494号';
+    document.getElementById('inp_cover_manager_name').value = '大沼 耕平';
+
     // ▼▼▼ 追加: LocalStorage自動保存機能の初期化と復元確認 ▼▼▼
     initAutoSave();
     checkAndRestoreLocalStorage();
@@ -4102,6 +4108,48 @@ function syncProjectName(source) {
     // 将来的に基本情報側に物件名フィールドが追加された場合は、
     // sourceが'cover'なら基本情報側に反映、'main'なら表紙側に反映する
     // 現時点ではエラー回避のための空関数として定義
+}
+
+// 表紙フィールドのフォントサイズを自動調整して1行で収まるようにする関数
+function adjustCoverFontSize(elementId, maxFontSize, minFontSize = 8) {
+    const element = document.getElementById(elementId);
+    if (!element || !element.textContent.trim()) return;
+
+    const container = element.parentElement;
+    const containerWidth = container.offsetWidth - 40; // 余白を考慮
+
+    let fontSize = maxFontSize;
+    element.style.fontSize = fontSize + 'pt';
+
+    // テキストがコンテナ幅を超える場合、フォントサイズを小さくする
+    while (fontSize > minFontSize && element.offsetWidth > containerWidth) {
+        fontSize -= 1;
+        element.style.fontSize = fontSize + 'pt';
+    }
+}
+
+// 表紙フィールドのフォントサイズを最大化してコンテナ幅一杯に収まるようにする関数
+function maximizeCoverFontSize(elementId, maxFontSize, minFontSize = 8) {
+    const element = document.getElementById(elementId);
+    if (!element || !element.textContent.trim()) return;
+
+    const container = element.parentElement;
+    const containerWidth = container.offsetWidth - 40; // 余白を考慮
+
+    let fontSize = minFontSize;
+    element.style.fontSize = fontSize + 'pt';
+
+    // テキストがコンテナ幅に収まる最大フォントサイズを探す
+    while (fontSize < maxFontSize && element.offsetWidth < containerWidth) {
+        fontSize += 1;
+        element.style.fontSize = fontSize + 'pt';
+    }
+
+    // 1つ大きくなりすぎた場合は1つ戻す
+    if (element.offsetWidth > containerWidth) {
+        fontSize -= 1;
+        element.style.fontSize = fontSize + 'pt';
+    }
 }
 
 function toggleStories() {
@@ -7002,6 +7050,15 @@ function generatePDF() {
         
         const mgrName = document.getElementById('inp_cover_manager_name').value;
         document.getElementById('rep-cover-manager-name').innerText = mgrName ? "管理建築士: " + mgrName : "";
+        
+        // フォントサイズを自動調整して1行で収まるようにする
+        // 物件名と会社名はページ幅一杯になるよう最大化
+        maximizeCoverFontSize('rep-cover-project-name', 32);
+        maximizeCoverFontSize('rep-cover-company', 24);
+        // その他のフィールドは最小サイズで収まるよう調整
+        adjustCoverFontSize('rep-cover-office-reg', 14);
+        adjustCoverFontSize('rep-cover-arch-reg', 14);
+        adjustCoverFontSize('rep-cover-manager-name', 14);
         
         // 目次に建物名を表示
         document.getElementById('rep-toc-building-name').innerText = projectName;
