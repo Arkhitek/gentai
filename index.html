@@ -325,19 +325,13 @@
         </div>
         
         <!-- 串団子モデル図と重量イメージ -->
-        <div style="display:flex; gap:20px; margin-top:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="display:flex; gap:20px; margin-top:20px; align-items:flex-start; flex-wrap:wrap; justify-content: center;">
             <!-- 串団子モデル -->
             <div style="flex:1; min-width:300px; max-width:500px;">
                 <h4 style="margin:0 0 10px 0; color:#333; text-align:center;">串団子モデル（入力可能）</h4>
                 <div id="model-container" style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9; padding:20px; position:relative;">
                     <canvas id="building-model-canvas" width="400" height="600" style="display:block; margin:0 auto; background:#fff; border:1px solid #ccc;"></canvas>
                 </div>
-            </div>
-            
-            <!-- 重量イメージ -->
-            <div style="flex:1; min-width:300px;">
-                <h4 style="margin:0 0 10px 0; color:#333; text-align:center;">重量の考え方</h4>
-                <img src="./weight.png" alt="重量イメージ" style="width:100%; height:auto; border:1px solid #ddd; border-radius:5px;">
             </div>
         </div>
         
@@ -4134,22 +4128,32 @@ function maximizeCoverFontSize(elementId, maxFontSize, minFontSize = 8) {
     if (!element || !element.textContent.trim()) return;
 
     const container = element.parentElement;
-    const containerWidth = container.offsetWidth - 40; // 余白を考慮
+    const containerWidth = container.offsetWidth;
+
+    // テキスト幅を正確に測定するため、一時的にインライン要素にする
+    const originalDisplay = element.style.display;
+    const originalWhiteSpace = element.style.whiteSpace;
+    element.style.display = 'inline-block';
+    element.style.whiteSpace = 'nowrap';
 
     let fontSize = minFontSize;
     element.style.fontSize = fontSize + 'pt';
 
     // テキストがコンテナ幅に収まる最大フォントサイズを探す
-    while (fontSize < maxFontSize && element.offsetWidth < containerWidth) {
-        fontSize += 1;
+    while (fontSize < maxFontSize && element.scrollWidth < containerWidth) {
+        fontSize += 0.5;
         element.style.fontSize = fontSize + 'pt';
     }
 
-    // 1つ大きくなりすぎた場合は1つ戻す
-    if (element.offsetWidth > containerWidth) {
-        fontSize -= 1;
+    // 1つ大きくなりすぎた場合は戻す
+    if (element.scrollWidth > containerWidth) {
+        fontSize -= 0.5;
         element.style.fontSize = fontSize + 'pt';
     }
+
+    // スタイルを元に戻す
+    element.style.display = originalDisplay || '';
+    element.style.whiteSpace = originalWhiteSpace || '';
 }
 
 function toggleStories() {
