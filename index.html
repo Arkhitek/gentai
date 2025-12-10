@@ -290,34 +290,11 @@
             <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="loadFromCSV(event)">
             <button onclick="document.getElementById('csvFileInput').click()" style="padding:8px 20px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">📤 CSV読込</button>
         </div>
-        <h2>1. 建物・地盤諸元</h2>
         
-        <!-- 住所から地盤データ自動取得 (J-SHIS連携) -->
-        <div style="background:#e8f5e9; border:1px solid #4caf50; padding:15px; margin-bottom:20px; border-radius:5px;">
-            <h3 style="margin-top:0; color:#2e7d32;">📍 住所から地盤・地域係数を自動取得 (J-SHIS連携)</h3>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <input type="text" id="inp_address" placeholder="住所を入力 (例: 東京都千代田区...)" style="flex:1; min-width:250px; padding:8px; font-size:1.1em;">
-                <button class="btn-calc" id="btn_fetch_jshis" style="margin:0; width:auto; padding:8px 20px; background:#2e7d32;" onclick="fetchJshisData()">地盤データ取得</button>
-            </div>
-            <div id="jshis-result" style="margin-top:10px; font-size:0.9em; color:#333; display:none;">
-                <div style="display:flex; gap:15px; flex-wrap:wrap; background:#fff; padding:10px; border:1px solid #ccc; border-radius:3px;">
-                    <div><strong>S波速度 (AVS30):</strong> <span id="res-avs30" style="color:#d32f2f; font-weight:bold;">-</span> m/s</div>
-                    <div><strong>表層地盤増幅率:</strong> <span id="res-amp" style="color:#d32f2f; font-weight:bold;">-</span> 倍</div>
-                    <div><strong>判定地盤種別:</strong> <span id="res-soil-type" style="font-weight:bold;">-</span></div>
-                </div>
-                <div style="font-size:0.85em; color:#666; margin-top:5px;">
-                    ※J-SHISの250mメッシュ情報より取得。地域係数Zは都道府県から推定しています（必ず特定行政庁の数値を確認してください）。
-                </div>
-            </div>
-        </div>
-        
+        <h2>1. 建物諸元</h2>
         <div class="input-grid">
             <div class="input-group">
-                <label>物件名</label>
-                <input type="text" id="inp_BuildingName" placeholder="例: 〇〇邸 新築工事" oninput="syncProjectName('main')">
-            </div>
-            <div class="input-group">
-                <label>階数 (Stories)</label>
+                <label>階数</label>
                 <select id="inp_Stories" onchange="toggleStories()">
                     <option value="1">1階建て (平屋)</option>
                     <option value="2" selected>2階建て</option>
@@ -326,13 +303,83 @@
                     <option value="5">5階建て</option>
                 </select>
             </div>
+        </div>
+        
+        <h4 style="margin: 15px 0 5px 0; color: #333;">重量</h4>
+        <p style="font-size:0.9em; color:#666;">※重量Wは、当該階の地震力を負担する重量（積載荷重含む、多雪区域等は適切に割増）を入力してください。</p>
+        <div class="input-grid" id="weight-input-grid">
+            <div class="input-group"><label>1F 重量 W1 (kN)</label><input type="number" id="inp_W1" value="100" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 重量 W2 (kN)</label><input type="number" id="inp_W2" value="80" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 重量 W3 (kN)</label><input type="number" id="inp_W3" value="70" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 重量 W4 (kN)</label><input type="number" id="inp_W4" value="60" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 重量 W5 (kN)</label><input type="number" id="inp_W5" value="50" step="0.1" oninput="drawBuildingModel()"></div>
+        </div>
+        
+        <h4 style="margin: 15px 0 5px 0; color: #333;">階高</h4>
+        <div class="input-grid" id="height-input-grid">
+            <div class="input-group"><label>1F 階高 H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 階高 H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 階高 H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 階高 H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 階高 H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+        </div>
+        
+        <!-- 串団子モデル図と重量イメージ -->
+        <div style="display:flex; gap:20px; margin-top:20px; align-items:flex-start; flex-wrap:wrap;">
+            <!-- 串団子モデル -->
+            <div style="flex:1; min-width:300px; max-width:500px;">
+                <h4 style="margin:0 0 10px 0; color:#333; text-align:center;">串団子モデル（入力可能）</h4>
+                <div id="model-container" style="border:1px solid #ddd; border-radius:5px; background:#f9f9f9; padding:20px; position:relative;">
+                    <canvas id="building-model-canvas" width="400" height="600" style="display:block; margin:0 auto; background:#fff; border:1px solid #ccc;"></canvas>
+                </div>
+            </div>
+            
+            <!-- 重量イメージ -->
+            <div style="flex:1; min-width:300px;">
+                <h4 style="margin:0 0 10px 0; color:#333; text-align:center;">重量の考え方</h4>
+                <img src="./weight.png" alt="重量イメージ" style="width:100%; height:auto; border:1px solid #ddd; border-radius:5px;">
+            </div>
+        </div>
+        
+        <h2>2. 地震応答</h2>
+        
+        <!-- 住所から地盤データ自動取得 (J-SHIS連携) -->
+        <div style="background:#e8f5e9; border:1px solid #4caf50; padding:10px 15px; margin-bottom:20px; border-radius:5px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="checkbox" id="chk_jshis_enable" onchange="toggleJshisSection()" style="width:18px; height:18px; cursor:pointer;">
+                <label for="chk_jshis_enable" style="cursor:pointer; font-weight:bold; color:#2e7d32; margin:0;">
+                    📍 住所から地盤・地域係数を自動取得 (J-SHIS連携)
+                </label>
+            </div>
+            <div id="jshis-input-section" style="display:none; margin-top:10px;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="inp_address" placeholder="住所を入力 (例: 東京都千代田区...)" style="flex:1; min-width:250px; padding:8px; font-size:1.1em;">
+                    <button class="btn-calc" id="btn_fetch_jshis" style="margin:0; width:auto; padding:8px 20px; background:#2e7d32;" onclick="fetchJshisData()">地盤データ取得</button>
+                </div>
+                <div id="jshis-result" style="margin-top:10px; font-size:0.9em; color:#333; display:none;">
+                    <div style="display:flex; gap:15px; flex-wrap:wrap; background:#fff; padding:10px; border:1px solid #ccc; border-radius:3px;">
+                        <div><strong>S波速度 (AVS30):</strong> <span id="res-avs30" style="color:#d32f2f; font-weight:bold;">-</span> m/s</div>
+                        <div><strong>表層地盤増幅率:</strong> <span id="res-amp" style="color:#d32f2f; font-weight:bold;">-</span> 倍</div>
+                        <div><strong>判定地盤種別:</strong> <span id="res-soil-type" style="font-weight:bold;">-</span></div>
+                        <div><strong>メッシュコード:</strong> <span id="res-meshcode" style="color:#1976d2; font-weight:bold;">-</span></div>
+                    </div>
+                    <div style="font-size:0.85em; color:#666; margin-top:5px;">
+                        ※J-SHISの250mメッシュ情報より取得。地域係数Zは都道府県から推定しています（必ず特定行政庁の数値を確認してください）。<br>
+                        ※ハザードカルテと表示される値が異なる場合があります。これは入力座標が属するメッシュの位置によるものです。正確な値はハザードカルテで確認し、必要に応じて下記の地盤種別を手動で調整してください。
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h3>2-1. 地域係数 Z</h3>
+        <div class="input-grid">
             <div class="input-group">
                 <label>地域係数 Z</label>
                 <input type="number" id="inp_Z" value="1.0" step="0.01">
             </div>
         </div>
         
-        <h3>1-2. 応答スペクトル (Sa)</h3>
+        <h3>2-2. 応答スペクトル (Sa)</h3>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
             <div style="min-width:280px;">
                 <div class="input-group" style="margin-bottom:10px;">
@@ -389,7 +436,7 @@
             </div>
         </div>
         
-        <h3>1-3. 地盤種別 (表層地盤による加速度増幅率Gs設定)</h3>
+        <h3>2-3. 地盤種別 (表層地盤による加速度増幅率Gs設定)</h3>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
             <div style="min-width:200px;">
                 <div class="input-group" style="margin-bottom:10px;">
@@ -418,7 +465,7 @@
             </div>
         </div>
         
-        <h3>1-4. p, q 調整係数</h3>
+        <h3>2-4. p, q 調整係数</h3>
         <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
             <div style="min-width:200px;">
                 <div class="input-group" style="margin-bottom:10px;">
@@ -441,74 +488,7 @@
             </div>
         </div>
         
-        <h3>1-5. 地震層せん断力との比較設定</h3>
-        <div style="background:#f0f8ff; border:1px solid #b0c4de; padding:15px; border-radius:5px;">
-            <div class="input-group" style="margin-bottom:10px; text-align: left; border:none; background:transparent; padding:0;">
-                <label style="cursor:pointer; font-weight:bold; color:#005a9c; font-size:1.1em; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
-                    <input type="checkbox" id="chk_calc_shear_force" onchange="toggleShearInput()" style="width:auto; transform:scale(1.2); margin:0;"> 
-                    地震層せん断力(1次設計・2次設計)と比較を行う
-                </label>
-            </div>
-            
-            <div id="shear-input-area" style="display:none; margin-top:10px;">
-                <p style="font-size:0.9em; color:#666; margin-bottom:10px; line-height:1.5;">
-                    ※建築基準法に基づく地震層せん断力係数<br>
-                    損傷限界(1次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
-                        C<sub>i</sub> = Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
-                    </span><br>
-                    安全限界(2次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
-                        C<sub>i</sub> = D<sub>s</sub> · F<sub>es</sub> · Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
-                    </span><br>
-                    を計算し、限界耐力と比較します。
-                </p>
-                
-                <div class="input-grid">
-                    <div class="input-group">
-                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(1次設計相当・損傷限界)</span></label>
-                        <input type="number" id="inp_C0_D" value="0.2" step="0.05">
-                    </div>
-                    <div class="input-group">
-                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
-                        <input type="number" id="inp_C0_S" value="1.0" step="0.1">
-                    </div>
-                    <div class="input-group">
-                        <label>構造特性係数 Ds<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
-                        <input type="number" id="inp_Ds" value="0.4" step="0.05">
-                    </div>
-                    <div class="input-group">
-                        <label>形状係数 Fes<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
-                        <input type="number" id="inp_Fes" value="1.0" step="0.1">
-                    </div>
-                    <div class="input-group">
-                        <label>木造固有周期係数 (T=kH)</label>
-                        <input type="number" id="inp_T_factor" value="0.03" step="0.01">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <h3>2. 階データ (下階から入力)</h3>
-        <p style="font-size:0.9em; color:#666;">※重量Wは、当該階の地震力を負担する重量（積載荷重含む、多雪区域等は適切に割増）を入力してください。</p>
-        
-        <h4 style="margin: 10px 0 5px 0; color: #333;">重量</h4>
-        <div class="input-grid" id="weight-input-grid">
-            <div class="input-group"><label>1F 重量 W1 (kN)</label><input type="number" id="inp_W1" value="100"></div>
-            <div class="input-group story-2-only"><label>2F 重量 W2 (kN)</label><input type="number" id="inp_W2" value="80"></div>
-            <div class="input-group story-3-only"><label>3F 重量 W3 (kN)</label><input type="number" id="inp_W3" value="70"></div>
-            <div class="input-group story-4-only"><label>4F 重量 W4 (kN)</label><input type="number" id="inp_W4" value="60"></div>
-            <div class="input-group story-5-only"><label>5F 重量 W5 (kN)</label><input type="number" id="inp_W5" value="50"></div>
-        </div>
-        
-        <h4 style="margin: 15px 0 5px 0; color: #333;">階高</h4>
-        <div class="input-grid" id="height-input-grid">
-            <div class="input-group"><label>1F 階高 H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01"></div>
-            <div class="input-group story-2-only"><label>2F 階高 H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01"></div>
-            <div class="input-group story-3-only"><label>3F 階高 H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.01"></div>
-            <div class="input-group story-4-only"><label>4F 階高 H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.01"></div>
-            <div class="input-group story-5-only"><label>5F 階高 H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.01"></div>
-        </div>
-
-        <h3>3. 判定基準 (層間変形角)</h3>
+        <h2>3. 判定基準 (層間変形角)</h2>
         <div class="input-grid">
             <div class="input-group">
                 <label>損傷限界 1/N</label>
@@ -518,9 +498,6 @@
                 <label>安全限界 1/N</label>
                 <input type="number" id="inp_limit_s" value="15" step="1">
             </div>
-        </div>
-        <div style="text-align:center; margin-top:20px;">
-            <img src="./weight.png" alt="重量イメージ" style="width:50%; height:auto; border:1px solid #ddd; border-radius:5px;">
         </div>
     </div>
 
@@ -540,8 +517,8 @@
                 <div class="free-input-list" id="free-list-x1"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-x1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-x1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('x1')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('x1')">+ 項目追加</button>
                 </div>
@@ -635,8 +612,8 @@
                 <div class="free-input-list" id="free-list-x2"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-x2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-x2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('x2')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('x2')">+ 項目追加</button>
                 </div>
@@ -731,8 +708,8 @@
                 <div class="free-input-list" id="free-list-x3"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-x3" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x3" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-x3" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('x3')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('x3')">+ 項目追加</button>
                 </div>
@@ -815,8 +792,8 @@
                 <div class="free-input-list" id="free-list-x4"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-x4" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x4" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-x4" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('x4')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('x4')">+ 項目追加</button>
                 </div>
@@ -899,8 +876,8 @@
                 <div class="free-input-list" id="free-list-x5"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-x5" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-x5" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-x5" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('x5')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('x5')">+ 項目追加</button>
                 </div>
@@ -998,8 +975,8 @@
                 <div class="free-input-list" id="free-list-y1"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-y1" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-y1" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('y1')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('y1')">+ 項目追加</button>
                 </div>
@@ -1093,8 +1070,8 @@
                 <div class="free-input-list" id="free-list-y2"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-y2" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-y2" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('y2')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('y2')">+ 項目追加</button>
                 </div>
@@ -1189,8 +1166,8 @@
                 <div class="free-input-list" id="free-list-y3"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-y3" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y3" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-y3" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('y3')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('y3')">+ 項目追加</button>
                 </div>
@@ -1273,8 +1250,8 @@
                 <div class="free-input-list" id="free-list-y4"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-y4" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y4" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-y4" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('y4')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('y4')">+ 項目追加</button>
                 </div>
@@ -1357,8 +1334,8 @@
                 <div class="free-input-list" id="free-list-y5"></div>
                 <div style="display:flex; gap:5px; margin:5px 0; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="free-name-y5" placeholder="項目名" style="flex:2; min-width:80px; padding:3px;">
-                    <input type="number" id="free-qty-y5" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="数量">
-                    <span style="font-size:0.75em; color:#666;">数量</span>
+                    <input type="number" id="free-qty-y5" value="1" step="0.1" style="width:50px; padding:3px; text-align:right;" title="箇所">
+                    <span style="font-size:0.75em; color:#666;">箇所</span>
                     <button class="btn-sheet" onclick="openSpreadsheet('y5')">Excel貼付</button>
                     <button class="btn-sm" onclick="addFreeInputItem('y5')">+ 項目追加</button>
                 </div>
@@ -1441,6 +1418,54 @@
     </div>
 
     <div id="tab-result" class="tab-content no-print">
+        <h2>4. 計算結果・ログ</h2>
+        
+        <!-- 地震層せん断力との比較設定 -->
+        <div style="background:#f0f8ff; border:1px solid #b0c4de; padding:15px; margin-bottom:20px; border-radius:5px;">
+            <div class="input-group" style="margin-bottom:10px; text-align: left; border:none; background:transparent; padding:0;">
+                <label style="cursor:pointer; font-weight:bold; color:#005a9c; font-size:1.1em; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
+                    <input type="checkbox" id="chk_calc_shear_force" onchange="toggleShearInput()" style="width:auto; transform:scale(1.2); margin:0;"> 
+                    地震層せん断力(1次設計・2次設計)と比較を行う
+                </label>
+            </div>
+            
+            <div id="shear-input-area" style="display:none; margin-top:10px;">
+                <p style="font-size:0.9em; color:#666; margin-bottom:10px; line-height:1.5;">
+                    ※建築基準法に基づく地震層せん断力係数<br>
+                    損傷限界(1次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
+                        C<sub>i</sub> = Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
+                    </span><br>
+                    安全限界(2次): <span style="font-family:'Times New Roman', serif; font-style:italic; font-weight:bold; background:#fff; padding:2px 5px; border-radius:3px; border:1px solid #ddd;">
+                        C<sub>i</sub> = D<sub>s</sub> · F<sub>es</sub> · Z · R<sub>t</sub> · A<sub>i</sub> · C<sub>0</sub>
+                    </span><br>
+                    を計算し、限界耐力と比較します。
+                </p>
+                
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(1次設計相当・損傷限界)</span></label>
+                        <input type="number" id="inp_C0_D" value="0.2" step="0.05">
+                    </div>
+                    <div class="input-group">
+                        <label>標準せん断力係数 C0<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
+                        <input type="number" id="inp_C0_S" value="1.0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label>構造特性係数 Ds<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
+                        <input type="number" id="inp_Ds" value="0.4" step="0.05">
+                    </div>
+                    <div class="input-group">
+                        <label>形状係数 Fes<br><span style="font-size:0.85em; font-weight:normal;">(2次設計相当・安全限界)</span></label>
+                        <input type="number" id="inp_Fes" value="1.0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label>木造固有周期係数 (T=kH)</label>
+                        <input type="number" id="inp_T_factor" value="0.03" step="0.01">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div style="text-align:center; margin:20px;">
             <button class="btn-calc" onclick="executeCalculation()">計算実行</button>
         </div>
@@ -2294,6 +2319,15 @@
                 <input type="checkbox" id="heq-input-checkbox" onchange="toggleHeqColumn()"> heqを入力する
             </label>
         </div>
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <label style="cursor:pointer;">
+                <input type="checkbox" id="deformation-input-checkbox" onchange="toggleDeformationInput()"> 変形(m)で入力する
+            </label>
+            <div id="wall-height-input-area" style="display:none; align-items:center; gap:5px;">
+                <label style="font-size:0.9em;">壁高さ(m):</label>
+                <input type="number" id="wall-height-input" value="2.73" step="0.01" style="width:70px; padding:3px;">
+            </div>
+        </div>
         <div id="spreadsheet-container"></div>
         <div style="text-align:right; margin-top:10px;">
             <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="applySheetData()">データ反映</button>
@@ -2505,6 +2539,9 @@ window.onload = async function() {
     
     // p係数グラフを初期化
     updatePChart();
+    
+    // 串団子モデルを初期描画
+    drawBuildingModel();
     
     document.getElementById('report-date').innerText = "計算日: " + new Date().toLocaleDateString();
     
@@ -4100,6 +4137,283 @@ function toggleStories() {
     if(document.getElementById('inp_pq').value === 'yes') {
         updatePChart();
     }
+    
+    // 串団子モデルを更新
+    drawBuildingModel();
+}
+
+// ========================================
+// 串団子モデル描画機能（修正版）
+// ========================================
+function drawBuildingModel() {
+    const canvas = document.getElementById('building-model-canvas');
+    if (!canvas) return;
+    
+    const container = document.getElementById('model-container');
+    const ctx = canvas.getContext('2d');
+    const stories = parseInt(document.getElementById('inp_Stories').value);
+    
+    // --- 1. キャンバスサイズの自動調整 ---
+    // 1階あたりの固定ピクセル高さを設定（見やすくするため）
+    const pixelsPerFloor = 140; 
+    const topMargin = 60;
+    const bottomMargin = 60;
+    const newHeight = (stories * pixelsPerFloor) + topMargin + bottomMargin;
+    
+    // キャンバスの高さを変更（幅は固定）
+    canvas.height = newHeight;
+    // スタイルも合わせる（高解像度ディスプレイ対応の際はdpr考慮が必要ですが、今回は等倍とします）
+    canvas.style.height = newHeight + "px";
+
+    // クリア
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 既存の入力ボックス・単位ラベルをクリア
+    const existingInputs = container.querySelectorAll('.model-input, .model-unit');
+    existingInputs.forEach(el => el.remove());
+    
+    // データ取得
+    const weights = [];
+    const heights = [];
+    for (let i = 1; i <= stories; i++) {
+        const w = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
+        const h = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        weights.push(w);
+        heights.push(h);
+    }
+    
+    // 描画設定
+    const massRadius = 30; // 団子の半径
+    const centerX = canvas.width / 2;
+    const baseY = canvas.height - bottomMargin; // 地面の位置
+    const leftMargin = 70; // 寸法線の位置
+    
+    // 地面を描画
+    ctx.strokeStyle = '#5a4a25'; // 土っぽい色
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 70, baseY);
+    ctx.lineTo(centerX + 70, baseY);
+    ctx.stroke();
+    
+    // 地面のハッチング（茶色い斜線）
+    ctx.fillStyle = '#8c7335'; 
+    ctx.fillRect(centerX - 70, baseY, 140, 10);
+
+    let currentY = baseY;
+    
+    // 各階を下から上へ描画
+    for (let i = 0; i < stories; i++) {
+        const h = heights[i];
+        const w = weights[i];
+        const floorNum = i + 1;
+        
+        // 階高に応じたY座標（ここでは視覚的なバランスのため固定ピクセル間隔を使用）
+        // 実際のhの値は入力欄に表示されます
+        const nextY = currentY - pixelsPerFloor;
+        
+        // --- バネの描画（画像に合わせたジグザグ形状） ---
+        const springStartY = (i === 0) ? baseY : currentY - massRadius; // 下端（地面または下の団子の上）
+        const springEndY = nextY + massRadius; // 上端（上の団子の下）
+        
+        // バネの設定
+        const springLength = springStartY - springEndY;
+        const zigzagHeight = 60; // ジグザグ部分の高さ固定
+        const zigzagWidth = 20;  // ジグザグの振幅
+        const coils = 4;         // 山の数
+        
+        // 直線部分の長さ（上下均等に割り振り）
+        const lineLen = (springLength - zigzagHeight) / 2;
+        const zigzagStartY = springStartY - lineLen;
+        const zigzagEndY = springEndY + lineLen;
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        
+        // 1. 下の直線
+        ctx.moveTo(centerX, springStartY);
+        ctx.lineTo(centerX, zigzagStartY);
+        
+        // 2. ジグザグ部分
+        for (let j = 0; j <= coils * 2; j++) {
+            const ratio = j / (coils * 2);
+            const y = zigzagStartY - (zigzagHeight * ratio);
+            // 偶数番目は左(-)、奇数番目は右(+)、最後は中心(0)に戻る
+            let x = centerX;
+            if (j < coils * 2) {
+                x = centerX + ((j % 2 === 0) ? zigzagWidth : -zigzagWidth);
+            }
+            ctx.lineTo(x, y);
+        }
+        
+        // 3. 上の直線
+        ctx.lineTo(centerX, zigzagEndY); // ジグザグ終わりから中心へ補正
+        ctx.lineTo(centerX, springEndY);
+        ctx.stroke();
+
+        // --- 団子（質点）を描画 ---
+        ctx.fillStyle = '#808080'; // グレー
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(centerX, nextY, massRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // コンテナとCanvasの位置関係取得
+        const containerRect = container.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        const offsetX = canvasRect.left - containerRect.left;
+        const offsetY = canvasRect.top - containerRect.top;
+
+        // --- 重量ラベル W1, W2... ---
+        const labelW = document.createElement('div');
+        labelW.className = 'model-unit';
+        labelW.innerText = `W${floorNum}`;
+        labelW.style.cssText = `
+            position: absolute;
+            left: ${offsetX + centerX - 15}px;
+            top: ${offsetY + nextY - 25}px;
+            font-size: 12px;
+            color: #c92a2a;
+            font-weight: bold;
+            pointer-events: none;
+        `;
+        container.appendChild(labelW);
+
+        // --- 重量入力ボックス ---
+        // 団子の中央より少し右に配置して、単位を入れるスペースを作る
+        const inputW = document.createElement('input');
+        inputW.type = 'number';
+        inputW.step = '0.1';
+        inputW.value = w.toFixed(1);
+        inputW.className = 'model-input';
+        
+        // 配置計算
+        const wInputWidth = 50;
+        const wInputLeft = offsetX + centerX - (wInputWidth / 2);
+        const wInputTop = offsetY + nextY - 10; // 団子の中心
+        
+        inputW.style.cssText = `
+            position: absolute;
+            left: ${wInputLeft}px;
+            top: ${wInputTop}px;
+            width: ${wInputWidth}px;
+            height: 20px;
+            text-align: center;
+            font-size: 11px;
+            border: 1px solid #666;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0;
+            z-index: 10;
+        `;
+        inputW.onchange = function() {
+            document.getElementById(`inp_W${floorNum}`).value = this.value;
+            drawBuildingModel();
+        };
+        container.appendChild(inputW);
+
+        // 重量単位 (kN)
+        const unitW = document.createElement('div');
+        unitW.className = 'model-unit';
+        unitW.innerText = '(kN)';
+        unitW.style.cssText = `
+            position: absolute;
+            left: ${wInputLeft + wInputWidth + 3}px;
+            top: ${wInputTop + 2}px;
+            font-size: 10px;
+            color: #000;
+            font-weight: bold;
+            pointer-events: none;
+        `;
+        container.appendChild(unitW);
+        
+        // 階数ラベル（団子の右側外、単位表示と重ならない位置）
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${floorNum}F`, centerX + massRadius + 45, nextY + 5);
+        
+        // --- 寸法線（左側） ---
+        const dimX = leftMargin;
+        const dimLineOffset = 10;
+        
+        // 縦点線
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(dimX, currentY);
+        ctx.lineTo(dimX, nextY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // 横ヒゲ線
+        ctx.beginPath();
+        ctx.moveTo(dimX - dimLineOffset, currentY);
+        ctx.lineTo(dimX + dimLineOffset, currentY); // 下
+        ctx.moveTo(dimX - dimLineOffset, nextY);
+        ctx.lineTo(dimX + dimLineOffset, nextY);    // 上
+        ctx.stroke();
+        
+        // 階高ラベル H1, H2...
+        ctx.fillStyle = '#005a9c';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`H${floorNum}`, dimX - 15, (currentY + nextY) / 2);
+        
+        // --- 階高入力ボックス ---
+        const inputH = document.createElement('input');
+        inputH.type = 'number';
+        inputH.step = '0.01';
+        inputH.value = h.toFixed(2);
+        inputH.className = 'model-input';
+        
+        // 配置計算 (寸法線の少し右側、バネの左側)
+        const hInputWidth = 45;
+        const hInputLeft = offsetX + dimX + 15;
+        const hInputTop = offsetY + (currentY + nextY) / 2 - 10;
+        
+        inputH.style.cssText = `
+            position: absolute;
+            left: ${hInputLeft}px;
+            top: ${hInputTop}px;
+            width: ${hInputWidth}px;
+            height: 20px;
+            text-align: center;
+            font-size: 11px;
+            border: 1px solid #005a9c;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 0;
+            z-index: 10;
+        `;
+        inputH.onchange = function() {
+            document.getElementById(`inp_H${floorNum}`).value = this.value;
+            drawBuildingModel();
+        };
+        container.appendChild(inputH);
+
+        // 階高単位 (m)
+        const unitH = document.createElement('div');
+        unitH.className = 'model-unit';
+        unitH.innerText = '(m)';
+        unitH.style.cssText = `
+            position: absolute;
+            left: ${hInputLeft + hInputWidth + 2}px;
+            top: ${hInputTop + 3}px;
+            font-size: 10px;
+            color: #005a9c;
+            font-weight: bold;
+        `;
+        container.appendChild(unitH);
+        
+        currentY = nextY;
+    }
 }
 
 function toggleSkipY() {
@@ -4700,6 +5014,15 @@ function openSpreadsheet(id) {
     // heqチェックボックスをリセット
     document.getElementById('heq-input-checkbox').checked = false;
     
+    // 変形入力チェックボックスと壁高さ入力をリセット
+    document.getElementById('deformation-input-checkbox').checked = false;
+    document.getElementById('wall-height-input-area').style.display = 'none';
+    
+    // 当該階の階高を取得してデフォルト値に設定
+    const floorNum = id.match(/\d+/)[0]; // idから階数を抽出 (例: 'x1' → '1', 'y3' → '3')
+    const floorHeight = parseFloat(document.getElementById(`inp_H${floorNum}`)?.value) || 2.73;
+    document.getElementById('wall-height-input').value = floorHeight.toFixed(2);
+    
     let data = [];
     for(let i=0; i<100; i++) data.push([null, null]);
     if(hot) hot.destroy();
@@ -4725,6 +5048,7 @@ function closeSpreadsheet(){
 function toggleHeqColumn() {
     if(!hot) return;
     const useHeq = document.getElementById('heq-input-checkbox').checked;
+    const useDeformation = document.getElementById('deformation-input-checkbox').checked;
     const currentData = hot.getData();
     
     let newData;
@@ -4748,16 +5072,47 @@ function toggleHeqColumn() {
         newData.push(useHeq ? [null, null, null] : [null, null]);
     }
     
+    const firstColHeader = useDeformation ? '変形(m)' : '変形角(1/N) or rad';
+    
     hot.destroy();
     if(useHeq) {
         hot = new Handsontable(document.getElementById('spreadsheet-container'), {
-            data: newData, colHeaders: ['変形角(1/N) or rad', 'Q(kN)', 'heq'], 
+            data: newData, colHeaders: [firstColHeader, 'Q(kN)', 'heq'], 
             columns: [{}, { type: 'numeric' }, { type: 'numeric' }],
             rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
         });
     } else {
         hot = new Handsontable(document.getElementById('spreadsheet-container'), {
-            data: newData, colHeaders: ['変形角(1/N) or rad', 'Q(kN)'], 
+            data: newData, colHeaders: [firstColHeader, 'Q(kN)'], 
+            columns: [{}, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    }
+}
+
+// 変形入力チェックボックス切り替え時に壁高さ入力欄を表示/非表示
+function toggleDeformationInput() {
+    const useDeformation = document.getElementById('deformation-input-checkbox').checked;
+    const wallHeightArea = document.getElementById('wall-height-input-area');
+    wallHeightArea.style.display = useDeformation ? 'flex' : 'none';
+    
+    // スプレッドシートの列ヘッダーを更新
+    if(!hot) return;
+    const useHeq = document.getElementById('heq-input-checkbox').checked;
+    const currentData = hot.getData();
+    
+    hot.destroy();
+    const firstColHeader = useDeformation ? '変形(m)' : '変形角(1/N) or rad';
+    
+    if(useHeq) {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: currentData, colHeaders: [firstColHeader, 'Q(kN)', 'heq'], 
+            columns: [{}, { type: 'numeric' }, { type: 'numeric' }],
+            rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
+        });
+    } else {
+        hot = new Handsontable(document.getElementById('spreadsheet-container'), {
+            data: currentData, colHeaders: [firstColHeader, 'Q(kN)'], 
             columns: [{}, { type: 'numeric' }],
             rowHeaders: true, contextMenu: true, width: '100%', height: '100%', licenseKey: 'non-commercial-and-evaluation'
         });
@@ -4771,6 +5126,8 @@ function applySheetData(){
     const floor = id.includes('2') ? '2' : '1';
     const h = parseFloat(document.getElementById('inp_H'+floor).value) || 3.0;
     const useHeq = document.getElementById('heq-input-checkbox').checked;
+    const useDeformation = document.getElementById('deformation-input-checkbox').checked;
+    const wallHeight = parseFloat(document.getElementById('wall-height-input').value) || 2.73;
     
     let newData = [];
     d.forEach(r => {
@@ -4779,17 +5136,28 @@ function applySheetData(){
         
         if(val != null && !isNaN(q)) {
             let rad = 0;
-            if(typeof val === 'string' && val.includes('/')) {
-                let parts = val.split('/');
-                if(parts.length==2) {
-                    let n = parseFloat(parts[1]);
-                    if(n > 0) rad = 1/n;
+            
+            // 変形(m)モードの場合
+            if(useDeformation) {
+                let deformation = parseFloat(val);
+                if(!isNaN(deformation) && deformation > 0 && wallHeight > 0) {
+                    rad = deformation / wallHeight; // 変形角 = 変形(m) / 壁高さ(m)
                 }
-            } else if(!isNaN(parseFloat(val))) {
-                let v = parseFloat(val);
-                if(v > 1) rad = 1/v; // 1/N形式
-                else if(v > 0) rad = v; // rad形式
+            } else {
+                // 従来の変形角モード
+                if(typeof val === 'string' && val.includes('/')) {
+                    let parts = val.split('/');
+                    if(parts.length==2) {
+                        let n = parseFloat(parts[1]);
+                        if(n > 0) rad = 1/n;
+                    }
+                } else if(!isNaN(parseFloat(val))) {
+                    let v = parseFloat(val);
+                    if(v > 1) rad = 1/v; // 1/N形式
+                    else if(v > 0) rad = v; // rad形式
+                }
             }
+            
             if(rad > 0) {
                 let dataPoint = { r: rad, q: q };
                 if(useHeq && !isNaN(heq)) {
@@ -4841,7 +5209,7 @@ function getBldg() {
     }
     
     let b = {
-        name: document.getElementById('inp_BuildingName').value,
+        name: '',
         stories: stories,
         Z: parseFloat(document.getElementById('inp_Z').value),
         tcMode: tcMode, gsPts: gsPts,
@@ -5824,8 +6192,8 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         <h4 style="color:${color}; margin-top:0; font-size:1.2em;">【${limitName}】交点計算詳細</h4>
         
         <!-- 1. 変形状態 -->
-        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">1. 変形状態</h5>
+        <div class="equiv-system-section" style="background:#fff; border:3px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#000; margin:0 0 10px 0;">1. 変形状態</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -5867,8 +6235,8 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         </div>
         
         <!-- 2. 復元力特性 -->
-        <div style="background:#fff; border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">2. 復元力特性（せん断力・剛性）</h5>
+        <div class="equiv-system-section" style="background:#fff; border:3px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
+            <h5 style="color:#000; margin:0 0 10px 0;">2. 復元力特性（せん断力・剛性）</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -5897,7 +6265,7 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         
         <!-- 3. 等価1自由度系への置換 -->
         <div class="equiv-system-section" style="background:#fff; border:3px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:#005a9c; margin:0 0 10px 0;">3. 等価1自由度系への置換</h5>
+            <h5 style="color:#000; margin:0 0 10px 0;">3. 等価1自由度系への置換</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -5951,7 +6319,7 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         
         <!-- 4. 減衰定数・低減係数 -->
         <div style="background:#fff; border:2px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:${color}; margin:0 0 10px 0;">4. 減衰定数・低減係数</h5>
+            <h5 style="color:#000; margin:0 0 10px 0;">4. 減衰定数・低減係数</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -6007,7 +6375,7 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
         
         <!-- 5. 応答スペクトル・必要耐力 -->
         <div style="background:#fff; border:2px solid ${color}; padding:10px; margin-bottom:10px; border-radius:5px;">
-            <h5 style="color:${color}; margin:0 0 10px 0;">5. 応答スペクトル・必要耐力</h5>
+            <h5 style="color:#000; margin:0 0 10px 0;">5. 応答スペクトル・必要耐力</h5>
             <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
                 <tr style="background:#f0f0f0;">
                     <th style="border:1px solid #ccc; padding:5px;">項目</th>
@@ -6803,7 +7171,7 @@ async function executePDFGeneration(reportView) {
         
         // 保存
         updateProgress(95, 'PDFファイルを保存中...');
-        const projectName = document.getElementById('inp_BuildingName').value || '計画';
+        const projectName = '計画';
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const filename = `構造計算書_${projectName}_${dateStr}.pdf`;
         
@@ -8274,7 +8642,6 @@ function collectAllInputData() {
         cover_manager_name: document.getElementById('inp_cover_manager_name').value,
         
         // 基本設定
-        buildingName: document.getElementById('inp_BuildingName').value,
         stories: document.getElementById('inp_Stories').value,
         Z: document.getElementById('inp_Z').value,
         // 応答スペクトル
@@ -8320,7 +8687,6 @@ function collectAllInputData() {
 function restoreAllInputData(data) {
     try {
         // 基本設定
-        if(data.buildingName !== undefined) document.getElementById('inp_BuildingName').value = data.buildingName;
         if(data.stories !== undefined) {
             document.getElementById('inp_Stories').value = data.stories;
             toggleStories();
@@ -8765,18 +9131,6 @@ function toggleCoverInput() {
     document.getElementById('cover-input-area').style.display = isChecked ? 'block' : 'none';
 }
 
-// 物件名の同期
-function syncProjectName(source) {
-    const mainInput = document.getElementById('inp_BuildingName');
-    const coverInput = document.getElementById('inp_cover_project_name');
-    
-    if (source === 'main') {
-        coverInput.value = mainInput.value;
-    } else {
-        mainInput.value = coverInput.value;
-    }
-}
-
 // ========================================
 // LocalStorage 自動保存・復元機能
 // ========================================
@@ -8851,8 +9205,77 @@ function clearLocalStorageData() {
 }
 
 // ========================================
-// J-SHIS & 国土地理院 API連携機能
+// J-SHIS & 国土地理院 API連携機能 (修正版)
 // ========================================
+
+// J-SHISセクションの表示/非表示切り替え
+function toggleJshisSection() {
+    const checkbox = document.getElementById('chk_jshis_enable');
+    const inputSection = document.getElementById('jshis-input-section');
+    
+    if (checkbox.checked) {
+        inputSection.style.display = 'block';
+    } else {
+        inputSection.style.display = 'none';
+        // 非表示にする際は結果も非表示にする
+        document.getElementById('jshis-result').style.display = 'none';
+    }
+}
+
+/**
+ * 緯度経度からJIS 250mメッシュコード(10桁)を算出する関数
+ * ロジック: JIS X 0410 地域メッシュコードに基づく
+ */
+function latLonTo250mMesh(lat, lon) {
+    // 1次メッシュ (約80km四方)
+    // 緯度×1.5 の整数部
+    // 経度-100 の整数部
+    const p = Math.floor(lat * 1.5);
+    const u = Math.floor(lon - 100.0);
+
+    // 1次メッシュ残差
+    const lat1_rem = lat * 1.5 - p;
+    const lon1_rem = lon - 100.0 - u;
+
+    // 2次メッシュ (約10km四方)
+    // 1次残差 × 8 の整数部
+    const q = Math.floor(lat1_rem * 8);
+    const v = Math.floor(lon1_rem * 8);
+
+    // 2次メッシュ残差
+    const lat2_rem = lat1_rem * 8 - q;
+    const lon2_rem = lon1_rem * 8 - v;
+
+    // 3次メッシュ (約1km四方 = 基準地域メッシュ)
+    // 2次残差 × 10 の整数部
+    const r = Math.floor(lat2_rem * 10);
+    const w = Math.floor(lon2_rem * 10);
+
+    // 3次メッシュ残差
+    const lat3_rem = lat2_rem * 10 - r;
+    const lon3_rem = lon2_rem * 10 - w;
+
+    // 4次メッシュ (500mメッシュ / 2分の1地域メッシュ)
+    // 緯度方向: 0(南) or 1(北)
+    // 経度方向: 0(西) or 1(東)
+    // コードm: 南西=1, 南東=2, 北西=3, 北東=4
+    const n_lat = (lat3_rem >= 0.5) ? 1 : 0;
+    const n_lon = (lon3_rem >= 0.5) ? 1 : 0;
+    const m = (n_lat * 2) + (n_lon + 1);
+
+    // 5次メッシュ (250mメッシュ / 4分の1地域メッシュ)
+    // 残差をさらに2分割
+    const lat4_rem = (lat3_rem - (n_lat * 0.5)); // 0.0 ~ 0.5 の範囲
+    const lon4_rem = (lon3_rem - (n_lon * 0.5)); // 0.0 ~ 0.5 の範囲
+    
+    // 0.25 (0.5の半分) で判定
+    const n_lat5 = (lat4_rem >= 0.25) ? 1 : 0;
+    const n_lon5 = (lon4_rem >= 0.25) ? 1 : 0;
+    const n = (n_lat5 * 2) + (n_lon5 + 1);
+
+    // 文字列結合 (1次:4桁, 2次:2桁, 3次:2桁, 4次:1桁, 5次:1桁)
+    return `${p}${u}${q}${v}${r}${w}${m}${n}`;
+}
 
 // メイン処理: 住所からデータを取得して反映
 async function fetchJshisData() {
@@ -8865,140 +9288,186 @@ async function fetchJshisData() {
     const resArea = document.getElementById('jshis-result');
     const btn = document.getElementById('btn_fetch_jshis');
     const originalText = btn.innerText;
-    btn.innerText = "検索中...";
+    btn.innerText = "データ取得中...";
     btn.disabled = true;
 
     // 前回の結果をリセット
     document.getElementById('res-avs30').innerText = '-';
     document.getElementById('res-amp').innerText = '-';
     document.getElementById('res-soil-type').innerText = '-';
+    
+    // Googleマップリンク用のコンテナをリセット（なければ作成）
+    let mapLinkContainer = document.getElementById('res-map-link');
+    if(!mapLinkContainer) {
+        const div = document.createElement('div');
+        div.id = 'res-map-link';
+        div.style.marginTop = '8px';
+        div.style.fontWeight = 'bold';
+        resArea.appendChild(div);
+        mapLinkContainer = div;
+    }
+    mapLinkContainer.innerHTML = '';
 
     try {
-        // 1. 国土地理院APIで住所 -> 緯度経度変換 + 標準化住所取得
+        // 1. 国土地理院APIで住所 -> 緯度経度変換
         const coords = await getCoordinatesFromAddress(address);
         if (!coords) {
-            throw new Error("住所が見つかりませんでした。より詳細な住所を入力してください。");
+            throw new Error("住所が見つかりませんでした。丁目・番地まで正しく入力してください。");
         }
 
-        // 標準化住所（Z係数判定に使用）
         const stdAddress = coords.stdAddress || address;
-        console.log(`Coordinates: Lat ${coords.lat}, Lon ${coords.lon}`);
-        console.log(`正規化住所: ${stdAddress}`);
-
-        // 2. J-SHIS APIから地盤情報を取得 (AVS30, 増幅率AR)
-        // ※position パラメータで直接座標を渡す（メッシュコード計算不要）
-        // ※epsg=4326 でWGS84座標であることを明示
-        let avs30 = null;
-        let ar = null;  // 増幅率 (Amplification Ratio)
-        let jshisSuccess = false;
         
-        try {
-            // position={経度},{緯度} の形式で座標を渡す
-            const targetUrl = `https://www.j-shis.bosai.go.jp/map/api/sstrct/V2/meshinfo.geojson?position=${coords.lon},${coords.lat}&epsg=4326`;
-            
-            // CORSプロキシ経由でリクエスト (AllOrigins raw モードを使用)
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-            
-            console.log("Requesting J-SHIS via Proxy:", proxyUrl);
-            
-            const response = await fetch(proxyUrl);
-            
-            if (!response.ok) {
-                throw new Error(`API Status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log("J-SHIS Data:", data);
-            
-            // データの存在確認を厳密に行いエラーを防ぐ
-            if (data && data.features && data.features.length > 0) {
-                const feature = data.features[0];
-                // propertiesが存在するか確認してからアクセスする
-                if (feature.properties) {
-                    // J-SHIS APIのプロパティキーは "AVS" (公式仕様)
-                    const avsValue = feature.properties.AVS ?? feature.properties.AVS30;
-                    if (avsValue !== undefined && avsValue !== null) {
-                        avs30 = parseFloat(avsValue);
-                    }
-                    // 増幅率は "AR" キー (公式仕様: Amplification Ratio)
-                    // ※旧バージョンでは ARV の場合もあるためフォールバック
-                    const arValue = feature.properties.AR ?? feature.properties.ARV;
-                    if (arValue !== undefined && arValue !== null) {
-                        ar = parseFloat(arValue);
-                    }
-                    // 微地形区分名と地盤コード（デバッグ用）
-                    const soilTypeName = feature.properties.LNAME || '';
-                    const soilCode = feature.properties.CODE || '';
-                    console.log(`地盤情報: AVS30=${avs30}, AR=${ar}, 微地形=${soilTypeName}(${soilCode})`)
-                    jshisSuccess = (avs30 !== null);
-                    
-                    // デバッグ: 取得したプロパティを出力
-                    console.log("J-SHIS Properties:", feature.properties);
-                } else {
-                    console.warn("J-SHISデータにプロパティが含まれていません。");
+        // ★重要: ここで緯度経度から厳密に250mメッシュコードを計算する
+        const calcMeshCode = latLonTo250mMesh(coords.lat, coords.lon);
+        console.log(`Address: ${stdAddress}, Lat: ${coords.lat}, Lon: ${coords.lon} -> Mesh: ${calcMeshCode}`);
+
+        // Googleマップ確認リンクの表示
+        mapLinkContainer.innerHTML = `
+            <a href="https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lon}" target="_blank" style="color:#005a9c; text-decoration:underline;">
+                📍 取得座標をGoogleマップで確認する
+            </a>
+            <span style="font-size:0.85em; color:#666; font-weight:normal; margin-left:5px;">(ズレがある場合は手動調整が必要)</span>
+        `;
+
+        // 2. J-SHIS APIから地盤情報を取得
+        // position検索を使用（meshcode検索は正常に機能しないため）
+        // 計算したメッシュコードは検証と表示に使用
+        const targetUrl = `https://www.j-shis.bosai.go.jp/map/api/sstrct/V2/meshinfo.geojson?position=${coords.lon},${coords.lat}&epsg=4326`;
+        
+        // CORS回避用プロキシ
+        const proxyUrls = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const proxyUrl of proxyUrls) {
+            try {
+                console.log("Requesting J-SHIS:", proxyUrl);
+                response = await fetch(proxyUrl);
+                if (response.ok) {
+                    break; // 成功したらループを抜ける
                 }
-            } else {
-                console.warn("J-SHISデータが見つかりませんでした (データ範囲外の可能性があります)。");
+            } catch (err) {
+                console.warn("Proxy failed:", proxyUrl, err.message);
+                lastError = err;
+                response = null;
             }
-        } catch (jshisError) {
-            console.warn('J-SHIS APIアクセス失敗:', jshisError);
-            // 取得失敗時も処理を止めずに手動設定を促すため、ここではアラートを出さずにログのみ
+        }
+        
+        if (!response || !response.ok) {
+            throw lastError || new Error(`J-SHIS APIへの接続に失敗しました。`);
+        }
+        
+        const data = await response.json();
+        
+        let avs30 = null;
+        let ar = null;
+        let apiMeshCode = null;
+        let jshisSuccess = false;
+
+        // データ解析
+        if (data && data.features && data.features.length > 0) {
+            const feature = data.features[0];
+            if (feature && feature.properties) {
+                const props = feature.properties;
+                
+                // APIから返されたメッシュコードを取得（方向記号を除去）
+                if (props.meshcode !== undefined) {
+                    apiMeshCode = props.meshcode.replace(/[A-Z]+$/i, '');
+                } else if (props.CODE !== undefined) {
+                    apiMeshCode = props.CODE.replace(/[A-Z]+$/i, '');
+                }
+                
+                // APIが返したメッシュコードと計算したメッシュコードが一致することを確認
+                if(apiMeshCode && apiMeshCode !== calcMeshCode) {
+                    console.warn(`⚠️ MeshCode Mismatch: Calculated=${calcMeshCode}, API returned=${apiMeshCode}`);
+                    console.warn(`住所の代表点が境界付近にある可能性があります。ハザードカルテで確認してください。`);
+                }
+
+                if (props.AVS !== undefined) avs30 = parseFloat(props.AVS);
+                if (props.ARV !== undefined) {
+                    ar = parseFloat(props.ARV);
+                } else if (props.AR !== undefined) {
+                    ar = parseFloat(props.AR);
+                }
+                
+                if (avs30 !== null) jshisSuccess = true;
+                
+                console.log(`J-SHIS Data: Calculated MeshCode=${calcMeshCode}, API MeshCode=${apiMeshCode}, AVS=${avs30}, AR=${ar}`);
+            } else {
+                console.warn("地盤データのプロパティが取得できませんでした。");
+            }
+        } else {
+            console.warn("指定されたメッシュコードのデータが存在しません。");
         }
 
         // 3. データ反映
         resArea.style.display = 'block';
         
-        if (jshisSuccess && avs30 !== null) {
+        if (jshisSuccess) {
             document.getElementById('res-avs30').innerText = avs30.toFixed(1);
-            document.getElementById('res-amp').innerText = ar ? ar.toFixed(2) : '-';
+            document.getElementById('res-amp').innerText = (ar !== null) ? ar.toFixed(2) : '-';
+            
+            // 計算したメッシュコードを表示（ハザードカルテ用）
+            // APIから返されたメッシュコードと異なる場合は両方表示
+            let meshCodeDisplay = calcMeshCode;
+            if (apiMeshCode && apiMeshCode !== calcMeshCode) {
+                meshCodeDisplay = `${calcMeshCode} <span style="color:#ff9800; font-size:0.85em;">(API: ${apiMeshCode})</span>`;
+            }
+            document.getElementById('res-meshcode').innerHTML = meshCodeDisplay;
 
-            // 地盤種別の自動判定 (AVS30に基づく目安)
-            // 第1種: 岩盤や硬質な洒積層 -> AVS30 ≧ 400m/s
-            // 第3種: 軟弱地盤 -> AVS30 < 150m/s
-            // 第2種: その他
+            // 地盤種別の自動判定
             let tcMode = '2';
             let soilText = '第2種 (普通)';
-            
-            if (avs30 >= 400) {
-                tcMode = '1';
-                soilText = '第1種 (岩盤・硬質)';
-            } else if (avs30 < 150) {
-                tcMode = '3';
-                soilText = '第3種 (軟弱)';
-            }
+            if (avs30 >= 400) { tcMode = '1'; soilText = '第1種 (岩盤・硬質)'; }
+            else if (avs30 < 150) { tcMode = '3'; soilText = '第3種 (軟弱)'; }
             
             document.getElementById('res-soil-type').innerText = soilText;
             
             // 入力フォームへの反映
-            document.getElementById('inp_Tc_mode').value = tcMode;
-            if (typeof toggleTcInput === 'function') {
-                toggleTcInput();
+            const inpTc = document.getElementById('inp_Tc_mode');
+            if(inpTc) {
+                inpTc.value = tcMode;
+                if (typeof toggleTcInput === 'function') toggleTcInput();
             }
+
+            // 4. 地震ハザードカルテ（表層地盤タブ）を表示
+            // APIで取得したデータと同じメッシュコードのページを開く
+            const karteUrl = `https://www.j-shis.bosai.go.jp/labs/karte/Y2024/${calcMeshCode}/meshinfo.html`;
+            
+            // 自動ポップアップはブロックされやすいため、ボタンを表示
+            const btnContainer = document.createElement('div');
+            btnContainer.style.marginTop = '10px';
+            btnContainer.innerHTML = `
+                <button onclick="window.open('${karteUrl}', '_blank')" class="btn-sm" style="background:#005a9c; color:white; padding:5px 10px; border:none; border-radius:3px;">
+                    📄 このメッシュの地震ハザードカルテを開く
+                </button>
+            `;
+            
+            // 既存のボタンがあれば削除して追加
+            const oldBtn = resArea.querySelector('button[onclick*="window.open"]');
+            if(oldBtn) oldBtn.parentNode.remove();
+            resArea.appendChild(btnContainer);
+
         } else {
-            document.getElementById('res-avs30').innerText = '取得失敗';
-            document.getElementById('res-amp').innerText = '-';
-            document.getElementById('res-soil-type').innerText = '手動で設定してください';
+            document.getElementById('res-avs30').innerText = 'データなし';
+            document.getElementById('res-soil-type').innerText = '手動設定';
+            alert("指定された地点の地盤データが見つかりませんでした。\n海域またはデータ範囲外の可能性があります。");
         }
 
-        // 地域係数Zの推定 (標準化住所を使用)
-        const zFactor = estimateZFactor(stdAddress);
-        document.getElementById('inp_Z').value = zFactor;
-
-        // 結果メッセージ (setTimeoutで描画後に表示)
-        setTimeout(() => {
-            let resultMsg = "";
-            if (jshisSuccess && avs30 !== null) {
-                resultMsg = `データを取得しました。\n\n・S波速度(AVS30): ${avs30.toFixed(1)} m/s\n・増幅率(AR): ${ar ? ar.toFixed(2) : '-'}\n・地盤種別: ${document.getElementById('res-soil-type').innerText}\n`;
-            } else {
-                resultMsg = `J-SHISデータの取得に失敗しました。\n地盤種別は手動で設定してください。\n(理由: 通信エラー、または該当地点のデータが存在しません)\n`;
-            }
-            resultMsg += `\n・地域係数Z: ${zFactor} (推定値)\n・正規化住所: ${stdAddress}\n\n※地盤種別はAVS30からの推定値です。\n※Z係数は必ず特定行政庁の数値を再確認してください。`;
-            alert(resultMsg);
-        }, 100);
+        // 地域係数Zの推定
+        if(typeof estimateZFactor === 'function') {
+            const zFactor = estimateZFactor(stdAddress);
+            document.getElementById('inp_Z').value = zFactor;
+        }
 
     } catch (e) {
         console.error(e);
-        alert("エラーが発生しました: " + e.message);
+        alert("データ取得エラー: " + e.message + "\n\n住所が正しいか、またはインターネット接続を確認してください。\n(J-SHIS APIへのアクセスに失敗している可能性があります)");
     } finally {
         btn.innerText = originalText;
         btn.disabled = false;
