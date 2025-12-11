@@ -6759,9 +6759,9 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     
     // 4階建て以上なら分割表示、3階以下なら1つにまとめる
     if (N >= 4) {
-        // 例: 5階建て -> [1F-3F], [4F-5F]
-        summaryTableHtml += createTablePart(1, 3);
-        summaryTableHtml += createTablePart(4, N);
+        // 4階建て -> [1F-2F], [3F-4F]  5階建て -> [1F-2F], [3F-5F]
+        summaryTableHtml += createTablePart(1, 2);
+        summaryTableHtml += createTablePart(3, N);
     } else {
         summaryTableHtml += createTablePart(1, N);
     }
@@ -8557,11 +8557,11 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     const f3 = (v) => v ? v.toFixed(3) : '-';
     const skipY = document.getElementById('chk-skip-y').checked;
     
-    // 判定バッジ関数（OK/NG表示用）
+    // 判定バッジ関数（限界耐力大/小表示用）
     const judgeBadge = (limit, req) => {
         if(!limit) return '<span class="badge badge-ng">不足</span>';
         const ok = limit >= req;
-        return `<span class="badge ${ok ? 'badge-ok' : 'badge-ng'}">${ok ? 'OK' : 'NG'}</span>`;
+        return `<span class="badge ${ok ? 'badge-ok' : 'badge-ng'}">${ok ? '限界耐力大' : '限界耐力小'}</span>`;
     };
     
     // 大小比較記号関数
