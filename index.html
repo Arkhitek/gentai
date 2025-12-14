@@ -8588,8 +8588,8 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
             <th colspan="5" style="${thStyle}">安全限界 (C0=${stdShear.C0_S}, Ds=${stdShear.Ds})</th>
         </tr>
         <tr>
-            <th style="${thStyle}">保有QA</th><th style="${thStyle}">大小</th><th style="${thStyle}">必要Qn</th><th style="${thStyle}">比</th><th style="${thStyle}">結果</th>
-            <th style="${thStyle}">保有QA</th><th style="${thStyle}">大小</th><th style="${thStyle}">必要Qn</th><th style="${thStyle}">比</th><th style="${thStyle}">結果</th>
+            <th style="${thStyle}">限界耐力(kN)</th><th style="${thStyle}">大小</th><th style="${thStyle}">1次設計必要耐力(kN)</th><th style="${thStyle}">比</th><th style="${thStyle}">結果</th>
+            <th style="${thStyle}">限界耐力(kN)</th><th style="${thStyle}">大小</th><th style="${thStyle}">2次設計必要耐力(kN)</th><th style="${thStyle}">比</th><th style="${thStyle}">結果</th>
         </tr></thead><tbody>`;
         
     // 行生成関数
@@ -8638,7 +8638,7 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     html2 += `<h4>7.2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
     html2 += `<table style="width:100%; border-collapse:collapse; margin-top:10px;"><thead><tr>
         <th style="${thStyle}">階</th><th style="${thStyle}">重量Wi</th><th style="${thStyle}">ΣW</th>
-        <th style="${thStyle}">αi</th><th style="${thStyle}">Ai</th><th style="${thStyle}">Qd(損傷)</th><th style="${thStyle}">Qs(安全)</th>
+        <th style="${thStyle}">αi</th><th style="${thStyle}">Ai</th><th style="${thStyle}">1次設計必要耐力(kN)</th><th style="${thStyle}">2次設計必要耐力(kN)</th>
     </tr></thead><tbody>`;
     
     for(let i = N; i >= 1; i--) {
@@ -8659,8 +8659,8 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     
     // 計算式
     html2 += `<h4>7.2-3. 必要地震層せん断力の計算式</h4>`;
-    html2 += `<p>損傷限界: \\( Q_i = Z \\cdot R_t \\cdot A_i \\cdot C_0 \\cdot \\sum W \\) (C0=${stdShear.C0_D})</p>`;
-    html2 += `<p>安全限界: \\( Q_i = D_s \\cdot F_{es} \\cdot Z \\cdot R_t \\cdot A_i \\cdot C_0 \\cdot \\sum W \\) (C0=${stdShear.C0_S}, Ds=${stdShear.Ds}, Fes=${stdShear.Fes})</p>`;
+    html2 += `<p>1次設計必要耐力(kN): \\( Q_i = Z \\cdot R_t \\cdot A_i \\cdot C_0 \\cdot \\sum W \\) (C0=${stdShear.C0_D})</p>`;
+    html2 += `<p>2次設計必要耐力(kN): \\( Q_i = D_s \\cdot F_{es} \\cdot Z \\cdot R_t \\cdot A_i \\cdot C_0 \\cdot \\sum W \\) (C0=${stdShear.C0_S}, Ds=${stdShear.Ds}, Fes=${stdShear.Fes})</p>`;
     html2 += `<p>共通係数: Z = ${b.Z}, Rt = ${f3(stdShear.Rt)}</p>`;
     
     html2 += `</div>`;
