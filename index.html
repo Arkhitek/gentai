@@ -490,7 +490,7 @@
             </div>
             <div class="input-group">
                 <label>安全限界 1/N</label>
-                <input type="number" id="inp_limit_s" value="15" step="1" oninput="updateAllInputGraphs()">
+                <input type="number" id="inp_limit_s" value="20" step="1" oninput="updateAllInputGraphs()">
             </div>
         </div>
     </div>
@@ -1512,7 +1512,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label>会社名</label>
-                                    <input type="text" id="inp_cover_company">
+                                    <input type="text" id="inp_cover_company" value="アルキテック株式会社">
                                 </div>
                                 <div class="input-group">
                                     <label>事務所登録番号</label>
@@ -2446,7 +2446,7 @@ function getLimitRads() {
     const d = parseFloat(document.getElementById('inp_limit_d')?.value);
     const s = parseFloat(document.getElementById('inp_limit_s')?.value);
     const limitD = (Number.isFinite(d) && d > 0) ? d : 120;
-    const limitS = (Number.isFinite(s) && s > 0) ? s : 15;
+    const limitS = (Number.isFinite(s) && s > 0) ? s : 20;
     return {
         limitD,
         limitS,
@@ -2497,22 +2497,88 @@ const limitLinePlugin = {
     }
 };
 
+// Chart.jsへプラグインをグローバル登録（各チャートのconfig.plugins書き換えを避ける）
+try {
+    if (window.Chart && typeof Chart.register === 'function') {
+        Chart.register(limitLinePlugin);
+    }
+} catch (e) {
+    // 既に登録済み等は無視
+}
+
+function buildLimitLines() {
+    const { limitD, limitS, radD, radS } = getLimitRads();
+    return [
+        { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
+        { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
+    ];
+}
+
+function applyLimitLinesToChart(ch) {
+    if (!ch) return;
+    ch.options.plugins = ch.options.plugins || {};
+    if (!ch.options.plugins.limitLinePlugin || typeof ch.options.plugins.limitLinePlugin !== 'object') {
+        ch.options.plugins.limitLinePlugin = { lines: [] };
+    }
+    ch.options.plugins.limitLinePlugin.lines = buildLimitLines();
+}
+
+function downsampleXY(points, maxPoints) {
+    if (!Array.isArray(points) || points.length <= maxPoints) return points;
+    const step = Math.ceil(points.length / maxPoints);
+    const out = [];
+    for (let i = 0; i < points.length; i += step) out.push(points[i]);
+    const last = points[points.length - 1];
+    if (out[out.length - 1] !== last) out.push(last);
+    return out;
+}
+
+function destroyAllCharts() {
+    // 追跡しているチャート（通常経路）
+    try {
+        Object.keys(inputChartObjs || {}).forEach(k => {
+            const ch = inputChartObjs[k];
+            if (ch && typeof ch.destroy === 'function') ch.destroy();
+        });
+    } catch (e) {}
+    try {
+        Object.keys(chartObjs || {}).forEach(k => {
+            const ch = chartObjs[k];
+            if (ch && typeof ch.destroy === 'function') ch.destroy();
+        });
+    } catch (e) {}
+
+    // 追跡漏れのチャート（Chart.js内部に残っているもの）をCanvasから確実に破棄
+    try {
+        if (window.Chart && typeof Chart.getChart === 'function') {
+            // 入力グラフの全canvas
+            document.querySelectorAll('canvas[id^="chart-in-"]').forEach(cv => {
+                const existing = Chart.getChart(cv);
+                if (existing) existing.destroy();
+            });
+            // 計算結果のcanvas（存在する場合）
+            ['chart-x', 'chart-y', 'chart-sa0', 'chart-gs'].forEach(cid => {
+                const cv = document.getElementById(cid);
+                if (!cv) return;
+                const existing = Chart.getChart(cv);
+                if (existing) existing.destroy();
+            });
+        }
+    } catch (e) {}
+
+    inputChartObjs = {};
+    chartObjs = {};
+}
+
 function updateAllInputGraphs() {
     ALL_FLOOR_KEYS.forEach(id => {
         if (document.getElementById(`chart-in-${id}`)) updateInputGraph(id);
     });
     // 計算結果グラフ（存在する場合）も限界ラインだけ更新
-    const { limitD, limitS, radD, radS } = getLimitRads();
     ['chart-x', 'chart-y'].forEach(cid => {
         const ch = chartObjs[cid];
         if (!ch) return;
-        ch.options.plugins = ch.options.plugins || {};
-        ch.options.plugins.limitLinePlugin = {
-            lines: [
-                { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
-                { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
-            ]
-        };
+        applyLimitLinesToChart(ch);
         ch.update();
     });
 }
@@ -2730,7 +2796,7 @@ window.onload = async function() {
     document.getElementById('inp_cover_date').value = dateStr;
 
     // 表紙用デフォルト値設定
-    document.getElementById('inp_cover_company').value = 'アルキテック株式会社一級建築士事務所';
+    document.getElementById('inp_cover_company').value = 'アルキテック株式会社';
     document.getElementById('inp_cover_office_reg').value = '一級建築士事務所(東京都知事登録 第60722号)';
     document.getElementById('inp_cover_arch_reg').value = '一級建築士登録番号 第327494号';
     document.getElementById('inp_cover_manager_name').value = '大沼 耕平';
@@ -4112,7 +4178,9 @@ function updateInputGraph(id) {
     const { limitD, limitS, radD, radS } = getLimitRads();
     
     // Use deformation angle (rad) for X-axis
+    const MAX_PLOT_POINTS = 2000;
     let chartData = compositeData.map(p => ({ x: p.r, y: p.q }));
+    chartData = downsampleXY(chartData, MAX_PLOT_POINTS);
 
     // 個別のQ-δデータセットを構築
     let datasets = [];
@@ -4242,6 +4310,7 @@ function updateInputGraph(id) {
     freeInputData[id].forEach((item, i) => {
         if(item.data.length > 0) {
             let freeData = [{x: 0, y: 0}, ...item.data.map(d => ({ x: d.r, y: d.q * item.qty }))];
+            freeData = downsampleXY(freeData, MAX_PLOT_POINTS);
             datasets.push({
                 label: `${item.name}${item.qty !== 1 ? '×'+item.qty : ''}`,
                 data: freeData,
@@ -4270,10 +4339,16 @@ function updateInputGraph(id) {
     if (!inputChartObjs[id]) {
         const ctx = document.getElementById(`chart-in-${id}`);
         if(ctx) {
+            // 追跡漏れ等で同一canvasにChartが残っている場合に備えて先に破棄
+            try {
+                if (window.Chart && typeof Chart.getChart === 'function') {
+                    const existing = Chart.getChart(ctx);
+                    if (existing) existing.destroy();
+                }
+            } catch (e) {}
             inputChartObjs[id] = new Chart(ctx.getContext('2d'), {
                 type: 'scatter',
                 data: { datasets: datasets },
-                plugins: [limitLinePlugin],
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { x: { title: {display:true, text:'変形角(rad)'}, min:0 }, y: { title: {display:true, text:'Q(kN)'}, min:0 } },
@@ -4298,16 +4373,7 @@ function updateInputGraph(id) {
             t.display = true;
             t.text = `K0合計(kN/m) = ${k0Total.toFixed(0)}`;
         }
-        if (!inputChartObjs[id].config.plugins?.includes(limitLinePlugin)) {
-            inputChartObjs[id].config.plugins = (inputChartObjs[id].config.plugins || []).concat([limitLinePlugin]);
-        }
-        inputChartObjs[id].options.plugins = inputChartObjs[id].options.plugins || {};
-        inputChartObjs[id].options.plugins.limitLinePlugin = {
-            lines: [
-                { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
-                { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
-            ]
-        };
+        applyLimitLinesToChart(inputChartObjs[id]);
         inputChartObjs[id].update();
     }
 }
@@ -7168,6 +7234,14 @@ function drawChart(id, steps, ptD, ptS) {
     
     const { limitD, limitS, radD, radS } = getLimitRads();
 
+    // 追跡漏れ等で同一canvasにChartが残っている場合に備えて先に破棄
+    try {
+        if (window.Chart && typeof Chart.getChart === 'function') {
+            const existing = Chart.getChart(ctx2d.canvas);
+            if (existing) existing.destroy();
+        }
+    } catch (e) {}
+
     chartObjs[id] = new Chart(ctx2d, {
         type: 'scatter',
         data: { datasets: [
@@ -7205,7 +7279,6 @@ function drawChart(id, steps, ptD, ptS) {
                 pointStyle: p.style 
             }))
         ]},
-        plugins: [limitLinePlugin],
         options: { 
             animation: false,
             responsive: true, 
@@ -7468,9 +7541,13 @@ async function executePDFGeneration(reportView) {
         
         // 保存
         updateProgress(95, 'PDFファイルを保存中...');
-        const projectName = '計画';
+        // ファイル名: 日付＋（物件名）＋限界耐力計算
+        const rawProjectName = (document.getElementById('inp_cover_project_name')?.value || '').trim();
+        const safeProject = rawProjectName.replace(/[\\/:*?"<>|]/g, '_');
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const filename = `構造計算書_${projectName}_${dateStr}.pdf`;
+        const filename = rawProjectName
+            ? `${dateStr}${safeProject}限界耐力計算.pdf`
+            : `${dateStr}限界耐力計算.pdf`;
         
         pdf.save(filename);
         
@@ -9179,7 +9256,6 @@ function restoreAllInputData(data) {
                 const el = document.getElementById(`free-list-${id}`);
                 if (el) {
                     renderFreeInputList(id);
-                    updateInputGraph(id);
                 }
             });
         }
@@ -9201,10 +9277,13 @@ function restoreAllInputData(data) {
         }
 
         // 表示更新
+        destroyAllCharts();
         drawBuildingModel();
-        ALL_FLOOR_KEYS.forEach(id => {
-            if (document.getElementById(`chart-in-${id}`)) updateInputGraph(id);
-        });
+        updateAllInputGraphs();
+
+        // Sa/Gsはモードに応じたUI更新＋グラフ再描画が必要（destroyAllChartsの後で実行）
+        try { toggleSaInput(); } catch (e) {}
+        try { toggleTcInput(); } catch (e) {}
         
         return true;
     } catch(e) {
