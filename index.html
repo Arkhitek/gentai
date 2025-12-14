@@ -486,11 +486,11 @@
         <div class="input-grid">
             <div class="input-group">
                 <label>損傷限界 1/N</label>
-                <input type="number" id="inp_limit_d" value="120" step="1">
+                <input type="number" id="inp_limit_d" value="120" step="1" oninput="updateAllInputGraphs()">
             </div>
             <div class="input-group">
                 <label>安全限界 1/N</label>
-                <input type="number" id="inp_limit_s" value="15" step="1">
+                <input type="number" id="inp_limit_s" value="15" step="1" oninput="updateAllInputGraphs()">
             </div>
         </div>
     </div>
@@ -2408,14 +2408,200 @@ let NUKI_K0 = {};
 // 小壁の初期剛性キャッシュ
 let KOKABE_K0 = {};
 
+function calcInitialStiffnessK0Rad(dataPoints) {
+    if (!Array.isArray(dataPoints) || dataPoints.length === 0) return 10000;
+    // まずは r>0 かつ q!=0 の最初の点で原点傾きを採用
+    for (let i = 0; i < dataPoints.length; i++) {
+        const r = Number(dataPoints[i]?.r);
+        const q = Number(dataPoints[i]?.q);
+        if (Number.isFinite(r) && Number.isFinite(q) && r > 0 && q !== 0) {
+            const k0 = Math.abs(q / r);
+            if (Number.isFinite(k0) && k0 > 0) return k0;
+        }
+    }
+    // 次点: 連続2点の増分から傾きを推定
+    for (let i = 1; i < dataPoints.length; i++) {
+        const r1 = Number(dataPoints[i - 1]?.r);
+        const q1 = Number(dataPoints[i - 1]?.q);
+        const r2 = Number(dataPoints[i]?.r);
+        const q2 = Number(dataPoints[i]?.q);
+        if ([r1, q1, r2, q2].every(Number.isFinite) && r2 !== r1) {
+            const k0 = Math.abs((q2 - q1) / (r2 - r1));
+            if (Number.isFinite(k0) && k0 > 0) return k0;
+        }
+    }
+    return 10000;
+}
+
+function getFloorHeightM(floor) {
+    return parseFloat(document.getElementById('inp_H' + floor)?.value) || 3.0;
+}
+
+function getFloorFromId(id) {
+    const m = String(id).match(/(\d+)$/);
+    return m ? parseInt(m[1], 10) : 1;
+}
+
+function getLimitRads() {
+    const d = parseFloat(document.getElementById('inp_limit_d')?.value);
+    const s = parseFloat(document.getElementById('inp_limit_s')?.value);
+    const limitD = (Number.isFinite(d) && d > 0) ? d : 120;
+    const limitS = (Number.isFinite(s) && s > 0) ? s : 15;
+    return {
+        limitD,
+        limitS,
+        radD: 1 / limitD,
+        radS: 1 / limitS
+    };
+}
+
+const limitLinePlugin = {
+    id: 'limitLinePlugin',
+    afterDatasetsDraw(chart, args, pluginOptions) {
+        const lines = pluginOptions?.lines;
+        if (!Array.isArray(lines) || lines.length === 0) return;
+
+        const xScale = chart.scales?.x;
+        if (!xScale) return;
+
+        const area = chart.chartArea;
+        if (!area) return;
+
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '10px sans-serif';
+        ctx.textBaseline = 'top';
+
+        lines.forEach(line => {
+            const xVal = Number(line?.x);
+            if (!Number.isFinite(xVal)) return;
+            const x = xScale.getPixelForValue(xVal);
+            if (!Number.isFinite(x)) return;
+
+            ctx.strokeStyle = line.color || '#666';
+            ctx.lineWidth = Number.isFinite(line.width) ? line.width : 2;
+            ctx.setLineDash(Array.isArray(line.dash) ? line.dash : []);
+
+            ctx.beginPath();
+            ctx.moveTo(x, area.top);
+            ctx.lineTo(x, area.bottom);
+            ctx.stroke();
+
+            if (line.label) {
+                ctx.fillStyle = line.color || '#666';
+                ctx.fillText(String(line.label), x + 4, area.top + 4);
+            }
+        });
+
+        ctx.restore();
+    }
+};
+
+function updateAllInputGraphs() {
+    ALL_FLOOR_KEYS.forEach(id => {
+        if (document.getElementById(`chart-in-${id}`)) updateInputGraph(id);
+    });
+    // 計算結果グラフ（存在する場合）も限界ラインだけ更新
+    const { limitD, limitS, radD, radS } = getLimitRads();
+    ['chart-x', 'chart-y'].forEach(cid => {
+        const ch = chartObjs[cid];
+        if (!ch) return;
+        ch.options.plugins = ch.options.plugins || {};
+        ch.options.plugins.limitLinePlugin = {
+            lines: [
+                { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
+                { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
+            ]
+        };
+        ch.update();
+    });
+}
+
+const ROCKING_D_INITIAL_M = 0.0005; // 0.5mm
+
+function calcRockingQmaxKN(rockingItem, h) {
+    const D_m = Number(rockingItem?.D) / 1000;
+    const N = Number(rockingItem?.N);
+    const H = Number(h);
+    if (!Number.isFinite(D_m) || !Number.isFinite(N) || !Number.isFinite(H) || H <= 0) return 0;
+    // 最大耐力 Q_max = (N * D/2) / H
+    return (N * (D_m / 2)) / H;
+}
+
+function calcRockingK0KNm(rockingItem, h) {
+    const qmax = calcRockingQmaxKN(rockingItem, h);
+    const qty = Number(rockingItem?.qty) || 1;
+    if (!Number.isFinite(qmax) || qmax <= 0) return 0;
+    return (qmax / ROCKING_D_INITIAL_M) * qty;
+}
+
+function calcCompositeK0KNm(id) {
+    const floor = getFloorFromId(id);
+    const h = getFloorHeightM(floor);
+    let total = 0;
+
+    // 耐力壁
+    (addedWalls[id] || []).forEach(w => {
+        const data = WALL_DATA[w.name];
+        if (!data) return;
+        const k0Rad = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
+        const qty = Number(w.qty) || 0;
+        total += (k0Rad * qty) / h;
+    });
+
+    // 筋交い
+    (addedBraces[id] || []).forEach(b => {
+        const braceInfo = BRACE_DATA[b.name];
+        if (!braceInfo?.data) return;
+        const k0Rad = BRACE_K0[b.name] || calcInitialStiffnessK0Rad(braceInfo.data);
+        const cf = Number(b.correctionFactor) || 1;
+        const qty = Number(b.qty) || 0;
+        total += (k0Rad * cf * qty) / h;
+    });
+
+    // 貫/ほぞ
+    (addedNukis[id] || []).forEach(n => {
+        const nukiInfo = NUKI_DATA[n.name];
+        if (!nukiInfo?.data) return;
+        const k0Rad = NUKI_K0[n.name] || calcInitialStiffnessK0Rad(nukiInfo.data);
+        const cf = Number(n.correctionFactor) || 1;
+        const qty = Number(n.qty) || 0;
+        total += (k0Rad * cf * qty) / h;
+    });
+
+    // 小壁
+    (addedKokabes[id] || []).forEach(k => {
+        const kokabeInfo = KOKABE_DATA[k.name];
+        if (!kokabeInfo?.data) return;
+        const k0Rad = KOKABE_K0[k.name] || calcInitialStiffnessK0Rad(kokabeInfo.data);
+        const cf = Number(k.correctionFactor) || 1;
+        const qty = Number(k.qty) || 0;
+        total += (k0Rad * cf * qty) / h;
+    });
+
+    // ロッキング柱
+    (addedRockings[id] || []).forEach(r => {
+        total += calcRockingK0KNm(r, h);
+    });
+
+    // 自由入力
+    (freeInputData[id] || []).forEach(item => {
+        if (!Array.isArray(item.data) || item.data.length === 0) return;
+        const k0Rad = calcInitialStiffnessK0Rad(item.data);
+        const qty = Number(item.qty) || 1;
+        total += (k0Rad * qty) / h;
+    });
+
+    return total;
+}
+
 // 初期剛性を算出してキャッシュ
 function initWallK0() {
     for (let name in WALL_DATA) {
         let data = WALL_DATA[name];
         if (data.length > 0) {
-            // 原点から最初の点までの傾き
-            let p = data[0];
-            WALL_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+            // 原点からの初期傾き（最初の有効点/増分から推定）
+            WALL_K0[name] = calcInitialStiffnessK0Rad(data);
         } else {
             WALL_K0[name] = 10000;
         }
@@ -2425,8 +2611,7 @@ function initWallK0() {
     for (let name in BRACE_DATA) {
         let braceInfo = BRACE_DATA[name];
         if (braceInfo && braceInfo.data && braceInfo.data.length > 0) {
-            let p = braceInfo.data[0];
-            BRACE_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+            BRACE_K0[name] = calcInitialStiffnessK0Rad(braceInfo.data);
         } else {
             BRACE_K0[name] = 10000;
         }
@@ -2436,8 +2621,7 @@ function initWallK0() {
     for (let name in NUKI_DATA) {
         let nukiInfo = NUKI_DATA[name];
         if (nukiInfo && nukiInfo.data && nukiInfo.data.length > 0) {
-            let p = nukiInfo.data[0];
-            NUKI_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+            NUKI_K0[name] = calcInitialStiffnessK0Rad(nukiInfo.data);
         } else {
             NUKI_K0[name] = 10000;
         }
@@ -2447,8 +2631,7 @@ function initWallK0() {
     for (let name in KOKABE_DATA) {
         let kokabeInfo = KOKABE_DATA[name];
         if (kokabeInfo && kokabeInfo.data && kokabeInfo.data.length > 0) {
-            let p = kokabeInfo.data[0];
-            KOKABE_K0[name] = (p.r > 0) ? p.q / p.r : 10000;
+            KOKABE_K0[name] = calcInitialStiffnessK0Rad(kokabeInfo.data);
         } else {
             KOKABE_K0[name] = 10000;
         }
@@ -2598,6 +2781,8 @@ async function loadBraceDataFromServer() {
         
         // データロード後に初期化処理を実行
         initBraceSelectors();
+        // K0キャッシュも更新（計算書のK0表示が0にならないように）
+        initWallK0();
         
         console.log("筋交い/ブレースデータを読み込みました:", Object.keys(BRACE_DATA).length + "件");
         
@@ -2621,6 +2806,8 @@ async function loadNukiDataFromServer() {
         
         // データロード後に初期化処理を実行
         initNukiSelectors();
+        // K0キャッシュも更新
+        initWallK0();
         
         console.log("貫/ほぞデータを読み込みました:", Object.keys(NUKI_DATA).length + "件");
         
@@ -2808,6 +2995,8 @@ async function loadKokabeDataFromServer() {
         
         // データロード後に初期化処理を実行
         initKokabeSelectors();
+        // K0キャッシュも更新
+        initWallK0();
         
         console.log("小壁データを読み込みました:", Object.keys(KOKABE_DATA).length + "件");
         
@@ -2928,14 +3117,17 @@ async function handleCSVUpload(event) {
             } else if (filename.includes('brace') && filename.endsWith('.csv')) {
                 parseBraceCSV(text);
                 initBraceSelectors();
+                initWallK0();
                 alert('筋交い/ブレースデータを読み込みました: ' + Object.keys(BRACE_DATA).length + '件');
             } else if (filename.includes('nuki') && filename.endsWith('.csv')) {
                 parseNukiCSV(text);
                 initNukiSelectors();
+                initWallK0();
                 alert('貫/ほぞデータを読み込みました: ' + Object.keys(NUKI_DATA).length + '件');
             } else if (filename.includes('kokabe') && filename.endsWith('.csv')) {
                 parseKokabeCSV(text);
                 initKokabeSelectors();
+                initWallK0();
                 alert('小壁データを読み込みました: ' + Object.keys(KOKABE_DATA).length + '件');
             } else {
                 alert('ファイル名から種類を判別できませんでした。\n' +
@@ -3405,13 +3597,9 @@ function addRocking(id) {
         return; 
     }
     
-    // 階高Hを取得（1階か2階かを判定）
-    let H;
-    if (id === 'x1' || id === 'y1') {
-        H = parseFloat(document.getElementById('h1').value) || 2.7;
-    } else {
-        H = parseFloat(document.getElementById('h2').value) || 2.7;
-    }
+    // 階高Hを取得（入力欄 inp_H{floor} と一致させる）
+    const floor = getFloorFromId(id);
+    const H = getFloorHeightM(floor);
     
     // 柱幅/階高の比率をチェック（D(mm)をm単位に変換）
     const widthRatio = (width / 1000) / H;
@@ -3445,9 +3633,12 @@ function renderRockingList(id) {
     const list = document.getElementById(`list-rock-${id}`);
     list.innerHTML = '';
     addedRockings[id].forEach((r, i) => {
+        const floor = getFloorFromId(id);
+        const h = getFloorHeightM(floor);
+        const k0 = calcRockingK0KNm(r, h);
         const div = document.createElement('div');
         div.className = 'wall-item';
-        div.innerHTML = `<span>${r.name} D${r.D}mm N=${r.N}kN ×${r.qty}本</span>
+        div.innerHTML = `<span>${r.name} D${r.D}mm N=${r.N}kN ×${r.qty}本 / K0=${k0.toFixed(0)}kN/m</span>
             <span>
                 <button class="btn-sm" style="color:red;" onclick="removeRocking('${id}', ${i})">削除</button>
             </span>`;
@@ -3912,8 +4103,13 @@ function interpRadHeq(data, r) {
 
 // --- Modified Input Graphs ---
 function updateInputGraph(id) {
+    const floor = getFloorFromId(id);
+    const h = getFloorHeightM(floor);
     // Calculate composite data
     let compositeData = getCompositeForce(id);
+    const composite = compositeData;
+    const k0Total = calcCompositeK0KNm(id);
+    const { limitD, limitS, radD, radS } = getLimitRads();
     
     // Use deformation angle (rad) for X-axis
     let chartData = compositeData.map(p => ({ x: p.r, y: p.q }));
@@ -4077,10 +4273,18 @@ function updateInputGraph(id) {
             inputChartObjs[id] = new Chart(ctx.getContext('2d'), {
                 type: 'scatter',
                 data: { datasets: datasets },
+                plugins: [limitLinePlugin],
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: { x: { title: {display:true, text:'変形角(rad)'}, min:0 }, y: { title: {display:true, text:'Q(kN)'}, min:0 } },
                     plugins: { 
+                        title: { display: true, text: `K0合計(kN/m) = ${k0Total.toFixed(0)}` },
+                        limitLinePlugin: {
+                            lines: [
+                                { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
+                                { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
+                            ]
+                        },
                         legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, boxWidth: 20, padding: 5 } },
                         tooltip: { callbacks: { label: c => `${c.dataset.label}: (${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` } }
                     }
@@ -4089,6 +4293,21 @@ function updateInputGraph(id) {
         }
     } else {
         inputChartObjs[id].data.datasets = datasets;
+        const t = inputChartObjs[id].options?.plugins?.title;
+        if (t) {
+            t.display = true;
+            t.text = `K0合計(kN/m) = ${k0Total.toFixed(0)}`;
+        }
+        if (!inputChartObjs[id].config.plugins?.includes(limitLinePlugin)) {
+            inputChartObjs[id].config.plugins = (inputChartObjs[id].config.plugins || []).concat([limitLinePlugin]);
+        }
+        inputChartObjs[id].options.plugins = inputChartObjs[id].options.plugins || {};
+        inputChartObjs[id].options.plugins.limitLinePlugin = {
+            lines: [
+                { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
+                { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
+            ]
+        };
         inputChartObjs[id].update();
     }
 }
@@ -6947,6 +7166,8 @@ function drawChart(id, steps, ptD, ptS) {
     if(ptD) points.push({ x: (ptD.H > 0 ? ptD.D / ptD.H : 0), y: ptD.QA, label: '損傷限界', bg: '#28a745', style: 'rectRot' });
     if(ptS) points.push({ x: (ptS.H > 0 ? ptS.D / ptS.H : 0), y: ptS.QA, label: '安全限界', bg: '#dc3545', style: 'circle' });
     
+    const { limitD, limitS, radD, radS } = getLimitRads();
+
     chartObjs[id] = new Chart(ctx2d, {
         type: 'scatter',
         data: { datasets: [
@@ -6984,6 +7205,7 @@ function drawChart(id, steps, ptD, ptS) {
                 pointStyle: p.style 
             }))
         ]},
+        plugins: [limitLinePlugin],
         options: { 
             animation: false,
             responsive: true, 
@@ -7001,6 +7223,12 @@ function drawChart(id, steps, ptD, ptS) {
                 } 
             }, 
             plugins: { 
+                limitLinePlugin: {
+                    lines: [
+                        { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
+                        { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
+                    ]
+                },
                 tooltip: { 
                     callbacks: { 
                         label: c => `(${c.parsed.x.toFixed(4)}rad, ${c.parsed.y.toFixed(1)}kN)` 
@@ -7702,13 +7930,16 @@ function renderForceDetails() {
         for(let floor = 1; floor <= N; floor++) {
             const id = `${dir}${floor}`;
             const floorLabel = `${floor}F`;
+            const h = getFloorHeightM(floor);
             
             // 耐力壁
             if(addedWalls[id]) {
                 addedWalls[id].forEach(w => {
                     let data = WALL_DATA[w.name];
                     if(data) {
-                        let K0 = WALL_K0[w.name] || 0;
+                        // K0はkN/m表示： (kN/rad) / (m) = kN/m
+                        const K0_rad_perUnit = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
+                        const K0 = (K0_rad_perUnit * (w.qty || 0)) / h;
                         let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
                         html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name}</td><td style="${cellStyle}">${w.qty.toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
                     }
@@ -7720,7 +7951,8 @@ function renderForceDetails() {
                 addedBraces[id].forEach(b => {
                     let braceInfo = BRACE_DATA[b.name];
                     if(braceInfo && braceInfo.data) {
-                        let K0 = (BRACE_K0[b.name] || 0) * b.correctionFactor;
+                        const K0_rad_perUnit = BRACE_K0[b.name] || calcInitialStiffnessK0Rad(braceInfo.data);
+                        const K0 = (K0_rad_perUnit * (b.correctionFactor || 1) * (b.qty || 0)) / h;
                         let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * b.qty;
                         let hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
                         html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m</td><td style="${cellStyle}">${b.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
@@ -7733,7 +7965,8 @@ function renderForceDetails() {
                 addedNukis[id].forEach(n => {
                     let nukiInfo = NUKI_DATA[n.name];
                     if(nukiInfo && nukiInfo.data) {
-                        let K0 = (NUKI_K0[n.name] || 0) * n.correctionFactor;
+                        const K0_rad_perUnit = NUKI_K0[n.name] || calcInitialStiffnessK0Rad(nukiInfo.data);
+                        const K0 = (K0_rad_perUnit * (n.correctionFactor || 1) * (n.qty || 0)) / h;
                         let maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * n.correctionFactor * n.qty;
                         let hasInputHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
                         html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">貫/ほぞ</td><td style="${cellStyle}">${n.name}</td><td style="${cellStyle}">${n.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
@@ -7746,11 +7979,22 @@ function renderForceDetails() {
                 addedKokabes[id].forEach(k => {
                     let kokabeInfo = KOKABE_DATA[k.name];
                     if(kokabeInfo && kokabeInfo.data) {
-                        let K0 = (KOKABE_K0[k.name] || 0) * k.correctionFactor;
+                        const K0_rad_perUnit = KOKABE_K0[k.name] || calcInitialStiffnessK0Rad(kokabeInfo.data);
+                        const K0 = (K0_rad_perUnit * (k.correctionFactor || 1) * (k.qty || 0)) / h;
                         let maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * k.correctionFactor * k.qty;
                         let hasInputHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
                         html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">小壁</td><td style="${cellStyle}">${k.name} W=${k.width}m 1/${k.zanzonDenom}</td><td style="${cellStyle}">${k.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                     }
+                });
+            }
+
+            // ロッキング柱
+            if(addedRockings[id]) {
+                addedRockings[id].forEach(r => {
+                    const qmax1 = calcRockingQmaxKN(r, h);
+                    const maxQ = qmax1 * (r.qty || 1);
+                    const K0 = calcRockingK0KNm(r, h);
+                    html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">ロッキング柱</td><td style="${cellStyle}">${r.name} D=${r.D}mm N=${r.N}kN</td><td style="${cellStyle}">${r.qty}本</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">0</td></tr>`;
                 });
             }
             
@@ -7758,7 +8002,8 @@ function renderForceDetails() {
             if(freeInputData[id]) {
                 freeInputData[id].forEach(item => {
                     if(item.data.length > 0) {
-                        let K0 = (item.data[0].r > 0) ? item.data[0].q / item.data[0].r : 0;
+                        const K0_rad_perUnit = calcInitialStiffnessK0Rad(item.data);
+                        const K0 = (K0_rad_perUnit * (item.qty || 0)) / h;
                         let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
                         let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
                         html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">自由入力</td><td style="${cellStyle}">${item.name}</td><td style="${cellStyle}">${(item.qty||1).toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
@@ -8696,6 +8941,40 @@ function updateShearTab(b, resX, resY, ptXd, ptXs, ptYd, ptYs) {
 // CSV保存・読込機能
 // ========================================
 
+// 画面上の入力要素を網羅的に収集（CSV/作業データ復元の完全性向上）
+function collectFormState() {
+    const state = {};
+    const elements = document.querySelectorAll('input[id], select[id], textarea[id]');
+    elements.forEach(el => {
+        // ファイル入力は復元できないため除外
+        if (el.tagName === 'INPUT' && el.type === 'file') return;
+        const id = el.id;
+        if (!id) return;
+        if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) {
+            state[id] = !!el.checked;
+        } else {
+            state[id] = el.value;
+        }
+    });
+    return state;
+}
+
+function restoreFormState(state) {
+    if (!state || typeof state !== 'object') return;
+    Object.keys(state).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        // ファイル入力は対象外
+        if (el.tagName === 'INPUT' && el.type === 'file') return;
+        const val = state[id];
+        if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) {
+            el.checked = !!val;
+        } else {
+            el.value = (val === null || val === undefined) ? '' : String(val);
+        }
+    });
+}
+
 // 全入力データを収集
 function collectAllInputData() {
     return {
@@ -8709,6 +8988,8 @@ function collectAllInputData() {
         cover_office_reg: document.getElementById('inp_cover_office_reg').value,
         cover_arch_reg: document.getElementById('inp_cover_arch_reg').value,
         cover_manager_name: document.getElementById('inp_cover_manager_name').value,
+        // 物件名
+        buildingName: document.getElementById('inp_cover_project_name').value,
         
         // 基本設定
         stories: document.getElementById('inp_Stories').value,
@@ -8747,14 +9028,31 @@ function collectAllInputData() {
         skipY: document.getElementById('chk-skip-y').checked,
         // 耐力壁データ
         addedWalls: addedWalls,
+        // 筋交い/ブレース（角度補正あり）
+        addedBraces: addedBraces,
+        // 貫/ほぞ等（階高補正あり）
+        addedNukis: addedNukis,
+        // 小壁（壁幅・残存率補正あり）
+        addedKokabes: addedKokabes,
+        // 柱の傾斜復元力特性
+        addedRockings: addedRockings,
         // 自由入力データ
-        freeInputData: freeInputData
+        freeInputData: freeInputData,
+
+        // 画面上の入力設定を網羅的に保存（将来の項目追加にも追随）
+        formState: collectFormState()
     };
 }
 
 // 全入力データを復元
 function restoreAllInputData(data) {
     try {
+        // 物件名（表紙）
+        if (data.buildingName !== undefined) {
+            const el = document.getElementById('inp_cover_project_name');
+            if (el) el.value = data.buildingName;
+        }
+
         // 基本設定
         if(data.stories !== undefined) {
             document.getElementById('inp_Stories').value = data.stories;
@@ -8831,6 +9129,46 @@ function restoreAllInputData(data) {
                 if (el) renderWallList(id);
             });
         }
+
+        // 筋交い/ブレース (5階対応)
+        if(data.addedBraces !== undefined) {
+            addedBraces = data.addedBraces;
+            ALL_FLOOR_KEYS.forEach(id => {
+                if (!addedBraces[id]) addedBraces[id] = [];
+                const el = document.getElementById(`list-brace-${id}`);
+                if (el) renderBraceList(id);
+            });
+        }
+
+        // 貫/ほぞ等 (5階対応)
+        if(data.addedNukis !== undefined) {
+            addedNukis = data.addedNukis;
+            ALL_FLOOR_KEYS.forEach(id => {
+                if (!addedNukis[id]) addedNukis[id] = [];
+                const el = document.getElementById(`list-nuki-${id}`);
+                if (el) renderNukiList(id);
+            });
+        }
+
+        // 小壁 (5階対応)
+        if(data.addedKokabes !== undefined) {
+            addedKokabes = data.addedKokabes;
+            ALL_FLOOR_KEYS.forEach(id => {
+                if (!addedKokabes[id]) addedKokabes[id] = [];
+                const el = document.getElementById(`list-kokabe-${id}`);
+                if (el) renderKokabeList(id);
+            });
+        }
+
+        // 柱の傾斜復元力特性 (5階対応)
+        if(data.addedRockings !== undefined) {
+            addedRockings = data.addedRockings;
+            ALL_FLOOR_KEYS.forEach(id => {
+                if (!addedRockings[id]) addedRockings[id] = [];
+                const el = document.getElementById(`list-rock-${id}`);
+                if (el) renderRockingList(id);
+            });
+        }
         
         // 自由入力データ (5階対応)
         if(data.freeInputData !== undefined) {
@@ -8856,9 +9194,17 @@ function restoreAllInputData(data) {
         if(data.cover_office_reg !== undefined) document.getElementById('inp_cover_office_reg').value = data.cover_office_reg;
         if(data.cover_arch_reg !== undefined) document.getElementById('inp_cover_arch_reg').value = data.cover_arch_reg;
         if(data.cover_manager_name !== undefined) document.getElementById('inp_cover_manager_name').value = data.cover_manager_name;
-        
-        // 物件名は既存のrestore処理で復元されるため、syncを呼び出して表紙側に反映
-        syncProjectName('main');
+
+        // 網羅保存した入力設定を復元（個別復元の後に適用して漏れを防ぐ）
+        if (data.formState !== undefined) {
+            restoreFormState(data.formState);
+        }
+
+        // 表示更新
+        drawBuildingModel();
+        ALL_FLOOR_KEYS.forEach(id => {
+            if (document.getElementById(`chart-in-${id}`)) updateInputGraph(id);
+        });
         
         return true;
     } catch(e) {
@@ -8949,6 +9295,46 @@ function saveToCSV() {
             csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "\n";
         });
     });
+
+    // 筋交い/ブレース (5階対応)
+    ALL_FLOOR_KEYS.forEach(id => {
+        const braces = data.addedBraces[id] || [];
+        csvContent += "#Braces_" + id + ",count," + braces.length + "\n";
+        braces.forEach((b, i) => {
+            csvContent += "Brace_" + id + "_" + i + "," + escapeCSV(b.name) + "," + b.width + "," + b.qty + "," + b.height + "," + b.correctionFactor + "\n";
+        });
+    });
+
+    // 貫/ほぞ等 (5階対応)
+    ALL_FLOOR_KEYS.forEach(id => {
+        const nukis = data.addedNukis[id] || [];
+        csvContent += "#Nukis_" + id + ",count," + nukis.length + "\n";
+        nukis.forEach((n, i) => {
+            csvContent += "Nuki_" + id + "_" + i + "," + escapeCSV(n.name) + "," + n.qty + "," + n.height + "," + n.baseHeight + "," + n.correctionFactor + "\n";
+        });
+    });
+
+    // 小壁 (5階対応)
+    ALL_FLOOR_KEYS.forEach(id => {
+        const kokabes = data.addedKokabes[id] || [];
+        csvContent += "#Kokabes_" + id + ",count," + kokabes.length + "\n";
+        kokabes.forEach((k, i) => {
+            csvContent += "Kokabe_" + id + "_" + i + "," + escapeCSV(k.name) + "," + k.qty + "," + k.width + "," + k.zanzonPercent + "," + k.zanzon + "," + k.baseWidth + "," + k.baseZanzon + "," + k.widthRatio + "," + k.zanzonRatio + "," + k.correctionFactor + "\n";
+        });
+    });
+
+    // 柱の傾斜復元力特性（ロッキング）(5階対応)
+    ALL_FLOOR_KEYS.forEach(id => {
+        const rocks = data.addedRockings[id] || [];
+        csvContent += "#Rockings_" + id + ",count," + rocks.length + "\n";
+        rocks.forEach((r, i) => {
+            csvContent += "Rocking_" + id + "_" + i + "," + escapeCSV(r.name) + "," + r.D + "," + r.N + "," + r.qty + "\n";
+        });
+    });
+
+    // 入力設定（網羅）
+    csvContent += "#FormState\n";
+    csvContent += "formStateJson," + escapeCSV(JSON.stringify(data.formState || {})) + "\n";
     
     // 自由入力データ (5階対応)
     ALL_FLOOR_KEYS.forEach(id => {
@@ -8977,10 +9363,13 @@ function saveToCSV() {
     const link = document.createElement('a');
     link.href = url;
     
-    // ファイル名に物件名と日付を含める
-    const buildingName = data.buildingName || '限界耐力計算';
+    // ファイル名: 日付＋（物件名）＋限界耐力計算
+    const projectName = (data.buildingName || '').trim();
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    link.download = buildingName.replace(/[\\/:*?"<>|]/g, '_') + '_' + dateStr + '.csv';
+    const safeProject = projectName.replace(/[\\/:*?"<>|]/g, '_');
+    link.download = projectName
+        ? `${dateStr}${safeProject}限界耐力計算.csv`
+        : `${dateStr}限界耐力計算.csv`;
     
     document.body.appendChild(link);
     link.click();
@@ -9034,13 +9423,15 @@ function loadFromCSV(event) {
 // CSVをパースしてデータオブジェクトに変換
 function parseCSVToData(content) {
     const lines = content.split(/\r?\n/);
-    const data = {
-        saDataD: [],
-        saDataS: [],
-        gsData: [],
-        addedWalls: { x1: [], x2: [], y1: [], y2: [] },
-        freeInputData: { x1: [], x2: [], y1: [], y2: [] }
-    };
+    const data = { saDataD: [], saDataS: [], gsData: [], addedWalls: {}, addedBraces: {}, addedNukis: {}, addedKokabes: {}, addedRockings: {}, freeInputData: {} };
+    ALL_FLOOR_KEYS.forEach(k => {
+        data.addedWalls[k] = [];
+        data.addedBraces[k] = [];
+        data.addedNukis[k] = [];
+        data.addedKokabes[k] = [];
+        data.addedRockings[k] = [];
+        data.freeInputData[k] = [];
+    });
     
     let tempSaD_T = [], tempSaD_Sa = [];
     let tempSaS_T = [], tempSaS_Sa = [];
@@ -9080,11 +9471,22 @@ function parseCSVToData(content) {
         
         else if(key === 'W1') data.W1 = value;
         else if(key === 'W2') data.W2 = value;
+        else if(key === 'W3') data.W3 = value;
+        else if(key === 'W4') data.W4 = value;
+        else if(key === 'W5') data.W5 = value;
         else if(key === 'H1') data.H1 = value;
         else if(key === 'H2') data.H2 = value;
+        else if(key === 'H3') data.H3 = value;
+        else if(key === 'H4') data.H4 = value;
+        else if(key === 'H5') data.H5 = value;
         else if(key === 'limit_d') data.limit_d = value;
         else if(key === 'limit_s') data.limit_s = value;
         else if(key === 'skipY') data.skipY = (value === 'true');
+
+        // 入力設定（網羅）
+        else if(key === 'formStateJson') {
+            try { data.formState = JSON.parse(value || '{}'); } catch(_) { data.formState = {}; }
+        }
         
         // Saデータ
         else if(key === 'SaDataD_T') tempSaD_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
@@ -9098,18 +9500,111 @@ function parseCSVToData(content) {
         
         // 耐力壁
         else if(key.startsWith('Wall_')) {
-            const match = key.match(/^Wall_(x1|x2|y1|y2)_(\d+)$/);
+            const match = key.match(/^Wall_((?:x|y)\d)_(\d+)$/);
             if(match) {
                 const id = match[1];
                 const name = value;
                 const qty = parseFloat(parts[2]) || 1;
+                if(!data.addedWalls[id]) data.addedWalls[id] = [];
                 data.addedWalls[id].push({ name: name, qty: qty });
+            }
+        }
+
+        // 筋交い/ブレース
+        else if(key.startsWith('Brace_')) {
+            const match = key.match(/^Brace_((?:x|y)\d)_(\d+)$/);
+            if(match) {
+                const id = match[1];
+                const name = value;
+                const width = parseFloat(parts[2]);
+                const qty = parseInt(parts[3]);
+                const height = parseFloat(parts[4]);
+                const correctionFactor = parseFloat(parts[5]);
+                if(!data.addedBraces[id]) data.addedBraces[id] = [];
+                data.addedBraces[id].push({
+                    name,
+                    width: isNaN(width) ? 0.91 : width,
+                    qty: isNaN(qty) ? 1 : qty,
+                    height: isNaN(height) ? 3.0 : height,
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                });
+            }
+        }
+
+        // 貫/ほぞ等
+        else if(key.startsWith('Nuki_')) {
+            const match = key.match(/^Nuki_((?:x|y)\d)_(\d+)$/);
+            if(match) {
+                const id = match[1];
+                const name = value;
+                const qty = parseInt(parts[2]);
+                const height = parseFloat(parts[3]);
+                const baseHeight = parseFloat(parts[4]);
+                const correctionFactor = parseFloat(parts[5]);
+                if(!data.addedNukis[id]) data.addedNukis[id] = [];
+                data.addedNukis[id].push({
+                    name,
+                    qty: isNaN(qty) ? 1 : qty,
+                    height: isNaN(height) ? 3.0 : height,
+                    baseHeight: isNaN(baseHeight) ? (isNaN(height) ? 2.73 : height) : baseHeight,
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                });
+            }
+        }
+
+        // 小壁
+        else if(key.startsWith('Kokabe_')) {
+            const match = key.match(/^Kokabe_((?:x|y)\d)_(\d+)$/);
+            if(match) {
+                const id = match[1];
+                const name = value;
+                const qty = parseInt(parts[2]);
+                const width = parseFloat(parts[3]);
+                const zanzonPercent = parseFloat(parts[4]);
+                const zanzon = parseFloat(parts[5]);
+                const baseWidth = parseFloat(parts[6]);
+                const baseZanzon = parseFloat(parts[7]);
+                const widthRatio = parseFloat(parts[8]);
+                const zanzonRatio = parseFloat(parts[9]);
+                const correctionFactor = parseFloat(parts[10]);
+                if(!data.addedKokabes[id]) data.addedKokabes[id] = [];
+                data.addedKokabes[id].push({
+                    name,
+                    qty: isNaN(qty) ? 1 : qty,
+                    width: isNaN(width) ? 0.91 : width,
+                    zanzonPercent: isNaN(zanzonPercent) ? 100 : zanzonPercent,
+                    zanzon: isNaN(zanzon) ? (isNaN(zanzonPercent) ? 1.0 : zanzonPercent / 100) : zanzon,
+                    baseWidth: isNaN(baseWidth) ? (isNaN(width) ? 0.91 : width) : baseWidth,
+                    baseZanzon: isNaN(baseZanzon) ? 1.0 : baseZanzon,
+                    widthRatio: isNaN(widthRatio) ? 1.0 : widthRatio,
+                    zanzonRatio: isNaN(zanzonRatio) ? 1.0 : zanzonRatio,
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                });
+            }
+        }
+
+        // 柱の傾斜復元力特性
+        else if(key.startsWith('Rocking_')) {
+            const match = key.match(/^Rocking_((?:x|y)\d)_(\d+)$/);
+            if(match) {
+                const id = match[1];
+                const name = value;
+                const D = parseFloat(parts[2]);
+                const N = parseFloat(parts[3]);
+                const qty = parseInt(parts[4]);
+                if(!data.addedRockings[id]) data.addedRockings[id] = [];
+                data.addedRockings[id].push({
+                    name,
+                    D: isNaN(D) ? 120 : D,
+                    N: isNaN(N) ? 20 : N,
+                    qty: isNaN(qty) ? 1 : qty
+                });
             }
         }
         
         // 自由入力
         else if(key.startsWith('FreeItem_')) {
-            const match = key.match(/^FreeItem_(x1|x2|y1|y2)_(\d+)_(.+)$/);
+            const match = key.match(/^FreeItem_((?:x|y)\d)_(\d+)_(.+)$/);
             if(match) {
                 const id = match[1];
                 const idx = match[2];
@@ -9153,6 +9648,7 @@ function parseCSVToData(content) {
             }
             itemData.push(point);
         }
+        if(!data.freeInputData[item.id]) data.freeInputData[item.id] = [];
         data.freeInputData[item.id].push({ name: item.name, qty: item.qty, data: itemData });
     }
     
