@@ -477,12 +477,42 @@
                     </select>
                 </div>
                 <div id="inp_Tc_custom_input" style="display:none; background:#eee; padding:10px; border-radius:5px;">
-                    <div style="font-size:0.85em; font-weight:bold; margin-bottom:5px;">自由入力データ (T-Gs)</div>
-                    <div style="display:flex; gap:5px; margin-bottom:5px;">
-                        <button class="btn-sheet" onclick="openGsSpreadsheet()">Excel貼付</button>
-                        <button class="btn-sm" onclick="clearGsData()" style="color:red;">クリア</button>
+                    <div style="font-size:0.85em; font-weight:bold; margin-bottom:6px;">自由入力データ (T-Gs)</div>
+                    <div class="input-group" style="margin-bottom:8px;">
+                        <label>Gs自由入力設定</label>
+                        <select id="inp_Gs_mode" onchange="toggleGsMode()">
+                            <option value="common" selected>損傷限界・安全限界 共通</option>
+                            <option value="separate">損傷限界・安全限界 個別設定</option>
+                        </select>
                     </div>
-                    <div id="gs-data-list" style="font-size:0.8em; max-height:150px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:5px;"></div>
+
+                    <div id="gs-input-common" style="background:#fff; padding:8px; border-radius:3px;">
+                        <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                            <button class="btn-sheet" onclick="openGsSpreadsheet('common')">Excel貼付</button>
+                            <button class="btn-sm" onclick="clearGsData('common')" style="color:red;">クリア</button>
+                        </div>
+                        <div id="gs-data-list-common" style="font-size:0.8em; max-height:150px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:5px;"></div>
+                    </div>
+
+                    <div id="gs-input-separate" style="display:none;">
+                        <div style="background:#e8f5e9; padding:8px; border-radius:3px; margin-bottom:8px;">
+                            <div style="font-size:0.85em; font-weight:bold; color:#2e7d32; margin-bottom:5px;">▼ 損傷限界用 Gs(d)</div>
+                            <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                                <button class="btn-sheet" onclick="openGsSpreadsheet('d')" style="font-size:0.8em;">Excel貼付</button>
+                                <button class="btn-sm" onclick="clearGsData('d')" style="color:red; font-size:0.75em;">クリア</button>
+                            </div>
+                            <div id="gs-data-list-d" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+                        </div>
+
+                        <div style="background:#ffebee; padding:8px; border-radius:3px; margin-bottom:8px;">
+                            <div style="font-size:0.85em; font-weight:bold; color:#c62828; margin-bottom:5px;">▼ 安全限界用 Gs(s)</div>
+                            <div style="display:flex; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                                <button class="btn-sheet" onclick="openGsSpreadsheet('s')" style="font-size:0.8em;">Excel貼付</button>
+                                <button class="btn-sm" onclick="clearGsData('s')" style="color:red; font-size:0.75em;">クリア</button>
+                            </div>
+                            <div id="gs-data-list-s" style="font-size:0.75em; max-height:80px; overflow-y:auto; border:1px solid #ccc; background:#fff; padding:3px;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div style="flex:1; min-width:350px; max-width:600px;">
@@ -2364,7 +2394,7 @@
 <div id="gs-modal" class="modal-overlay">
     <div class="modal-content" style="max-width:500px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <h3 style="margin:0;">表層地盤による加速度増幅率Gs入力</h3>
+            <h3 style="margin:0;">表層地盤による加速度増幅率Gs入力 <span id="gs-modal-type" style="color:#005a9c;"></span></h3>
             <button onclick="closeGsSpreadsheet()" style="cursor:pointer; padding:5px 15px;">キャンセル</button>
         </div>
         <p style="font-size:0.85em; color:#666; margin:0 0 10px 0;">ExcelからT(s)とGsの2列データを貼り付けてください。</p>
@@ -2414,6 +2444,9 @@ let lastModePts = {
 
 // Gsスペクトルデータ
 let gsData = [];
+let gsDataD = []; // 損傷限界用
+let gsDataS = []; // 安全限界用
+let currentGsType = 'common'; // 'common' | 'd' | 's'
 let hotGs = null;
 let chartGs = null;
 
@@ -5175,9 +5208,29 @@ function toggleTcInput() {
     let v = document.getElementById('inp_Tc_mode').value;
     document.getElementById('inp_Tc_custom_input').style.display = (v === 'custom') ? 'block' : 'none';
     if(v === 'custom') {
-        renderGsDataList();
+        updateGsCustomInputUi();
     }
     updateGsChart();
+}
+
+function getGsMode() {
+    return document.getElementById('inp_Gs_mode')?.value || 'common';
+}
+
+function toggleGsMode() {
+    updateGsCustomInputUi();
+    updateGsChart();
+}
+
+function updateGsCustomInputUi() {
+    const tcMode = document.getElementById('inp_Tc_mode')?.value;
+    if (tcMode !== 'custom') return;
+    const gsMode = getGsMode();
+    const commonEl = document.getElementById('gs-input-common');
+    const sepEl = document.getElementById('gs-input-separate');
+    if (commonEl) commonEl.style.display = (gsMode === 'common') ? 'block' : 'none';
+    if (sepEl) sepEl.style.display = (gsMode === 'separate') ? 'block' : 'none';
+    renderGsDataList();
 }
 
 // グラフ表示用のGs計算（getGs関数とは別に、建物オブジェクトなしで使用）
@@ -5203,18 +5256,30 @@ function getGsForChart(tcMode, T) {
 }
 
 // Gsスペクトルデータ一覧を表示
-function renderGsDataList() {
-    const container = document.getElementById('gs-data-list');
-    if(gsData.length === 0) {
-        container.innerHTML = '<span style="color:#999;">データなし（Excel貼付で入力）</span>';
+function renderGsDataListOne(containerId, data, emptyText) {
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    if(!data || data.length === 0) {
+        container.innerHTML = `<span style="color:#999;">${emptyText}</span>`;
         return;
     }
     let html = '<table style="width:100%; font-size:0.9em;"><thead><tr><th>T(s)</th><th>Gs</th></tr></thead><tbody>';
-    gsData.forEach(d => {
+    data.forEach(d => {
         html += `<tr><td>${d.t.toFixed(3)}</td><td>${d.g.toFixed(3)}</td></tr>`;
     });
     html += '</tbody></table>';
     container.innerHTML = html;
+}
+
+// Gsスペクトルデータ一覧を表示
+function renderGsDataList() {
+    const gsMode = getGsMode();
+    if (gsMode === 'separate') {
+        renderGsDataListOne('gs-data-list-d', gsDataD, 'データなし（Excel貼付で入力）');
+        renderGsDataListOne('gs-data-list-s', gsDataS, 'データなし（Excel貼付で入力）');
+    } else {
+        renderGsDataListOne('gs-data-list-common', gsData, 'データなし（Excel貼付で入力）');
+    }
 }
 
 // Gsスペクトルグラフを更新
@@ -5225,46 +5290,79 @@ function updateGsChart() {
     if(chartGs) chartGs.destroy();
     
     const tcMode = document.getElementById('inp_Tc_mode').value;
-    let data = [];
-    let label = 'Gs';
+    let datasets = [];
     
     if(tcMode === 'custom') {
-        // 自由入力モード
-        if(gsData.length === 0) {
-            chartGs = null;
-            return;
-        }
-        data = gsData.map(d => ({ x: d.t, y: d.g }));
-        label = 'Gs (自由入力)';
-    } else {
-        // 第1～3種の標準スペクトル生成
-        const mockBldg = { tcMode: tcMode, gsPts: [] };
-        const typeNames = { '1': '第1種', '2': '第2種', '3': '第3種' };
-        label = 'Gs (' + typeNames[tcMode] + ')';
-        
-        // T=0から3秒までのスペクトル点を生成
-        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
-        tValues.forEach(t => {
-            const gs = getGsForChart(tcMode, t);
-            data.push({ x: t, y: gs });
-        });
-        // 重複除去とソート
-        data.sort((a, b) => a.x - b.x);
-    }
-    
-    chartGs = new Chart(canvas.getContext('2d'), {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: label,
-                data: data,
+        // 自由入力モード（共通/個別）
+        const gsMode = getGsMode();
+        if (gsMode === 'separate') {
+            const hasD = gsDataD.length > 0;
+            const hasS = gsDataS.length > 0;
+            if(!hasD && !hasS) { chartGs = null; return; }
+            if (hasD) {
+                datasets.push({
+                    label: 'Gs(d)',
+                    data: gsDataD.map(d => ({ x: d.t, y: d.g })),
+                    borderColor: '#2e7d32',
+                    backgroundColor: '#2e7d32',
+                    borderWidth: 2,
+                    showLine: true,
+                    pointRadius: 2,
+                    fill: false
+                });
+            }
+            if (hasS) {
+                datasets.push({
+                    label: 'Gs(s)',
+                    data: gsDataS.map(d => ({ x: d.t, y: d.g })),
+                    borderColor: '#c62828',
+                    backgroundColor: '#c62828',
+                    borderWidth: 2,
+                    showLine: true,
+                    pointRadius: 2,
+                    fill: false
+                });
+            }
+        } else {
+            if(gsData.length === 0) { chartGs = null; return; }
+            datasets = [{
+                label: 'Gs (自由入力)',
+                data: gsData.map(d => ({ x: d.t, y: d.g })),
                 borderColor: '#005a9c',
                 backgroundColor: '#005a9c',
                 borderWidth: 2,
                 showLine: true,
                 pointRadius: 2,
                 fill: false
-            }]
+            }];
+        }
+    } else {
+        // 第1～3種の標準スペクトル生成
+        const mockBldg = { tcMode: tcMode, gsPts: [] };
+        const typeNames = { '1': '第1種', '2': '第2種', '3': '第3種' };
+        const label = 'Gs (' + typeNames[tcMode] + ')';
+        
+        // T=0から3秒までのスペクトル点を生成
+        const data = [];
+        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
+        tValues.forEach(t => data.push({ x: t, y: getGsForChart(tcMode, t) }));
+        data.sort((a, b) => a.x - b.x);
+        datasets = [{
+            label,
+            data,
+            borderColor: '#005a9c',
+            backgroundColor: '#005a9c',
+            borderWidth: 2,
+            showLine: true,
+            pointRadius: 2,
+            fill: false
+        }];
+    }
+    
+    chartGs = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets
         },
         options: {
             animation: false,
@@ -5275,21 +5373,28 @@ function updateGsChart() {
                 y: { title: { display: true, text: 'Gs', font: { size: 10 } }, min: 0 }
             },
             plugins: {
-                legend: { display: false }
+                legend: { display: datasets.length > 1 }
             }
         }
     });
 }
 
 // Gsスプレッドシートを開く
-function openGsSpreadsheet() {
+function openGsSpreadsheet(type = 'common') {
+    currentGsType = type;
     document.getElementById('gs-modal').style.display = 'flex';
+
+    const typeEl = document.getElementById('gs-modal-type');
+    if (typeEl) {
+        if (type === 'd') typeEl.innerText = '（損傷限界用）';
+        else if (type === 's') typeEl.innerText = '（安全限界用）';
+        else typeEl.innerText = '（共通）';
+    }
     
     let data = [];
     // 既存データがあれば読み込み
-    if(gsData.length > 0) {
-        gsData.forEach(d => data.push([d.t, d.g]));
-    }
+    const srcData = (type === 'd') ? gsDataD : (type === 's') ? gsDataS : gsData;
+    if(srcData.length > 0) srcData.forEach(d => data.push([d.t, d.g]));
     // 50行まで拡張
     while(data.length < 50) data.push([null, null]);
     
@@ -5316,18 +5421,22 @@ function applyGsData() {
     if(!hotGs) return;
     
     const raw = hotGs.getData();
-    gsData = [];
+    let newData = [];
     
     raw.forEach(row => {
         const t = parseFloat(row[0]);
         const g = parseFloat(row[1]);
         if(!isNaN(t) && !isNaN(g) && t >= 0 && g >= 0) {
-            gsData.push({ t: t, g: g });
+            newData.push({ t: t, g: g });
         }
     });
     
     // Tでソート
-    gsData.sort((a, b) => a.t - b.t);
+    newData.sort((a, b) => a.t - b.t);
+
+    if (currentGsType === 'd') gsDataD = newData;
+    else if (currentGsType === 's') gsDataS = newData;
+    else gsData = newData;
     
     renderGsDataList();
     updateGsChart();
@@ -5335,9 +5444,12 @@ function applyGsData() {
 }
 
 // Gsデータをクリア
-function clearGsData() {
-    if(confirm('表層地盤による加速度増幅率Gsデータをクリアしますか？')) {
-        gsData = [];
+function clearGsData(type = 'common') {
+    const label = (type === 'd') ? '損傷限界用' : (type === 's') ? '安全限界用' : '共通';
+    if(confirm(`${label} 表層地盤による加速度増幅率Gsデータをクリアしますか？`)) {
+        if (type === 'd') gsDataD = [];
+        else if (type === 's') gsDataS = [];
+        else gsData = [];
         renderGsDataList();
         updateGsChart();
     }
@@ -5581,10 +5693,20 @@ function getBldg() {
     let stories = parseInt(document.getElementById('inp_Stories').value);
     let tcMode = document.getElementById('inp_Tc_mode').value;
     let gsPts = [];
+    let gsPtsD = [];
+    let gsPtsS = [];
+    let gsMode = getGsMode();
     if(tcMode === 'custom') {
-        // gsDataから取得
-        gsPts = gsData.map(d => ({ t: d.t, g: d.g }));
-        gsPts.sort((a,b) => a.t - b.t);
+        // gsDataから取得（共通/個別）
+        if (gsMode === 'separate') {
+            gsPtsD = gsDataD.map(d => ({ t: d.t, g: d.g }));
+            gsPtsD.sort((a,b) => a.t - b.t);
+            gsPtsS = gsDataS.map(d => ({ t: d.t, g: d.g }));
+            gsPtsS.sort((a,b) => a.t - b.t);
+        } else {
+            gsPts = gsData.map(d => ({ t: d.t, g: d.g }));
+            gsPts.sort((a,b) => a.t - b.t);
+        }
     }
     
     // Saモード
@@ -5609,7 +5731,7 @@ function getBldg() {
         name: '',
         stories: stories,
         Z: parseFloat(document.getElementById('inp_Z').value),
-        tcMode: tcMode, gsPts: gsPts,
+        tcMode: tcMode, gsMode: gsMode, gsPts: gsPts, gsPtsD: gsPtsD, gsPtsS: gsPtsS,
         saMode: saMode, saPtsD: saPtsD, saPtsS: saPtsS,
         pqMode: document.getElementById('inp_pq').value,
         W: W, H: H,
@@ -5712,9 +5834,12 @@ function getSaCustom(pts, T) {
     return null;
 }
 
-function getGs(b, T) {
+function getGs(b, T, type = 'd') {
     if(b.tcMode === 'custom') {
         let pts = b.gsPts;
+        if (b.gsMode === 'separate') {
+            pts = (type === 's') ? (b.gsPtsS || []) : (b.gsPtsD || []);
+        }
         if(pts.length === 0) return 2.5; 
         if(T <= pts[0].t) return pts[0].g;
         if(T >= pts[pts.length-1].t) return pts[pts.length-1].g;
@@ -6080,7 +6205,7 @@ function calc(b, forceArr) {
         let Fh_s = 1.5 / (1 + 10 * h);
         
         // Sa, Gs
-        let Sao_d, Sao_s, S0d, S0s, Gs_val;
+        let Sao_d, Sao_s, S0d, S0s, Gs_d, Gs_s;
         if (b.saMode === 'custom') {
             const Sa_d_custom = getSaCustom(b.saPtsD, Te);
             const Sa_s_custom = getSaCustom(b.saPtsS, Te);
@@ -6092,7 +6217,8 @@ function calc(b, forceArr) {
         }
         S0d = Sao_d * b.Z;
         S0s = Sao_s * b.Z;
-        Gs_val = getGs(b, Te);
+        Gs_d = getGs(b, Te, 'd');
+        Gs_s = getGs(b, Te, 's');
         
         // 調整係数 p, q
         let p = 1.0, q_factor = 1.0;
@@ -6105,8 +6231,8 @@ function calc(b, forceArr) {
             }
         }
         
-        let SAd = S0d * Gs_val * p * q_factor * Fh_d;
-        let SAs = S0s * Gs_val * Fh_s * p * q_factor;
+        let SAd = S0d * Gs_d * p * q_factor * Fh_d;
+        let SAs = S0s * Gs_s * Fh_s * p * q_factor;
         
         let Qnd = SAd * Me;
         let Qns = SAs * Me;
@@ -6137,7 +6263,7 @@ function calc(b, forceArr) {
             WA: WA, dW: dW,
             heq1: heq[1], heq2: heq[2] || 0,
             h: h, Fh: Fh_s, p: p, q: q_factor,
-            S0d: S0d, S0s: S0s, Gs: Gs_val,
+            S0d: S0d, S0s: S0s, Gs: Gs_d, GsD: Gs_d, GsS: Gs_s,
             SAd: SAd, SDd: SDd, Qnd: Qnd,
             SAs: SAs, SDs: SDs, Qns: Qns,
             reqRd: reqRd, reqRs: reqRs,
@@ -6234,7 +6360,14 @@ function getRating(ratio) {
 
 function executeCalculation() {
     const b = getBldg();
-    if(b.tcMode==='custom' && b.gsPts.length === 0) { alert('表層地盤による加速度増幅率Gsが入力されていません。'); return; }
+    if(b.tcMode==='custom') {
+        if (b.gsMode === 'separate') {
+            if(!b.gsPtsD || b.gsPtsD.length === 0) { alert('損傷限界用の表層地盤による加速度増幅率Gsが入力されていません。'); return; }
+            if(!b.gsPtsS || b.gsPtsS.length === 0) { alert('安全限界用の表層地盤による加速度増幅率Gsが入力されていません。'); return; }
+        } else {
+            if(!b.gsPts || b.gsPts.length === 0) { alert('表層地盤による加速度増幅率Gsが入力されていません。'); return; }
+        }
+    }
     
     const skipY = document.getElementById('chk-skip-y').checked;
     const N = b.stories;
@@ -6575,7 +6708,9 @@ function renderPointDetail(b, res, pt, limitName, color, is1F) {
     
     const Sao = (limitName === '損傷限界') ? pt.S0d / b.Z : pt.S0s / b.Z;
     const S0 = (limitName === '損傷限界') ? pt.S0d : pt.S0s;
-    const Gs = pt.Gs;
+    const Gs = (limitName === '損傷限界')
+        ? (typeof pt.GsD === 'number' ? pt.GsD : pt.Gs)
+        : (typeof pt.GsS === 'number' ? pt.GsS : pt.Gs);
     const p = pt.p;
     const q = pt.q;
     const SA = (limitName === '損傷限界') ? pt.SAd : pt.SAs;
@@ -7179,9 +7314,9 @@ function renderLog(dir, steps) {
     h += `<th>Me<br>(t)</th><th>Δ<br>(m)</th><th>Qa<br>(kN)</th><th>Ke<br>(kN/m)</th><th>Te<br>(s)</th><th>He<br>(m)</th>
           <th>ΔW<br>(kN・m)</th><th>Wa<br>(kN・m)</th>`;
     for(let i = 1; i <= N; i++) h += `<th>heq${i}</th>`;
-    h += `<th>h</th><th>Fh</th><th>p</th><th>q</th>
-          <th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>
-          <th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th></tr></thead><tbody>`;
+        h += `<th>h</th><th>Fh</th><th>p</th><th>q</th>
+            <th>S0d</th><th>Gs</th><th>SAd</th><th>SDd</th><th>Qnd</th><th>reqR</th>
+            <th>S0s</th><th>Gs</th><th>SAs</th><th>SDs</th><th>Qns</th><th>reqR</th></tr></thead><tbody>`;
 
     steps.forEach((s, idx) => {
         h += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
@@ -7232,13 +7367,16 @@ function renderLog(dir, steps) {
         h += `<td>${s.h.toFixed(3)}</td>`;
         h += `<td>${s.Fh.toFixed(2)}</td><td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>`;
         
+        const GsD = (typeof s.GsD === 'number') ? s.GsD : s.Gs;
+        const GsS = (typeof s.GsS === 'number') ? s.GsS : s.Gs;
+
         // 損傷限界
-        h += `<td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td>
+        h += `<td>${s.S0d.toFixed(2)}</td><td>${GsD.toFixed(2)}</td>
             <td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td><td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td>
             <td>${fmtR(s.reqRd)}</td>`;
         
         // 安全限界
-        h += `<td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td>
+        h += `<td>${s.S0s.toFixed(2)}</td><td>${GsS.toFixed(2)}</td>
             <td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td><td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td>
             <td>${fmtR(s.reqRs)}</td></tr>`;
     });
@@ -7728,36 +7866,73 @@ function renderGsSpectrumReport() {
     }
     // ▲▲▲ 修正ここまで ▲▲▲
     
-    let data = [];
-    let label = 'Gs';
+    let datasets = [];
     
-    if(tcMode === 'custom' && gsData.length > 0) {
-        data = gsData.map(d => ({ x: d.t, y: d.g }));
-        label = 'Gs (自由入力)';
-    } else {
-        label = 'Gs (' + typeNames[tcMode] + ')';
-        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
-        tValues.forEach(t => {
-            const gs = getGsForChart(tcMode, t);
-            data.push({ x: t, y: gs });
-        });
-        data.sort((a, b) => a.x - b.x);
-    }
-    
-    // ▼▼▼ 修正: 変数名を repChartGs に変更 ▼▼▼
-    repChartGs = new Chart(canvas.getContext('2d'), {
-        type: 'scatter',
-        data: {
-            datasets: [{
-                label: label,
-                data: data,
+    if(tcMode === 'custom') {
+        const gsMode = getGsMode();
+        if (gsMode === 'separate') {
+            if (gsDataD.length > 0) {
+                datasets.push({
+                    label: 'Gs(d)',
+                    data: gsDataD.map(d => ({ x: d.t, y: d.g })),
+                    borderColor: '#2e7d32',
+                    backgroundColor: '#2e7d32',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 1,
+                    fill: false
+                });
+            }
+            if (gsDataS.length > 0) {
+                datasets.push({
+                    label: 'Gs(s)',
+                    data: gsDataS.map(d => ({ x: d.t, y: d.g })),
+                    borderColor: '#c62828',
+                    backgroundColor: '#c62828',
+                    borderWidth: 1.5,
+                    showLine: true,
+                    pointRadius: 1,
+                    fill: false
+                });
+            }
+        } else if (gsData.length > 0) {
+            datasets = [{
+                label: 'Gs (自由入力)',
+                data: gsData.map(d => ({ x: d.t, y: d.g })),
                 borderColor: '#005a9c',
                 backgroundColor: '#005a9c',
                 borderWidth: 1.5,
                 showLine: true,
                 pointRadius: 1,
                 fill: false
-            }]
+            }];
+        }
+    } else {
+        const label = 'Gs (' + typeNames[tcMode] + ')';
+        const data = [];
+        const tValues = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.576, 0.6, 0.64, 0.7, 0.8, 0.864, 0.9, 1.0, 1.152, 1.2, 1.5, 2.0, 2.5, 3.0];
+        tValues.forEach(t => {
+            const gs = getGsForChart(tcMode, t);
+            data.push({ x: t, y: gs });
+        });
+        data.sort((a, b) => a.x - b.x);
+        datasets = [{
+            label: label,
+            data: data,
+            borderColor: '#005a9c',
+            backgroundColor: '#005a9c',
+            borderWidth: 1.5,
+            showLine: true,
+            pointRadius: 1,
+            fill: false
+        }];
+    }
+    
+    // ▼▼▼ 修正: 変数名を repChartGs に変更 ▼▼▼
+    repChartGs = new Chart(canvas.getContext('2d'), {
+        type: 'scatter',
+        data: {
+            datasets: datasets
         },
         options: {
             animation: false,
@@ -7768,7 +7943,7 @@ function renderGsSpectrumReport() {
                 y: { title: { display: true, text: 'Gs', font: { size: 8 } }, min: 0, max: 3 }
             },
             plugins: {
-                legend: { display: false }
+                legend: { display: datasets.length > 1 }
             }
         }
     });
@@ -8476,11 +8651,13 @@ function renderLogSplit(dir, steps) {
     h3 += `</tr></thead><tbody>`;
 
     filteredSteps.forEach(s => {
+        const GsD = (typeof s.GsD === 'number') ? s.GsD : s.Gs;
+        const GsS = (typeof s.GsS === 'number') ? s.GsS : s.Gs;
         h3 += `<tr><td style="background:#eef;">${fmtR(s.R)}</td>`;
         h3 += `<td>${s.p.toFixed(2)}</td><td>${s.q.toFixed(2)}</td>`;
-        h3 += `<td>${s.S0d.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td>`;
+        h3 += `<td>${s.S0d.toFixed(2)}</td><td>${GsD.toFixed(2)}</td><td>${s.SAd.toFixed(2)}</td><td>${s.SDd.toFixed(4)}</td>`;
         h3 += `<td style="font-weight:bold; color:${s.QA>=s.Qnd?'blue':'red'}">${s.Qnd.toFixed(1)}</td><td>${fmtR(s.reqRd)}</td>`;
-        h3 += `<td>${s.S0s.toFixed(2)}</td><td>${s.Gs.toFixed(2)}</td><td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td>`;
+        h3 += `<td>${s.S0s.toFixed(2)}</td><td>${GsS.toFixed(2)}</td><td>${s.SAs.toFixed(2)}</td><td>${s.SDs.toFixed(4)}</td>`;
         h3 += `<td style="font-weight:bold; color:${s.QA>=s.Qns?'blue':'red'}">${s.Qns.toFixed(1)}</td><td>${fmtR(s.reqRs)}</td></tr>`;
     });
     h3 += '</tbody></table>';
@@ -9151,7 +9328,10 @@ function collectAllInputData() {
         saDataS: saDataS,
         // 地盤種別
         tcMode: document.getElementById('inp_Tc_mode').value,
+        gsMode: getGsMode(),
         gsData: gsData,
+        gsDataD: gsDataD,
+        gsDataS: gsDataS,
         // p,q係数
         pqMode: document.getElementById('inp_pq').value,
         // 地震層せん断力比較
@@ -9225,11 +9405,23 @@ function restoreAllInputData(data) {
         // 地盤種別
         if(data.tcMode !== undefined) {
             document.getElementById('inp_Tc_mode').value = data.tcMode;
-            toggleTcInput();
+        }
+        if (data.gsMode !== undefined) {
+            const el = document.getElementById('inp_Gs_mode');
+            if (el) el.value = data.gsMode;
         }
         if(data.gsData !== undefined) gsData = data.gsData;
-        renderGsDataList();
-        updateGsChart();
+        if(data.gsDataD !== undefined) gsDataD = data.gsDataD;
+        if(data.gsDataS !== undefined) gsDataS = data.gsDataS;
+
+        // 旧データ互換（gsMode未保存 + 個別データあり）
+        if (data.gsMode === undefined) {
+            const hasSep = (Array.isArray(gsDataD) && gsDataD.length > 0) || (Array.isArray(gsDataS) && gsDataS.length > 0);
+            const el = document.getElementById('inp_Gs_mode');
+            if (el && hasSep) el.value = 'separate';
+        }
+
+        toggleTcInput();
         
         // p,q係数
         if(data.pqMode !== undefined) {
@@ -9383,6 +9575,7 @@ function saveToCSV() {
     csvContent += "Z," + data.Z + "\n";
     csvContent += "saMode," + data.saMode + "\n";
     csvContent += "tcMode," + data.tcMode + "\n";
+    csvContent += "gsMode," + (data.gsMode || 'common') + "\n";
     csvContent += "pqMode," + data.pqMode + "\n";
     csvContent += "calcShearForce," + data.calcShearForce + "\n";
     csvContent += "C0_D," + data.C0_D + "\n";
@@ -9434,10 +9627,25 @@ function saveToCSV() {
     }
     
     // Gsデータ
-    csvContent += "#GsData,count," + data.gsData.length + "\n";
-    if(data.gsData.length > 0) {
-        csvContent += "GsData_T," + data.gsData.map(d => d.t).join(",") + "\n";
-        csvContent += "GsData_Gs," + data.gsData.map(d => d.g).join(",") + "\n";
+    if ((data.gsMode || 'common') === 'separate') {
+        // 旧形式互換用に空で出力
+        csvContent += "#GsData,count,0\n";
+        csvContent += "#GsDataD,count," + (data.gsDataD || []).length + "\n";
+        if((data.gsDataD || []).length > 0) {
+            csvContent += "GsDataD_T," + data.gsDataD.map(d => d.t).join(",") + "\n";
+            csvContent += "GsDataD_Gs," + data.gsDataD.map(d => d.g).join(",") + "\n";
+        }
+        csvContent += "#GsDataS,count," + (data.gsDataS || []).length + "\n";
+        if((data.gsDataS || []).length > 0) {
+            csvContent += "GsDataS_T," + data.gsDataS.map(d => d.t).join(",") + "\n";
+            csvContent += "GsDataS_Gs," + data.gsDataS.map(d => d.g).join(",") + "\n";
+        }
+    } else {
+        csvContent += "#GsData,count," + data.gsData.length + "\n";
+        if(data.gsData.length > 0) {
+            csvContent += "GsData_T," + data.gsData.map(d => d.t).join(",") + "\n";
+            csvContent += "GsData_Gs," + data.gsData.map(d => d.g).join(",") + "\n";
+        }
     }
     
     // 耐力壁データ (5階対応)
@@ -9576,7 +9784,7 @@ function loadFromCSV(event) {
 // CSVをパースしてデータオブジェクトに変換
 function parseCSVToData(content) {
     const lines = content.split(/\r?\n/);
-    const data = { saDataD: [], saDataS: [], gsData: [], addedWalls: {}, addedBraces: {}, addedNukis: {}, addedKokabes: {}, addedRockings: {}, freeInputData: {} };
+    const data = { saDataD: [], saDataS: [], gsMode: 'common', gsData: [], gsDataD: [], gsDataS: [], addedWalls: {}, addedBraces: {}, addedNukis: {}, addedKokabes: {}, addedRockings: {}, freeInputData: {} };
     ALL_FLOOR_KEYS.forEach(k => {
         data.addedWalls[k] = [];
         data.addedBraces[k] = [];
@@ -9589,6 +9797,8 @@ function parseCSVToData(content) {
     let tempSaD_T = [], tempSaD_Sa = [];
     let tempSaS_T = [], tempSaS_Sa = [];
     let tempGs_T = [], tempGs_Gs = [];
+    let tempGsD_T = [], tempGsD_Gs = [];
+    let tempGsS_T = [], tempGsS_Gs = [];
     let freeItemTemp = {};
     
     for(let line of lines) {
@@ -9606,6 +9816,7 @@ function parseCSVToData(content) {
         else if(key === 'Z') data.Z = value;
         else if(key === 'saMode') data.saMode = value;
         else if(key === 'tcMode') data.tcMode = value;
+        else if(key === 'gsMode') data.gsMode = value;
         else if(key === 'pqMode') data.pqMode = value;
         else if(key === 'calcShearForce') data.calcShearForce = (value === 'true');
         else if(key === 'C0_D') data.C0_D = value;
@@ -9650,6 +9861,12 @@ function parseCSVToData(content) {
         // Gsデータ
         else if(key === 'GsData_T') tempGs_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
         else if(key === 'GsData_Gs') tempGs_Gs = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+
+        // Gsデータ（個別）
+        else if(key === 'GsDataD_T') tempGsD_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'GsDataD_Gs') tempGsD_Gs = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'GsDataS_T') tempGsS_T = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
+        else if(key === 'GsDataS_Gs') tempGsS_Gs = parts.slice(1).map(v => parseFloat(v)).filter(v => !isNaN(v));
         
         // 耐力壁
         else if(key.startsWith('Wall_')) {
@@ -9788,6 +10005,19 @@ function parseCSVToData(content) {
     // Gsデータを組み立て
     for(let i = 0; i < tempGs_T.length && i < tempGs_Gs.length; i++) {
         data.gsData.push({ t: tempGs_T[i], g: tempGs_Gs[i] });
+    }
+
+    for(let i = 0; i < tempGsD_T.length && i < tempGsD_Gs.length; i++) {
+        data.gsDataD.push({ t: tempGsD_T[i], g: tempGsD_Gs[i] });
+    }
+    for(let i = 0; i < tempGsS_T.length && i < tempGsS_Gs.length; i++) {
+        data.gsDataS.push({ t: tempGsS_T[i], g: tempGsS_Gs[i] });
+    }
+
+    // 旧CSV互換: gsMode未記載だが個別データがある場合
+    if (!data.gsMode) data.gsMode = 'common';
+    if ((data.gsDataD.length > 0 || data.gsDataS.length > 0) && data.gsMode === 'common') {
+        data.gsMode = 'separate';
     }
     
     // 自由入力データを組み立て
