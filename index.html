@@ -48,6 +48,40 @@
         
         /* 計算書：判定結果サマリー表の分割表示用スタイル */
         .split-summary-table { width: 100%; margin-bottom: 20px; page-break-inside: avoid; }
+
+        /* 計算書：判定結果ページ（表＋変形モード図＋Q-変形角グラフ）を1ページ内に収める */
+        .rep-result-layout {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .rep-result-box {
+            border: 1px solid #ccc;
+            padding: 2.5mm;
+            box-sizing: border-box;
+            background: #fff;
+            overflow: hidden;
+        }
+        .rep-result-box + .rep-result-box { margin-top: 4mm; }
+        .rep-result-box-title {
+            font-size: 9pt;
+            font-weight: bold;
+            margin: 0 0 2mm 0;
+            font-family: sans-serif;
+        }
+        .rep-result-mode-box { height: 78mm; }
+        .rep-result-chart-box { height: 78mm; }
+        .rep-result-mode-box canvas { width: 100%; height: 100%; display: block; }
+        .rep-result-chart-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+        /* 計算書：判定表の詰め（はみ出し防止） */
+        .report-page .split-summary-table { margin-bottom: 4mm; table-layout: fixed; }
+        .report-page .split-summary-table th,
+        .report-page .split-summary-table td { word-break: break-word; }
+        .report-page .data-table { font-size: 7.5pt; }
+        .report-page .data-table th { padding: 2px 2px; }
+        .report-page .data-table td { padding: 1px 2px; }
+        .report-page .rating-box { font-size: 9pt; padding: 3px; }
         
         /* 計算書：層せん断力比較表のスタイル調整 */
         .shear-result-table th, .shear-result-table td { padding: 4px 2px !important; font-size: 8pt !important; }
@@ -2027,24 +2061,23 @@
             </div>
             <div class="report-section">
                 <h3>3.1 X方向の判定結果</h3>
-            <div id="rep-res-x-table" style="margin-bottom:10px;"></div>
+                <div class="rep-result-layout">
+                    <div id="rep-res-x-table"></div>
+                    <div class="rep-result-box rep-result-mode-box">
+                        <div class="rep-result-box-title">変形モード図</div>
+                        <div style="height: calc(100% - 8mm);">
+                            <canvas id="canvas-mode-x-print"></canvas>
+                        </div>
+                    </div>
+                    <div class="rep-result-box rep-result-chart-box">
+                        <div class="rep-result-box-title">変形角-せん断耐力（Q-変形角）</div>
+                        <div style="height: calc(100% - 8mm);">
+                            <img id="rep-img-x" class="report-chart-img">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="page-number">- 5 -</div>
-        </div>
-        
-        <!-- 第3章: X方向グラフ（4階以上で別ページ） -->
-        <div class="report-page" id="rep-page-result-x-graph" data-chapter="3" data-section="1" data-title="判定結果グラフ：X方向" style="display:none;">
-            <div class="report-header">
-                <h1>第3章 判定結果サマリー</h1>
-            </div>
-            <div class="report-section">
-                <h3>3.1 X方向の判定結果（グラフ）</h3>
-            <div id="rep-res-x-graph" style="margin-bottom:10px;"></div>
-            <div style="height:280px; border:1px solid #ccc;">
-                <img id="rep-img-x" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
-            </div>
-            </div>
-            <div class="page-number">- 6 -</div>
         </div>
         
         <!-- 第3章: 判定結果 Y方向 -->
@@ -2054,24 +2087,23 @@
             </div>
             <div class="report-section">
                 <h3>3.2 Y方向の判定結果</h3>
-            <div id="rep-res-y-table" style="margin-bottom:10px;"></div>
+                <div class="rep-result-layout">
+                    <div id="rep-res-y-table"></div>
+                    <div class="rep-result-box rep-result-mode-box">
+                        <div class="rep-result-box-title">変形モード図</div>
+                        <div style="height: calc(100% - 8mm);">
+                            <canvas id="canvas-mode-y-print"></canvas>
+                        </div>
+                    </div>
+                    <div class="rep-result-box rep-result-chart-box">
+                        <div class="rep-result-box-title">変形角-せん断耐力（Q-変形角）</div>
+                        <div style="height: calc(100% - 8mm);">
+                            <img id="rep-img-y" class="report-chart-img">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="page-number">- 7 -</div>
-        </div>
-        
-        <!-- 第3章: Y方向グラフ（4階以上で別ページ） -->
-        <div class="report-page" id="rep-page-result-y-graph" data-chapter="3" data-section="2" data-title="判定結果グラフ：Y方向" style="display:none;">
-            <div class="report-header">
-                <h1>第3章 判定結果サマリー</h1>
-            </div>
-            <div class="report-section">
-                <h3>3.2 Y方向の判定結果（グラフ）</h3>
-            <div id="rep-res-y-graph" style="margin-bottom:10px;"></div>
-            <div style="height:280px; border:1px solid #ccc;">
-                <img id="rep-img-y" class="report-chart-img" style="width:100%; height:100%; object-fit:contain;">
-            </div>
-            </div>
-            <div class="page-number">- 8 -</div>
         </div>
         
         <!-- 第4章: 計算ロジック (1/2) -->
@@ -2363,13 +2395,21 @@ const G_ACC = 9.80665;
 const DEF_GS = [ {t:0.1,g:2.5}, {t:0.6,g:2.5}, {t:0.7,g:2.14}, {t:1.0,g:1.5} ];
 
 // ▼▼▼ 追加: Chart.jsグローバル設定で高解像度化 ▼▼▼
-Chart.defaults.devicePixelRatio = 3; // 計算書グラフ解像度を3倍に
+// PDF生成の速度を優先して解像度を抑える（過度な高解像度はhtml2canvasの時間を増やす）
+Chart.defaults.devicePixelRatio = 2; // 計算書グラフ解像度を2倍に
 // ▲▲▲ 追加ここまで ▲▲▲
 
 // ▼▼▼ 追加: レポート用チャートのインスタンス保持用変数 ▼▼▼
 let repChartGs = null;
 let repChartSa0 = null;
 let repChartP = null;
+// ▲▲▲ 追加ここまで ▲▲▲
+
+// ▼▼▼ 追加: 変形モード図（交点）の保持（PDF再描画用） ▼▼▼
+let lastModePts = {
+    x: { ptD: null, ptS: null },
+    y: { ptD: null, ptS: null }
+};
 // ▲▲▲ 追加ここまで ▲▲▲
 
 // Gsスペクトルデータ
@@ -2488,8 +2528,20 @@ const limitLinePlugin = {
             ctx.stroke();
 
             if (line.label) {
+                const label = String(line.label);
                 ctx.fillStyle = line.color || '#666';
-                ctx.fillText(String(line.label), x + 4, area.top + 4);
+
+                // ラベルがグラフ枠外に出ないようにx位置をクランプ
+                const pad = 2;
+                const textW = ctx.measureText(label).width;
+                let xText = x + 4;
+                if (xText + textW > area.right - pad) xText = area.right - pad - textW;
+                if (xText < area.left + pad) xText = area.left + pad;
+
+                // 横軸（数値軸）の真下に配置
+                const yBase = (xScale && Number.isFinite(xScale.bottom)) ? xScale.bottom : area.bottom;
+                const yText = Math.min(yBase + 2, chart.height - 12);
+                ctx.fillText(label, xText, yText);
             }
         });
 
@@ -6786,13 +6838,16 @@ function drawStickModel(canvasId, b, ptD, ptS) {
     if(!canvas) return;
     
     // 1. デバイスピクセル比を取得（計算書用に高解像度化）
-    const dpr = canvasId.includes('print') ? 3 : (window.devicePixelRatio || 1);
+    // PDF生成速度を優先してprint用dprを抑える
+    const dpr = canvasId.includes('print') ? 2 : (window.devicePixelRatio || 1);
 
     // 2. 表示サイズ（CSSサイズ）の決定
     let rect = canvas.parentElement.getBoundingClientRect();
     let cssW = rect.width;
     if (!cssW || cssW === 0) cssW = 400; 
-    const cssH = 350; // 固定高さ
+    // 高さは親要素に追従（PDFレイアウトでのはみ出し防止）
+    let cssH = rect.height;
+    if (!cssH || cssH === 0) cssH = 350;
 
     // 3. Canvasの内部解像度を設定
     canvas.width = cssW * dpr;
@@ -6976,6 +7031,11 @@ function drawStickModel(canvasId, b, ptD, ptS) {
 
 // 1. 表示更新用関数（N階対応・サマリー表分割版）
 function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
+    if (typeof lastModePts !== 'undefined' && lastModePts && lastModePts[dir]) {
+        lastModePts[dir].ptD = ptD;
+        lastModePts[dir].ptS = ptS;
+    }
+
     let ratingHtml = "";
     let maxQaStep = resObj.steps.reduce((prev, current) => (prev.QA > current.QA) ? prev : current, resObj.steps[0]);
     let Qsi = maxQaStep.QA;
@@ -7068,38 +7128,22 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         ${createCanvasOnlyBlock("変形モード図", idScreen)}
     </div>`;
 
-    const modeHtmlPrint = `<div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:15px;">
-        ${createCanvasOnlyBlock("変形モード図", idPrint)}
-    </div>`;
+    // PDF用の変形モード図キャンバスはreport-view側に常設する（ここではHTML生成しない）
     
     // HTML反映
     // 画面表示用：サマリーテーブル＋評点＋変形モード図を一括表示
     document.getElementById(`summary-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml + modeHtmlScreen;
-    
-    // 計算書用：4階以上ならグラフを別ページに分離
-    if (N >= 4) {
-        // サマリーテーブルのみ
-        document.getElementById(`rep-res-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml;
-        // グラフは別ページへ
-        const graphPage = document.getElementById(`rep-page-result-${dir}-graph`);
-        const graphContainer = document.getElementById(`rep-res-${dir}-graph`);
-        if (graphPage && graphContainer) {
-            graphPage.style.display = 'block';
-            graphContainer.innerHTML = modeHtmlPrint;
-        }
-    } else {
-        // 3階以下は従来通り同一ページ
-        document.getElementById(`rep-res-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml + modeHtmlPrint;
-        // グラフ別ページは非表示
-        const graphPage = document.getElementById(`rep-page-result-${dir}-graph`);
-        if (graphPage) graphPage.style.display = 'none';
-    }
+
+    // 計算書用：常に「判定表＋評点」のみを左側に出力し、
+    // 変形モード図・Q-変形角グラフは同一ページ右側に配置する
+    document.getElementById(`rep-res-${dir}-table`).innerHTML = summaryTableHtml + ratingHtml;
     
     // グラフ描画
     drawChart(`chart-${dir}`, resObj.steps, ptD, ptS);
     
     setTimeout(() => {
         drawStickModel(idScreen, calcRes.b, ptD, ptS);
+        // report-viewが非表示でも最低限描画し、PDF生成時に再描画される
         drawStickModel(idPrint, calcRes.b, ptD, ptS);
     }, 100); 
 }
@@ -7288,6 +7332,11 @@ function drawChart(id, steps, ptD, ptS) {
                     type: 'linear', 
                     position: 'bottom', 
                     title: { display: true, text: '変形角 Δ/He (rad)' }, 
+                    ticks: { 
+                        padding: 0,
+                        maxRotation: 0,
+                        minRotation: 0
+                    },
                     max: xMax // 保有耐力の範囲で表示をクリップ
                 }, 
                 y: { 
@@ -7466,8 +7515,8 @@ async function executePDFGeneration(reportView) {
             });
         }
         
-        // グラフ描画等の完了を確実に待つ（少し長めに待機）
-        await new Promise(r => setTimeout(r, 800));
+        // グラフ描画等の完了を待つ（待ち過ぎは出力時間を悪化させる）
+        await new Promise(r => setTimeout(r, 250));
         
         // レポートビューの設定（画面外で描画）
         reportView.style.position = 'fixed';
@@ -7476,6 +7525,16 @@ async function executePDFGeneration(reportView) {
         reportView.style.zIndex = '-9999'; // 最背面へ
         reportView.style.width = '210mm';
         // opacity 0 だとhtml2canvasが空白になる場合があるためz-indexで隠す
+
+        // 変形モード図をPDF用レイアウト幅で再描画（はみ出し/空白防止）
+        try {
+            if (calcRes && calcRes.b) {
+                const xPts = (typeof lastModePts !== 'undefined') ? lastModePts.x : null;
+                const yPts = (typeof lastModePts !== 'undefined') ? lastModePts.y : null;
+                if (xPts) drawStickModel('canvas-mode-x-print', calcRes.b, xPts.ptD, xPts.ptS);
+                if (!calcRes.skipY && yPts) drawStickModel('canvas-mode-y-print', calcRes.b, yPts.ptD, yPts.ptS);
+            }
+        } catch (e) {}
         
         // すべてのページ要素を取得
         const pages = reportView.querySelectorAll('.report-page');
@@ -7487,13 +7546,26 @@ async function executePDFGeneration(reportView) {
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
-            format: 'a4'
+            format: 'a4',
+            compress: true
         });
         
         const pageWidth = 210;
         const pageHeight = 297;
         let firstPage = true;
         
+        const getRenderScaleForPage = (pageEl) => {
+            const id = String(pageEl?.id || '');
+            // 重いページ（ログ/交点詳細）は少し落として高速化
+            if (id.includes('log-') || id.includes('detail-')) return 1.5;
+            return 2.0;
+        };
+        const getJpegQualityForPage = (pageEl) => {
+            const id = String(pageEl?.id || '');
+            if (id.includes('log-') || id.includes('detail-')) return 0.80;
+            return 0.85;
+        };
+
         // 各ページを処理
         for (let i = 0; i < pages.length; i++) {
             const page = pages[i];
@@ -7509,12 +7581,14 @@ async function executePDFGeneration(reportView) {
             page.style.width = '210mm';
             page.style.height = '297mm';
             
-            // 少し待機してレンダリング完了を確保
-            await new Promise(r => setTimeout(r, 150));
+            // 少し待機してレンダリング完了を確保（最小限）
+            await new Promise(r => setTimeout(r, 40));
             
-            // html2canvasの設定（高画質化の肠）
+            const renderScale = getRenderScaleForPage(page);
+
+            // html2canvasの設定（速度優先）
             const canvas = await html2canvas(page, {
-                scale: 4, // ★解像度を4倍に設定（文字がくっきり）
+                scale: renderScale,
                 useCORS: true,
                 logging: false,
                 allowTaint: true,
@@ -7523,8 +7597,8 @@ async function executePDFGeneration(reportView) {
                 windowHeight: page.offsetHeight
             });
             
-            // 画質設定（JPEG, 品質0.98）
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            // 画質設定（JPEG, 速度優先）
+            const imgData = canvas.toDataURL('image/jpeg', getJpegQualityForPage(page));
             
             if (!firstPage) pdf.addPage();
             firstPage = false;
