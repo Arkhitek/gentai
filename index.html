@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>木造限界耐力計算プログラム</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -550,11 +551,15 @@
         <div class="input-grid">
             <div class="input-group">
                 <label>損傷限界 1/N</label>
-                <input type="number" id="inp_limit_d" value="120" step="1" oninput="updateAllInputGraphs()">
+                <input type="number" id="inp_limit_d" value="120" step="1" oninput="updateAllInputGraphs(); refreshResultsIfCalculated()">
             </div>
             <div class="input-group">
                 <label>安全限界 1/N</label>
-                <input type="number" id="inp_limit_s" value="20" step="1" oninput="updateAllInputGraphs()">
+                <input type="number" id="inp_limit_s" value="20" step="1" oninput="updateAllInputGraphs(); refreshResultsIfCalculated()">
+                <label style="margin-top:6px; font-weight:normal; color:#333; font-size:0.9em; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="chk_consider_drop80_s" onchange="updateAllInputGraphs(); refreshResultsIfCalculated()" style="width:auto;"> 
+                    80%耐力低下時の変形角を考慮する
+                </label>
             </div>
         </div>
     </div>
@@ -1529,6 +1534,9 @@
         </div>
         
         <div id="result-summary" style="display:none;">
+            <div style="display:flex; justify-content:flex-end; margin:0 0 10px;">
+                <button class="btn-sm" style="background:#28a745; color:white;" onclick="exportResultChartsToExcel()">グラフをExcel出力</button>
+            </div>
             <div class="result-box">
                 <div class="result-panel">
                     <h3>X方向: Q - 変形角関係</h3>
@@ -2599,6 +2607,68 @@ function buildLimitLines() {
     ];
 }
 
+function getConsiderDrop80Safety() {
+    return Boolean(document.getElementById('chk_consider_drop80_s')?.checked);
+}
+
+function calcDrop80RadFromSteps(steps) {
+    if (!Array.isArray(steps) || steps.length === 0) return NaN;
+
+    let maxQaVal = -Infinity;
+    let maxQaIdx = 0;
+    steps.forEach((s, i) => {
+        const qa = Number(s?.QA);
+        if (Number.isFinite(qa) && qa > maxQaVal) {
+            maxQaVal = qa;
+            maxQaIdx = i;
+        }
+    });
+    if (!(Number.isFinite(maxQaVal) && maxQaVal > 0)) return NaN;
+
+    let dropLimitIdx = steps.length - 1;
+    for (let i = maxQaIdx + 1; i < steps.length; i++) {
+        const qa = Number(steps[i]?.QA);
+        if (Number.isFinite(qa) && qa < maxQaVal * 0.8) {
+            dropLimitIdx = i;
+            break;
+        }
+    }
+    const r = Number(steps[dropLimitIdx]?.R);
+    return Number.isFinite(r) ? r : NaN;
+}
+
+function calcSafetyLimitRad(steps, limitS, considerDrop80) {
+    const lim = Number(limitS);
+    const userLimitRad = (Number.isFinite(lim) && lim > 0) ? 1 / lim : NaN;
+    if (!considerDrop80) return userLimitRad;
+
+    const dropLimitRad = calcDrop80RadFromSteps(steps);
+    if (Number.isFinite(userLimitRad) && Number.isFinite(dropLimitRad)) return Math.min(userLimitRad, dropLimitRad);
+    if (Number.isFinite(userLimitRad)) return userLimitRad;
+    if (Number.isFinite(dropLimitRad)) return dropLimitRad;
+    return NaN;
+}
+
+function formatInvFromRad(rad) {
+    const r = Number(rad);
+    if (!(Number.isFinite(r) && r > 0)) return '-';
+    return String(Math.round(1 / r));
+}
+
+function buildResultLimitLinesFromSteps(steps) {
+    const { limitD, limitS, radD } = getLimitRads();
+    const considerDrop80 = getConsiderDrop80Safety();
+    const radSUsed = calcSafetyLimitRad(steps, limitS, considerDrop80);
+    const invSLabel = (formatInvFromRad(radSUsed) === '-')
+        ? String(Math.round(Number.isFinite(limitS) && limitS > 0 ? limitS : 20))
+        : formatInvFromRad(radSUsed);
+    const invDLabel = String(Math.round(limitD));
+    return [
+        { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${invDLabel})` },
+        { x: radSUsed, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${invSLabel})` }
+    ];
+}
+
 function applyLimitLinesToChart(ch) {
     if (!ch) return;
     ch.options.plugins = ch.options.plugins || {};
@@ -2660,12 +2730,37 @@ function updateAllInputGraphs() {
         if (document.getElementById(`chart-in-${id}`)) updateInputGraph(id);
     });
     // 計算結果グラフ（存在する場合）も限界ラインだけ更新
+    const map = {
+        'chart-x': calcRes?.resX?.steps,
+        'chart-y': calcRes?.resY?.steps
+    };
     ['chart-x', 'chart-y'].forEach(cid => {
         const ch = chartObjs[cid];
         if (!ch) return;
-        applyLimitLinesToChart(ch);
+        const steps = map[cid];
+        if (Array.isArray(steps) && steps.length > 0) {
+            ch.options.plugins = ch.options.plugins || {};
+            ch.options.plugins.limitLinePlugin = ch.options.plugins.limitLinePlugin || { lines: [] };
+            ch.options.plugins.limitLinePlugin.lines = buildResultLimitLinesFromSteps(steps);
+        } else {
+            applyLimitLinesToChart(ch);
+        }
         ch.update();
     });
+}
+
+function refreshResultsIfCalculated() {
+    try {
+        if (!calcRes || !calcRes.b || !calcRes.resX) return;
+        const limitD = parseFloat(document.getElementById('inp_limit_d')?.value);
+        const limitS = parseFloat(document.getElementById('inp_limit_s')?.value);
+        if (!(Number.isFinite(limitD) && Number.isFinite(limitS))) return;
+
+        updateView('x', calcRes.resX, calcRes.ptXd, calcRes.ptXs, limitD, limitS);
+        if (!calcRes.skipY && calcRes.resY) {
+            updateView('y', calcRes.resY, calcRes.ptYd, calcRes.ptYs, limitD, limitS);
+        }
+    } catch (e) {}
 }
 
 const ROCKING_D_INITIAL_M = 0.0005; // 0.5mm
@@ -7164,20 +7259,46 @@ function drawStickModel(canvasId, b, ptD, ptS) {
     ctx.fillText("● 安全限界", centerX + 60, legendY);
 }
 
-// 1. 表示更新用関数（N階対応・サマリー表分割版）
+// 1. 表示更新用関数（N階対応・サマリー表分割版・PDF準拠評点計算修正）
 function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     if (typeof lastModePts !== 'undefined' && lastModePts && lastModePts[dir]) {
         lastModePts[dir].ptD = ptD;
         lastModePts[dir].ptS = ptS;
     }
 
-    let ratingHtml = "";
-    let maxQaStep = resObj.steps.reduce((prev, current) => (prev.QA > current.QA) ? prev : current, resObj.steps[0]);
-    let Qsi = maxQaStep.QA;
-    let Qsni = maxQaStep.Qns;
+    // --- 【修正部分開始】 評点の計算ロジックをPDF(6.4節)準拠に変更 ---
+
+    const considerDrop80 = getConsiderDrop80Safety();
+    const userLimitRad = (Number.isFinite(limitS) && limitS > 0) ? 1 / limitS : 0;
+    const safetyLimitRad = calcSafetyLimitRad(resObj.steps, limitS, considerDrop80);
+    const safetyLimitInv = (Number.isFinite(safetyLimitRad) && safetyLimitRad > 0) ? (1 / safetyLimitRad) : limitS;
+    const safetyLimitInvLabel = (formatInvFromRad(safetyLimitRad) === '-')
+        ? String(Math.round(Number.isFinite(limitS) && limitS > 0 ? limitS : 20))
+        : formatInvFromRad(safetyLimitRad);
+
+    // 3. その変形角におけるステップを取得（判定対象点）
+    // 配列から safetyLimitRad に到達した時点、または計算終了点を取得
+    let evalStep = resObj.steps.find(s => s.R >= safetyLimitRad);
+    if (!evalStep) {
+        evalStep = resObj.steps[resObj.steps.length - 1];
+    }
+
+    // 4. 評点計算 (PDF 6.4節 (6-9), (6-10)式準拠)
+    // 評点 = 安全限界変位時の保有耐力(As) / 安全限界変位時の必要耐力(Saf)
+    // ※ プログラム上はせん断力Qで計算しても、質量Mが共通のため比率は同じになります (Q=M*A)
+    let Qsi = evalStep.QA;   // 安全限界変位時の保有耐力
+    let Qsni = evalStep.Qns; // 安全限界変位時の必要耐力 (その周期Teにおける要求値)
+    
+    // 評点算出
     let ratio = (Qsni > 0) ? Qsi / Qsni : 0;
+    
+    // --- 【修正部分終了】 ---
+
     let rate = getRating(ratio);
-    ratingHtml = `<div class="rating-box">評点: ${ratio.toFixed(2)} <span class="badge ${rate.cls}">${rate.text}</span></div>`;
+    
+    // 評点詳細情報をツールチップ的に表示するためのタイトル属性追加
+    let ratingTitle = `安全限界変位(1/${Math.round(1/evalStep.R)})における\n保有耐力(${Qsi.toFixed(1)}kN) / 必要耐力(${Qsni.toFixed(1)}kN)`;
+    let ratingHtml = `<div class="rating-box" title="${ratingTitle}">評点: ${ratio.toFixed(2)} <span class="badge ${rate.cls}">${rate.text}</span></div>`;
 
     const N = calcRes.b.stories;
     
@@ -7231,7 +7352,7 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         
         return `<table class="data-table split-summary-table"><thead>${head}</thead><tbody>
             ${rowFmt(ptD, `損傷限界(1/${limitD})`, limitD)}
-            ${rowFmt(ptS, `安全限界(1/${limitS})`, limitS)}
+            ${rowFmt(ptS, `安全限界(1/${safetyLimitInvLabel})`, safetyLimitInv)}
         </tbody></table>`;
     };
 
@@ -7413,8 +7534,8 @@ function drawChart(id, steps, ptD, ptS) {
     const points = [];
     if(ptD) points.push({ x: (ptD.H > 0 ? ptD.D / ptD.H : 0), y: ptD.QA, label: '損傷限界', bg: '#28a745', style: 'rectRot' });
     if(ptS) points.push({ x: (ptS.H > 0 ? ptS.D / ptS.H : 0), y: ptS.QA, label: '安全限界', bg: '#dc3545', style: 'circle' });
-    
-    const { limitD, limitS, radD, radS } = getLimitRads();
+
+    const limitLines = buildResultLimitLinesFromSteps(steps);
 
     // 追跡漏れ等で同一canvasにChartが残っている場合に備えて先に破棄
     try {
@@ -7484,10 +7605,7 @@ function drawChart(id, steps, ptD, ptS) {
             }, 
             plugins: { 
                 limitLinePlugin: {
-                    lines: [
-                        { x: radD, color: '#28a745', dash: [4, 4], width: 2, label: `損傷限界(1/${Math.round(limitD)})` },
-                        { x: radS, color: '#dc3545', dash: [2, 2], width: 2, label: `安全限界(1/${Math.round(limitS)})` }
-                    ]
+                    lines: limitLines
                 },
                 tooltip: { 
                     callbacks: { 
@@ -7497,6 +7615,95 @@ function drawChart(id, steps, ptD, ptS) {
             } 
         }
     });
+}
+
+function exportResultChartsToExcel() {
+    try {
+        if (!window.XLSX) {
+            alert('Excel出力ライブラリの読み込みに失敗しました（xlsx）。インターネット接続を確認してください。');
+            return;
+        }
+
+        const chartX = chartObjs['chart-x'];
+        const chartY = chartObjs['chart-y'];
+        if (!chartX && !chartY) {
+            alert('グラフが見つかりません。先に「計算実行」を行ってください。');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        const rawProjectName = (document.getElementById('inp_cover_project_name')?.value || '').trim();
+        const projectName = rawProjectName || '（物件名未入力）';
+        const now = new Date();
+        const iso = now.toISOString();
+        const dateStr = iso.slice(0, 10).replace(/-/g, '');
+
+        const safeName = (name) => String(name || '').replace(/[\\/:*?"<>|]/g, '_');
+
+        const makeSheetFromChart = (chart, axisLabelX, axisLabelY) => {
+            const datasets = Array.isArray(chart?.data?.datasets) ? chart.data.datasets : [];
+            const normalized = datasets.map(ds => {
+                const pts = Array.isArray(ds?.data) ? ds.data : [];
+                const data = pts.map(p => {
+                    if (p && typeof p === 'object' && 'x' in p && 'y' in p) return { x: p.x, y: p.y };
+                    return { x: '', y: '' };
+                });
+                return { label: String(ds?.label || ''), data };
+            });
+
+            const maxLen = normalized.reduce((m, s) => Math.max(m, s.data.length), 0);
+            const header = [];
+            normalized.forEach(s => {
+                const base = s.label || '系列';
+                header.push(`${base} ${axisLabelX}`);
+                header.push(`${base} ${axisLabelY}`);
+            });
+
+            const rows = [header];
+            for (let i = 0; i < maxLen; i++) {
+                const row = [];
+                normalized.forEach(s => {
+                    const p = s.data[i];
+                    row.push(p ? p.x : '');
+                    row.push(p ? p.y : '');
+                });
+                rows.push(row);
+            }
+
+            const sheet = XLSX.utils.aoa_to_sheet(rows);
+            sheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+            return sheet;
+        };
+
+        const overview = [
+            ['出力日時', iso],
+            ['物件名', projectName],
+            ['内容', '計算結果グラフ（Q-変形角）の描画データを出力'],
+            ['備考', 'Excel側でグラフを作成してください（本出力はデータ出力です）']
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(overview), '概要');
+
+        if (chartX) {
+            const sheetX = makeSheetFromChart(chartX, '(rad)', '(kN)');
+            XLSX.utils.book_append_sheet(wb, sheetX, 'X_Q-変形角');
+        }
+
+        const skipY = Boolean(calcRes?.skipY) || Boolean(document.getElementById('chk-skip-y')?.checked);
+        if (!skipY && chartY) {
+            const sheetY = makeSheetFromChart(chartY, '(rad)', '(kN)');
+            XLSX.utils.book_append_sheet(wb, sheetY, 'Y_Q-変形角');
+        }
+
+        const filename = rawProjectName
+            ? `${dateStr}${safeName(rawProjectName)}計算結果グラフ.xlsx`
+            : `${dateStr}計算結果グラフ.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+    } catch (e) {
+        console.error(e);
+        alert('Excel出力中にエラーが発生しました: ' + (e?.message || e));
+    }
 }
 
 // PDF生成関数（プレビュー機能を置き換え）
@@ -9355,6 +9562,7 @@ function collectAllInputData() {
         // 判定基準
         limit_d: document.getElementById('inp_limit_d').value,
         limit_s: document.getElementById('inp_limit_s').value,
+        consider_drop80_s: document.getElementById('chk_consider_drop80_s')?.checked || false,
         // Y方向スキップ
         skipY: document.getElementById('chk-skip-y').checked,
         // 耐力壁データ
@@ -9455,6 +9663,10 @@ function restoreAllInputData(data) {
         // 判定基準
         if(data.limit_d !== undefined) document.getElementById('inp_limit_d').value = data.limit_d;
         if(data.limit_s !== undefined) document.getElementById('inp_limit_s').value = data.limit_s;
+        if(data.consider_drop80_s !== undefined) {
+            const el = document.getElementById('chk_consider_drop80_s');
+            if (el) el.checked = Boolean(data.consider_drop80_s);
+        }
         
         // Y方向スキップ
         if(data.skipY !== undefined) {
