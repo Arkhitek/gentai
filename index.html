@@ -2611,30 +2611,75 @@ function getConsiderDrop80Safety() {
     return Boolean(document.getElementById('chk_consider_drop80_s')?.checked);
 }
 
+// 補間用ヘルパー関数: 指定した変形角(rad)におけるデータを線形補間して取得
+function interpolateStep(steps, targetRad) {
+    if (!Array.isArray(steps) || steps.length === 0) return null;
+    const t = Number(targetRad);
+    if (!Number.isFinite(t)) return null;
+
+    // 範囲外
+    if (t <= Number(steps[0]?.R)) return steps[0];
+    if (t >= Number(steps[steps.length - 1]?.R)) return steps[steps.length - 1];
+
+    for (let i = 0; i < steps.length - 1; i++) {
+        const s1 = steps[i];
+        const s2 = steps[i + 1];
+        const r1 = Number(s1?.R);
+        const r2 = Number(s2?.R);
+        if (!Number.isFinite(r1) || !Number.isFinite(r2) || r2 === r1) continue;
+        if (r1 <= t && t <= r2) {
+            const ratio = (t - r1) / (r2 - r1);
+            const qa1 = Number(s1?.QA), qa2 = Number(s2?.QA);
+            const qns1 = Number(s1?.Qns), qns2 = Number(s2?.Qns);
+            const te1 = Number(s1?.Te), te2 = Number(s2?.Te);
+            const h1 = Number(s1?.h), h2 = Number(s2?.h);
+            return {
+                R: t,
+                QA: (Number.isFinite(qa1) && Number.isFinite(qa2)) ? (qa1 + ratio * (qa2 - qa1)) : (Number.isFinite(qa1) ? qa1 : 0),
+                Qns: (Number.isFinite(qns1) && Number.isFinite(qns2)) ? (qns1 + ratio * (qns2 - qns1)) : (Number.isFinite(qns1) ? qns1 : 0),
+                Te: (Number.isFinite(te1) && Number.isFinite(te2)) ? (te1 + ratio * (te2 - te1)) : (Number.isFinite(te1) ? te1 : 0),
+                h: (Number.isFinite(h1) && Number.isFinite(h2)) ? (h1 + ratio * (h2 - h1)) : (Number.isFinite(h1) ? h1 : 0)
+            };
+        }
+    }
+    return steps[steps.length - 1];
+}
+
 function calcDrop80RadFromSteps(steps) {
     if (!Array.isArray(steps) || steps.length === 0) return NaN;
 
-    let maxQaVal = -Infinity;
-    let maxQaIdx = 0;
-    steps.forEach((s, i) => {
-        const qa = Number(s?.QA);
-        if (Number.isFinite(qa) && qa > maxQaVal) {
-            maxQaVal = qa;
+    // 1. 最大耐力を探す
+    let maxQa = -Infinity;
+    let maxQaIdx = -1;
+    for (let i = 0; i < steps.length; i++) {
+        const qa = Number(steps[i]?.QA);
+        if (Number.isFinite(qa) && qa > maxQa) {
+            maxQa = qa;
             maxQaIdx = i;
         }
-    });
-    if (!(Number.isFinite(maxQaVal) && maxQaVal > 0)) return NaN;
+    }
+    if (!(Number.isFinite(maxQa) && maxQa > 0) || maxQaIdx === -1) return NaN;
 
-    let dropLimitIdx = steps.length - 1;
+    // 2. 最大値以降で80%を下回る点を探索し、その区間でRを線形補間
+    const targetQ = maxQa * 0.8;
     for (let i = maxQaIdx + 1; i < steps.length; i++) {
-        const qa = Number(steps[i]?.QA);
-        if (Number.isFinite(qa) && qa < maxQaVal * 0.8) {
-            dropLimitIdx = i;
-            break;
+        const qaCurr = Number(steps[i]?.QA);
+        const qaPrev = Number(steps[i - 1]?.QA);
+        if (!Number.isFinite(qaCurr) || !Number.isFinite(qaPrev)) continue;
+        if (qaCurr < targetQ) {
+            const rPrev = Number(steps[i - 1]?.R);
+            const rCurr = Number(steps[i]?.R);
+            if (!Number.isFinite(rPrev) || !Number.isFinite(rCurr) || rCurr === rPrev) return Number.isFinite(rCurr) ? rCurr : NaN;
+
+            // targetQ = qaPrev + ratio*(qaCurr-qaPrev)
+            const ratio = (targetQ - qaPrev) / (qaCurr - qaPrev);
+            const dropRad = rPrev + ratio * (rCurr - rPrev);
+            return Number.isFinite(dropRad) ? dropRad : rCurr;
         }
     }
-    const r = Number(steps[dropLimitIdx]?.R);
-    return Number.isFinite(r) ? r : NaN;
+
+    // 低下が見つからない場合
+    return Infinity;
 }
 
 function calcSafetyLimitRad(steps, limitS, considerDrop80) {
@@ -2644,6 +2689,7 @@ function calcSafetyLimitRad(steps, limitS, considerDrop80) {
 
     const dropLimitRad = calcDrop80RadFromSteps(steps);
     if (Number.isFinite(userLimitRad) && Number.isFinite(dropLimitRad)) return Math.min(userLimitRad, dropLimitRad);
+    if (Number.isFinite(userLimitRad) && dropLimitRad === Infinity) return userLimitRad;
     if (Number.isFinite(userLimitRad)) return userLimitRad;
     if (Number.isFinite(dropLimitRad)) return dropLimitRad;
     return NaN;
@@ -2653,6 +2699,46 @@ function formatInvFromRad(rad) {
     const r = Number(rad);
     if (!(Number.isFinite(r) && r > 0)) return '-';
     return String(Math.round(1 / r));
+}
+
+function updateLogicDescription(considerDrop80) {
+    try {
+        const formulas = document.querySelectorAll('.formula-item');
+        formulas.forEach(item => {
+            const title = item.querySelector('strong');
+            if (!title) return;
+            if (!String(title.innerText || '').includes('評点と判定')) return;
+            const desc = item.querySelector('.formula-desc');
+            if (!desc) return;
+
+            const baseLines = `
+                <br>
+                1.5以上：倒壊しない<br>1.0〜1.5：一応倒壊しない<br>0.7〜1.0：倒壊する可能性がある<br>0.7未満：倒壊する可能性が高い
+            `;
+
+            if (considerDrop80) {
+                desc.innerHTML = `
+                    <strong>PDF仕様準拠（80%低下考慮）:</strong><br>
+                    <strong>評点 = \( A_s / S_{af} \)</strong><br>
+                    <strong>\( A_s \): 安全限界変位時</strong>の等価加速度（保有耐力）<br>
+                    <strong>\( S_{af} \): 安全限界変位時</strong>の必要性能加速度（必要耐力）<br>
+                    <br>
+                    ※安全限界変位は「最大耐力の80%に低下した変形角」と「入力した安全限界変形角(1/N)」の小さい方を採用します。
+                    ${baseLines}
+                `;
+            } else {
+                desc.innerHTML = `
+                    <strong>入力値評価モード:</strong><br>
+                    <strong>評点 = \( A_s / S_{af} \)</strong><br>
+                    <strong>\( A_s \): 入力した安全限界変形角(1/N)時</strong>の等価加速度（保有耐力）<br>
+                    <strong>\( S_{af} \): 同変形角時</strong>の必要性能加速度（必要耐力）<br>
+                    <br>
+                    ※ユーザーが入力した安全限界変形角（例: 1/20）における耐力余裕度で判定します。
+                    ${baseLines}
+                `;
+            }
+        });
+    } catch (e) {}
 }
 
 function buildResultLimitLinesFromSteps(steps) {
@@ -7277,11 +7363,9 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         : formatInvFromRad(safetyLimitRad);
 
     // 3. その変形角におけるステップを取得（判定対象点）
-    // 配列から safetyLimitRad に到達した時点、または計算終了点を取得
-    let evalStep = resObj.steps.find(s => s.R >= safetyLimitRad);
-    if (!evalStep) {
-        evalStep = resObj.steps[resObj.steps.length - 1];
-    }
+    // safetyLimitRad の点を線形補間して取得
+    let evalStep = interpolateStep(resObj.steps, safetyLimitRad);
+    if (!evalStep) evalStep = resObj.steps[resObj.steps.length - 1];
 
     // 4. 評点計算 (PDF 6.4節 (6-9), (6-10)式準拠)
     // 評点 = 安全限界変位時の保有耐力(As) / 安全限界変位時の必要耐力(Saf)
@@ -7297,7 +7381,7 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     let rate = getRating(ratio);
     
     // 評点詳細情報をツールチップ的に表示するためのタイトル属性追加
-    let ratingTitle = `安全限界変位(1/${Math.round(1/evalStep.R)})における\n保有耐力(${Qsi.toFixed(1)}kN) / 必要耐力(${Qsni.toFixed(1)}kN)`;
+    let ratingTitle = `安全限界変位(1/${safetyLimitInvLabel})における\n保有耐力(${Qsi.toFixed(1)}kN) / 必要耐力(${Qsni.toFixed(1)}kN)`;
     let ratingHtml = `<div class="rating-box" title="${ratingTitle}">評点: ${ratio.toFixed(2)} <span class="badge ${rate.cls}">${rate.text}</span></div>`;
 
     const N = calcRes.b.stories;
@@ -7402,6 +7486,8 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
         // report-viewが非表示でも最低限描画し、PDF生成時に再描画される
         drawStickModel(idPrint, calcRes.b, ptD, ptS);
     }, 100); 
+
+    updateLogicDescription(considerDrop80);
 }
 
 function renderLog(dir, steps) {
