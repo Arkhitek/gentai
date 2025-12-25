@@ -567,7 +567,8 @@
     <!-- 復元力特性 X方向タブ -->
     <div id="tab-force-x" class="tab-content no-print">
         <h2>復元力特性 X方向 (Q - δ)</h2>
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。<br>
+        ※耐力壁は wall_data.csv（0.91m基準）のため、壁長W(m)を0.91以外にした場合は <strong>W/0.91</strong> を耐力値に乗じて補正します（このWはCSV保存されます）。</p>
         <div style="display:flex; gap:10px; margin:10px 0; flex-wrap:wrap;">
             <button class="btn-sm" onclick="downloadAllCSV()" style="background:#28a745; color:white;">📥 初期設定データをダウンロード</button>
             <button class="btn-sm" onclick="uploadCSV()" style="background:#007bff; color:white;">📤 編集済みデータをアップロード</button>
@@ -593,8 +594,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x1"></select>
-                        <input type="number" id="qty-wall-x1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-x1" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-x1" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('x1')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x1"></div>
@@ -688,8 +691,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x2"></select>
-                        <input type="number" id="qty-wall-x2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-x2" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-x2" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('x2')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x2"></div>
@@ -784,8 +789,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x3"></select>
-                        <input type="number" id="qty-wall-x3" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-x3" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-x3" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('x3')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x3"></div>
@@ -868,8 +875,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x4"></select>
-                        <input type="number" id="qty-wall-x4" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-x4" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-x4" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('x4')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x4"></div>
@@ -952,8 +961,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-x5"></select>
-                        <input type="number" id="qty-wall-x5" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-x5" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-x5" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('x5')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-x5"></div>
@@ -1030,7 +1041,8 @@
             </label>
         </div>
         <div id="force-y-input-area">
-        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。</p>
+        <p style="font-size:0.9em; color:#666;">※<strong>「自由入力 (下表)」</strong>および追加した<strong>「耐力壁」「筋交い/ブレース」「貫/ほぞ等」「小壁」</strong>の合計耐力がグラフに表示され、計算に使用されます。<br>
+        ※耐力壁は wall_data.csv（0.91m基準）のため、壁長W(m)を0.91以外にした場合は <strong>W/0.91</strong> を耐力値に乗じて補正します（このWはCSV保存されます）。</p>
         <div class="force-editor">
             <div class="force-column" id="col-y1">
                 <div class="force-header"><span>Y方向 1階</span></div>
@@ -1051,8 +1063,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y1"></select>
-                        <input type="number" id="qty-wall-y1" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-y1" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-y1" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('y1')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y1"></div>
@@ -1146,8 +1160,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y2"></select>
-                        <input type="number" id="qty-wall-y2" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-y2" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-y2" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('y2')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y2"></div>
@@ -1242,8 +1258,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y3"></select>
-                        <input type="number" id="qty-wall-y3" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-y3" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-y3" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('y3')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y3"></div>
@@ -1326,8 +1344,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y4"></select>
-                        <input type="number" id="qty-wall-y4" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-y4" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-y4" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('y4')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y4"></div>
@@ -1410,8 +1430,10 @@
                     <div style="font-size:0.8em; font-weight:bold; color:#333; margin-bottom:5px;">耐力壁</div>
                     <div class="wall-selector-row">
                         <select id="sel-wall-y5"></select>
-                        <input type="number" id="qty-wall-y5" value="1" step="0.1" placeholder="数量" title="配置数量(×0.91m)">
-                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">(×0.91m)</span>
+                        <input type="number" id="width-wall-y5" value="0.91" step="0.01" placeholder="壁幅" title="壁幅(m)" style="width:60px;">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">m</span>
+                        <input type="number" id="qty-wall-y5" value="1" step="0.1" placeholder="箇所" title="箇所数">
+                        <span style="font-size:0.75em; color:#666; white-space:nowrap;">箇所</span>
                         <button class="btn-add-wall" onclick="addWall('y5')">追加</button>
                     </div>
                     <div class="wall-list" id="list-wall-y5"></div>
@@ -2869,6 +2891,16 @@ function refreshResultsIfCalculated() {
 
 const ROCKING_D_INITIAL_M = 0.0005; // 0.5mm
 
+// 耐力壁（wall_data.csv）は 0.91m 基準のため、壁長を変更した場合は線形補正する
+const WALL_BASE_WIDTH_M = 0.91;
+function getWallWidthM(w) {
+    const v = Number(w?.width);
+    return (Number.isFinite(v) && v > 0) ? v : WALL_BASE_WIDTH_M;
+}
+function getWallWidthFactor(w) {
+    return getWallWidthM(w) / WALL_BASE_WIDTH_M;
+}
+
 function calcRockingQmaxKN(rockingItem, h) {
     const D_m = Number(rockingItem?.D) / 1000;
     const N = Number(rockingItem?.N);
@@ -2896,7 +2928,8 @@ function calcCompositeK0KNm(id) {
         if (!data) return;
         const k0Rad = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
         const qty = Number(w.qty) || 0;
-        total += (k0Rad * qty) / h;
+        const wf = getWallWidthFactor(w);
+        total += (k0Rad * wf * qty) / h;
     });
 
     // 筋交い
@@ -3515,6 +3548,8 @@ function addWall(id) {
     const name = sel.value;
     const qtyInput = document.getElementById(`qty-wall-${id}`);
     const qty = parseFloat(qtyInput.value);
+    const widthInput = document.getElementById(`width-wall-${id}`);
+    const width = parseFloat(widthInput?.value);
     
     if(!name || name === '') {
         alert('耐力壁を選択してください。');
@@ -3524,13 +3559,19 @@ function addWall(id) {
         alert('配置数量を入力してください。');
         return;
     }
+
+    if(!(Number.isFinite(width) && width > 0)) {
+        alert('壁長(m)を入力してください。');
+        return;
+    }
     
-    addedWalls[id].push({ name: name, qty: qty });
+    addedWalls[id].push({ name: name, qty: qty, width: width });
     renderWallList(id);
     updateInputGraph(id);
     
     // Reset inputs
     qtyInput.value = "1";
+    if (widthInput) widthInput.value = "0.91";
     sel.value = "";
 }
 
@@ -3546,7 +3587,8 @@ function renderWallList(id) {
     addedWalls[id].forEach((w, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        div.innerHTML = `<span>${w.name} × ${w.qty}</span>
+        const wWidth = getWallWidthM(w);
+        div.innerHTML = `<span>${w.name} ${w.qty}箇所 (壁幅=${wWidth}m)</span>
             <span>
                 <button class="btn-sm" onclick="editWall('${id}', ${i})">編集</button>
                 <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>
@@ -3558,17 +3600,25 @@ function renderWallList(id) {
 // 耐力壁の編集ダイアログ
 function editWall(id, idx) {
     const wall = addedWalls[id][idx];
-    const newQty = prompt(`「${wall.name}」の数量を入力してください（現在: ${wall.qty}）:`, wall.qty);
-    if(newQty !== null) {
-        const qty = parseFloat(newQty);
-        if(!isNaN(qty) && qty > 0) {
-            addedWalls[id][idx].qty = qty;
-            renderWallList(id);
-            updateInputGraph(id);
-        } else {
-            alert('有効な数値を入力してください。');
-        }
+    const currWidth = getWallWidthM(wall);
+    const newQty = prompt(`「${wall.name}」の箇所数を入力してください（現在: ${wall.qty}）:`, wall.qty);
+    if(newQty === null) return;
+    const qty = parseFloat(newQty);
+    if(!(Number.isFinite(qty) && qty > 0)) {
+        alert('有効な箇所数を入力してください。');
+        return;
     }
+    const newWidth = prompt(`「${wall.name}」の壁幅(m)を入力してください（現在: ${currWidth}m）:`, currWidth);
+    if(newWidth === null) return;
+    const width = parseFloat(newWidth);
+    if(!(Number.isFinite(width) && width > 0)) {
+        alert('有効な壁幅(m)を入力してください。');
+        return;
+    }
+    addedWalls[id][idx].qty = qty;
+    addedWalls[id][idx].width = width;
+    renderWallList(id);
+    updateInputGraph(id);
 }
 
 // --- Brace Management (筋交い/ブレース) ---
@@ -4186,7 +4236,9 @@ function getCompositeForce(id) {
         addedWalls[id].forEach(w => {
             let data = WALL_DATA[w.name];
             if(data) {
-                let q_elem = interpRadQ(data, rad) * w.qty;
+            const wf = getWallWidthFactor(w);
+            let q_single = interpRadQ(data, rad) * wf; // 1要素あたり（壁長補正後）
+            let q_elem = q_single * (w.qty || 0);
                 
                 // データ内に有効な heq が定義されているかチェック
                 const hasExplicitHeq = data.some(p => p.heq !== undefined && p.heq !== null);
@@ -4200,10 +4252,8 @@ function getCompositeForce(id) {
 
                 } else {
                     // 【B: heq指定なし】従来通りの剛性低下率による自動計算
-                    let q_single = q_elem / w.qty; // 1要素あたりのQ
-                    
                     // 壁要素の初期剛性 K0 (変位ベース: kN/m)
-                    let K0_wall_rad = WALL_K0[w.name] || 10000;
+                    let K0_wall_rad = (WALL_K0[w.name] || 10000) * wf;
                     let K0_wall = K0_wall_rad / h; // 変位ベースに変換
                     
                     // heq = (d - Q/K0) / d * 2 / (4π)
@@ -4475,9 +4525,10 @@ function updateInputGraph(id) {
     addedWalls[id].forEach((w, i) => {
         let data = WALL_DATA[w.name];
         if(data) {
-            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * w.qty }))];
+            const wf = getWallWidthFactor(w);
+            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * w.qty }))];
             datasets.push({
-                label: `${w.name}×${w.qty}`,
+                label: `${w.name} ${w.qty}箇所 (壁幅=${getWallWidthM(w)}m)`,
                 data: wallData,
                 borderColor: colors[colorIndex % colors.length],
                 borderWidth: 2,
@@ -8653,11 +8704,12 @@ function renderForceDetails() {
                 addedWalls[id].forEach(w => {
                     let data = WALL_DATA[w.name];
                     if(data) {
+                        const wf = getWallWidthFactor(w);
                         // K0はkN/m表示： (kN/rad) / (m) = kN/m
                         const K0_rad_perUnit = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
-                        const K0 = (K0_rad_perUnit * (w.qty || 0)) / h;
-                        let maxQ = Math.max(...data.map(d => d.q)) * w.qty;
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name}</td><td style="${cellStyle}">${w.qty.toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
+                        const K0 = (K0_rad_perUnit * wf * (w.qty || 0)) / h;
+                        let maxQ = Math.max(...data.map(d => d.q)) * wf * (w.qty || 0);
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name} 壁幅=${getWallWidthM(w)}m</td><td style="${cellStyle}">${w.qty.toFixed(2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
                     }
                 });
             }
@@ -8815,9 +8867,10 @@ function drawForceChart(containerId, dir) {
             addedWalls[id].forEach((w, i) => {
                 let data = WALL_DATA[w.name];
                 if(data) {
-                    let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * w.qty }))];
+                    const wf = getWallWidthFactor(w);
+                    let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * w.qty }))];
                     datasets.push({
-                        label: `${w.name}×${w.qty}`,
+                        label: `${w.name} ${w.qty}箇所 (壁幅=${getWallWidthM(w)}m)`,
                         data: wallData,
                         borderColor: colors[(colorIndex + i) % colors.length],
                         borderWidth: 2,
@@ -9942,6 +9995,13 @@ function restoreAllInputData(data) {
             // 不足キーを補完
             ALL_FLOOR_KEYS.forEach(id => {
                 if (!addedWalls[id]) addedWalls[id] = [];
+                // 旧データ互換: width未保存の場合は0.91m
+                try {
+                    (addedWalls[id] || []).forEach(w => {
+                        const ww = Number(w?.width);
+                        if (!(Number.isFinite(ww) && ww > 0)) w.width = WALL_BASE_WIDTH_M;
+                    });
+                } catch (e) {}
                 const el = document.getElementById(`list-wall-${id}`);
                 if (el) renderWallList(id);
             });
@@ -10131,7 +10191,9 @@ function saveToCSV() {
         const walls = data.addedWalls[id] || [];
         csvContent += "#Walls_" + id + ",count," + walls.length + "\n";
         walls.forEach((w, i) => {
-            csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "\n";
+            const ww = Number(w?.width);
+            const width = (Number.isFinite(ww) && ww > 0) ? ww : WALL_BASE_WIDTH_M;
+            csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "," + width + "\n";
         });
     });
 
@@ -10357,8 +10419,13 @@ function parseCSVToData(content) {
                 const id = match[1];
                 const name = value;
                 const qty = parseFloat(parts[2]) || 1;
+                const width = parseFloat(parts[3]);
                 if(!data.addedWalls[id]) data.addedWalls[id] = [];
-                data.addedWalls[id].push({ name: name, qty: qty });
+                data.addedWalls[id].push({
+                    name: name,
+                    qty: qty,
+                    width: (Number.isFinite(width) && width > 0) ? width : WALL_BASE_WIDTH_M
+                });
             }
         }
 
