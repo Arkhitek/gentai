@@ -3676,8 +3676,19 @@ function editWall(id, idx) {
         alert('有効な壁幅(m)を入力してください。');
         return;
     }
+
+    const currRf = normalizeReductionFactor(wall?.reductionFactor);
+    const newRf = prompt(`「${wall.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
+    if(newRf === null) return;
+    const rf = parseFloat(newRf);
+    if(!(Number.isFinite(rf) && rf > 0)) {
+        alert('有効な低減係数(0より大)を入力してください。');
+        return;
+    }
+
     addedWalls[id][idx].qty = qty;
     addedWalls[id][idx].width = width;
+    addedWalls[id][idx].reductionFactor = rf;
     renderWallList(id);
     updateInputGraph(id);
 }
@@ -3795,6 +3806,15 @@ function editBrace(id, idx) {
         alert('有効な箇所数を入力してください。');
         return;
     }
+
+    const currRf = normalizeReductionFactor(brace?.reductionFactor);
+    const newRf = prompt(`「${brace.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
+    if(newRf === null) return;
+    const rf = parseFloat(newRf);
+    if(!(Number.isFinite(rf) && rf > 0)) {
+        alert('有効な低減係数(0より大)を入力してください。');
+        return;
+    }
     
     // 補正率を再計算
     const braceInfo = BRACE_DATA[brace.name];
@@ -3808,6 +3828,7 @@ function editBrace(id, idx) {
         addedBraces[id][idx].width = width;
         addedBraces[id][idx].qty = qty;
         addedBraces[id][idx].correctionFactor = correctionFactor;
+        addedBraces[id][idx].reductionFactor = rf;
         
         renderBraceList(id);
         updateInputGraph(id);
@@ -3907,8 +3928,18 @@ function editNuki(id, idx) {
         alert('有効な箇所数を入力してください。');
         return;
     }
+
+    const currRf = normalizeReductionFactor(nuki?.reductionFactor);
+    const newRf = prompt(`「${nuki.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
+    if(newRf === null) return;
+    const rf = parseFloat(newRf);
+    if(!(Number.isFinite(rf) && rf > 0)) {
+        alert('有効な低減係数(0より大)を入力してください。');
+        return;
+    }
     
     addedNukis[id][idx].qty = qty;
+    addedNukis[id][idx].reductionFactor = rf;
     
     renderNukiList(id);
     updateInputGraph(id);
@@ -4044,6 +4075,15 @@ function editKokabe(id, idx) {
         alert('有効な箇所数を入力してください。');
         return;
     }
+
+    const currRf = normalizeReductionFactor(kokabe?.reductionFactor);
+    const newRf = prompt(`低減係数を入力してください（現在: ${currRf}）:`, currRf);
+    if(newRf === null) return;
+    const rf = parseFloat(newRf);
+    if(!(Number.isFinite(rf) && rf > 0)) {
+        alert('有効な低減係数(0より大)を入力してください。');
+        return;
+    }
     
     // 補正率を再計算
     const kokabeInfo = KOKABE_DATA[kokabe.name];
@@ -4059,6 +4099,7 @@ function editKokabe(id, idx) {
     addedKokabes[id][idx].zanzonRatio = zanzonRatio;
     addedKokabes[id][idx].correctionFactor = correctionFactor;
     addedKokabes[id][idx].qty = qty;
+    addedKokabes[id][idx].reductionFactor = rf;
     
     renderKokabeList(id);
     updateInputGraph(id);
