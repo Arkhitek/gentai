@@ -2929,7 +2929,8 @@ function calcCompositeK0KNm(id) {
         const k0Rad = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
         const qty = Number(w.qty) || 0;
         const wf = getWallWidthFactor(w);
-        total += (k0Rad * wf * qty) / h;
+        const rf = normalizeReductionFactor(w?.reductionFactor);
+        total += (k0Rad * wf * rf * qty) / h;
     });
 
     // 筋交い
@@ -2939,7 +2940,8 @@ function calcCompositeK0KNm(id) {
         const k0Rad = BRACE_K0[b.name] || calcInitialStiffnessK0Rad(braceInfo.data);
         const cf = Number(b.correctionFactor) || 1;
         const qty = Number(b.qty) || 0;
-        total += (k0Rad * cf * qty) / h;
+        const rf = normalizeReductionFactor(b?.reductionFactor);
+        total += (k0Rad * cf * rf * qty) / h;
     });
 
     // 貫/ほぞ
@@ -2949,7 +2951,8 @@ function calcCompositeK0KNm(id) {
         const k0Rad = NUKI_K0[n.name] || calcInitialStiffnessK0Rad(nukiInfo.data);
         const cf = Number(n.correctionFactor) || 1;
         const qty = Number(n.qty) || 0;
-        total += (k0Rad * cf * qty) / h;
+        const rf = normalizeReductionFactor(n?.reductionFactor);
+        total += (k0Rad * cf * rf * qty) / h;
     });
 
     // 小壁
@@ -2959,7 +2962,8 @@ function calcCompositeK0KNm(id) {
         const k0Rad = KOKABE_K0[k.name] || calcInitialStiffnessK0Rad(kokabeInfo.data);
         const cf = Number(k.correctionFactor) || 1;
         const qty = Number(k.qty) || 0;
-        total += (k0Rad * cf * qty) / h;
+        const rf = normalizeReductionFactor(k?.reductionFactor);
+        total += (k0Rad * cf * rf * qty) / h;
     });
 
     // ロッキング柱
@@ -3060,6 +3064,9 @@ const DEFAULT_FREE_DATA_2F = [
 
 window.onload = async function() {
     toggleStories(); 
+
+    // 低減係数入力欄を追加（qty入力欄の直下）
+    try { initReductionFactorInputs(); } catch (e) { console.warn('initReductionFactorInputs failed:', e); }
     
     // ▼▼▼ 変更: CSVデータを並列ロードして初期化を高速化 ▼▼▼
     await Promise.all([
@@ -3123,6 +3130,50 @@ window.onload = async function() {
     checkAndRestoreLocalStorage();
     // ▲▲▲ 追加ここまで ▲▲▲
 };
+
+// ========================================
+// 低減係数（復元力特性へのQ倍率）
+// ========================================
+function normalizeReductionFactor(value) {
+    const f = parseFloat(value);
+    return (Number.isFinite(f) && f > 0) ? f : 1;
+}
+
+function getReductionFactorFromInput(type, id) {
+    const el = document.getElementById(`red-${type}-${id}`);
+    return normalizeReductionFactor(el ? el.value : 1);
+}
+
+function initReductionFactorInputs() {
+    const specs = [
+        { type: 'wall', qtyPrefix: 'qty-wall-', step: '0.01' },
+        { type: 'brace', qtyPrefix: 'qty-brace-', step: '0.01' },
+        { type: 'nuki', qtyPrefix: 'qty-nuki-', step: '0.01' },
+        { type: 'kokabe', qtyPrefix: 'qty-kokabe-', step: '0.01' }
+    ];
+
+    specs.forEach(spec => {
+        const qtyInputs = document.querySelectorAll(`input[id^="${spec.qtyPrefix}"]`);
+        qtyInputs.forEach(qtyEl => {
+            const id = qtyEl.id.substring(spec.qtyPrefix.length);
+            const redId = `red-${spec.type}-${id}`;
+            if (document.getElementById(redId)) return; // 二重生成防止
+
+            const row = qtyEl.closest('.wall-selector-row');
+            if (!row) return;
+
+            const redRow = document.createElement('div');
+            redRow.className = 'wall-selector-row';
+            redRow.style.marginTop = '3px';
+            redRow.innerHTML = `
+                <span style="font-size:0.75em; color:#666; white-space:nowrap;">低減係数</span>
+                <input type="number" id="${redId}" value="1" step="${spec.step}" min="0" placeholder="1" title="低減係数" style="width:60px; text-align:right; padding:4px;">
+            `;
+
+            row.insertAdjacentElement('afterend', redRow);
+        });
+    });
+}
 
 // --- 新規追加: サーバー上のCSVファイルを読み込む関数 ---
 async function loadWallDataFromServer() {
@@ -3550,6 +3601,7 @@ function addWall(id) {
     const qty = parseFloat(qtyInput.value);
     const widthInput = document.getElementById(`width-wall-${id}`);
     const width = parseFloat(widthInput?.value);
+    const reductionFactor = getReductionFactorFromInput('wall', id);
     
     if(!name || name === '') {
         alert('耐力壁を選択してください。');
@@ -3564,14 +3616,21 @@ function addWall(id) {
         alert('壁長(m)を入力してください。');
         return;
     }
+
+    if(!(Number.isFinite(reductionFactor) && reductionFactor > 0)) {
+        alert('低減係数は0より大きい値を入力してください。');
+        return;
+    }
     
-    addedWalls[id].push({ name: name, qty: qty, width: width });
+    addedWalls[id].push({ name: name, qty: qty, width: width, reductionFactor: reductionFactor });
     renderWallList(id);
     updateInputGraph(id);
     
     // Reset inputs
     qtyInput.value = "1";
     if (widthInput) widthInput.value = "0.91";
+    const rfEl = document.getElementById(`red-wall-${id}`);
+    if (rfEl) rfEl.value = "1";
     sel.value = "";
 }
 
@@ -3588,7 +3647,9 @@ function renderWallList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         const wWidth = getWallWidthM(w);
-        div.innerHTML = `<span>${w.name} ${w.qty}箇所 (壁幅=${wWidth}m)</span>
+        const rf = normalizeReductionFactor(w?.reductionFactor);
+        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
+        div.innerHTML = `<span>${w.name} ${w.qty}箇所 (壁幅=${wWidth}m)${rfStr}</span>
             <span>
                 <button class="btn-sm" onclick="editWall('${id}', ${i})">編集</button>
                 <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>
@@ -3631,6 +3692,7 @@ function addBrace(id) {
     const width = parseFloat(widthInput.value);
     const qtyInput = document.getElementById(`qty-brace-${id}`);
     const qty = parseInt(qtyInput.value);
+    const reductionFactor = getReductionFactorFromInput('brace', id);
     
     if(!name || name === '') {
         alert('筋交い/ブレースを選択してください。');
@@ -3642,6 +3704,11 @@ function addBrace(id) {
     }
     if(qty <= 0 || isNaN(qty)) {
         alert('箇所数を入力してください。');
+        return;
+    }
+
+    if(!(Number.isFinite(reductionFactor) && reductionFactor > 0)) {
+        alert('低減係数は0より大きい値を入力してください。');
         return;
     }
     
@@ -3669,7 +3736,8 @@ function addBrace(id) {
         width: width, 
         qty: qty, 
         height: height,
-        correctionFactor: correctionFactor 
+        correctionFactor: correctionFactor,
+        reductionFactor: reductionFactor
     });
     
     renderBraceList(id);
@@ -3678,6 +3746,8 @@ function addBrace(id) {
     // Reset inputs
     widthInput.value = "0.91";
     qtyInput.value = "1";
+    const rfEl = document.getElementById(`red-brace-${id}`);
+    if (rfEl) rfEl.value = "1";
     sel.value = "";
 }
 
@@ -3694,7 +3764,9 @@ function renderBraceList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         const factor = (b.correctionFactor * 100).toFixed(1);
-        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)</span>
+        const rf = normalizeReductionFactor(b?.reductionFactor);
+        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
+        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)${rfStr}</span>
             <span>
                 <button class="btn-sm" onclick="editBrace('${id}', ${i})">編集</button>
                 <button class="btn-sm" style="color:red;" onclick="removeBrace('${id}', ${i})">削除</button>
@@ -3750,6 +3822,7 @@ function addNuki(id) {
     const name = sel.value;
     const qtyInput = document.getElementById(`qty-nuki-${id}`);
     const qty = parseInt(qtyInput.value);
+    const reductionFactor = getReductionFactorFromInput('nuki', id);
     
     if(!name || name === '') {
         alert('貫/ほぞ等を選択してください。');
@@ -3757,6 +3830,11 @@ function addNuki(id) {
     }
     if(qty <= 0 || isNaN(qty)) {
         alert('箇所数を入力してください。');
+        return;
+    }
+
+    if(!(Number.isFinite(reductionFactor) && reductionFactor > 0)) {
+        alert('低減係数は0より大きい値を入力してください。');
         return;
     }
     
@@ -3779,7 +3857,8 @@ function addNuki(id) {
         qty: qty, 
         height: height,
         baseHeight: nukiInfo.baseHeight,
-        correctionFactor: correctionFactor 
+        correctionFactor: correctionFactor,
+        reductionFactor: reductionFactor
     });
     
     renderNukiList(id);
@@ -3787,6 +3866,8 @@ function addNuki(id) {
     
     // Reset inputs
     qtyInput.value = "1";
+    const rfEl = document.getElementById(`red-nuki-${id}`);
+    if (rfEl) rfEl.value = "1";
     sel.value = "";
 }
 
@@ -3803,7 +3884,9 @@ function renderNukiList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         const factor = (n.correctionFactor * 100).toFixed(1);
-        div.innerHTML = `<span>${n.name} H=${n.height.toFixed(2)}m × ${n.qty}箇所 (補正率:${factor}%)</span>
+        const rf = normalizeReductionFactor(n?.reductionFactor);
+        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
+        div.innerHTML = `<span>${n.name} H=${n.height.toFixed(2)}m × ${n.qty}箇所 (補正率:${factor}%)${rfStr}</span>
             <span>
                 <button class="btn-sm" onclick="editNuki('${id}', ${i})">編集</button>
                 <button class="btn-sm" style="color:red;" onclick="removeNuki('${id}', ${i})">削除</button>
@@ -3844,6 +3927,7 @@ function addKokabe(id) {
     const width = parseFloat(widthInput.value);
     const zanzonPercent = parseFloat(zanzonInput.value); // 残存率（%）
     const qty = parseInt(qtyInput.value);
+    const reductionFactor = getReductionFactorFromInput('kokabe', id);
     
     if(!name || name === '') {
         alert('小壁を選択してください。');
@@ -3859,6 +3943,11 @@ function addKokabe(id) {
     }
     if(qty <= 0 || isNaN(qty)) {
         alert('箇所数を入力してください。');
+        return;
+    }
+
+    if(!(Number.isFinite(reductionFactor) && reductionFactor > 0)) {
+        alert('低減係数は0より大きい値を入力してください。');
         return;
     }
     
@@ -3887,7 +3976,8 @@ function addKokabe(id) {
         baseZanzon: kokabeInfo.baseZanzon,
         widthRatio: widthRatio,
         zanzonRatio: zanzonRatio,
-        correctionFactor: correctionFactor 
+        correctionFactor: correctionFactor,
+        reductionFactor: reductionFactor
     });
     
     renderKokabeList(id);
@@ -3895,6 +3985,8 @@ function addKokabe(id) {
     
     // Reset inputs
     qtyInput.value = "1";
+    const rfEl = document.getElementById(`red-kokabe-${id}`);
+    if (rfEl) rfEl.value = "1";
     sel.value = "";
 }
 
@@ -3911,7 +4003,9 @@ function renderKokabeList(id) {
         const div = document.createElement('div');
         div.className = 'wall-item';
         const factor = (k.correctionFactor * 100).toFixed(1);
-        div.innerHTML = `<span>${k.name} W=${k.width}m ${k.zanzonPercent}% × ${k.qty}箇所 (補正率:${factor}%)</span>
+        const rf = normalizeReductionFactor(k?.reductionFactor);
+        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
+        div.innerHTML = `<span>${k.name} W=${k.width}m ${k.zanzonPercent}% × ${k.qty}箇所 (補正率:${factor}%)${rfStr}</span>
             <span>
                 <button class="btn-sm" onclick="editKokabe('${id}', ${i})">編集</button>
                 <button class="btn-sm" style="color:red;" onclick="removeKokabe('${id}', ${i})">削除</button>
@@ -4237,7 +4331,8 @@ function getCompositeForce(id) {
             let data = WALL_DATA[w.name];
             if(data) {
             const wf = getWallWidthFactor(w);
-            let q_single = interpRadQ(data, rad) * wf; // 1要素あたり（壁長補正後）
+            const rf = normalizeReductionFactor(w?.reductionFactor);
+            let q_single = interpRadQ(data, rad) * wf * rf; // 1要素あたり（壁長補正＋低減）
             let q_elem = q_single * (w.qty || 0);
                 
                 // データ内に有効な heq が定義されているかチェック
@@ -4253,7 +4348,7 @@ function getCompositeForce(id) {
                 } else {
                     // 【B: heq指定なし】従来通りの剛性低下率による自動計算
                     // 壁要素の初期剛性 K0 (変位ベース: kN/m)
-                    let K0_wall_rad = (WALL_K0[w.name] || 10000) * wf;
+                    let K0_wall_rad = (WALL_K0[w.name] || 10000) * wf * rf;
                     let K0_wall = K0_wall_rad / h; // 変位ベースに変換
                     
                     // heq = (d - Q/K0) / d * 2 / (4π)
@@ -4275,7 +4370,8 @@ function getCompositeForce(id) {
             if(braceInfo && braceInfo.data) {
                 // cosθ補正を適用した耐力
                 let q_base = interpRadQ(braceInfo.data, rad);
-                let q_elem = q_base * b.correctionFactor * b.qty;
+                const rf = normalizeReductionFactor(b?.reductionFactor);
+                let q_elem = q_base * b.correctionFactor * rf * b.qty;
                 
                 // データ内に有効な heq が定義されているかチェック
                 const hasExplicitHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
@@ -4292,7 +4388,7 @@ function getCompositeForce(id) {
                     // ブレースの初期剛性 K0 (変位ベース: kN/m)
                     let K0_brace_rad = BRACE_K0[b.name] || 10000;
                     // cosθ補正を初期剛性にも適用
-                    K0_brace_rad = K0_brace_rad * b.correctionFactor;
+                    K0_brace_rad = K0_brace_rad * b.correctionFactor * rf;
                     let K0_brace = K0_brace_rad / h; // 変位ベースに変換
                     
                     // heq = (d - Q/K0) / d * 2 / (4π)
@@ -4314,7 +4410,8 @@ function getCompositeForce(id) {
             if(nukiInfo && nukiInfo.data) {
                 // 階高補正を適用した耐力（基準壁高/配置階高で補正）
                 let q_base = interpRadQ(nukiInfo.data, rad);
-                let q_elem = q_base * n.correctionFactor * n.qty;
+                const rf = normalizeReductionFactor(n?.reductionFactor);
+                let q_elem = q_base * n.correctionFactor * rf * n.qty;
                 
                 // データ内に有効な heq が定義されているかチェック
                 const hasExplicitHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
@@ -4331,7 +4428,7 @@ function getCompositeForce(id) {
                     // 貫/ほぞの初期剛性 K0 (変位ベース: kN/m)
                     let K0_nuki_rad = NUKI_K0[n.name] || 10000;
                     // 階高補正を初期剛性にも適用
-                    K0_nuki_rad = K0_nuki_rad * n.correctionFactor;
+                    K0_nuki_rad = K0_nuki_rad * n.correctionFactor * rf;
                     let K0_nuki = K0_nuki_rad / h; // 変位ベースに変換
                     
                     // heq = (d - Q/K0) / d * 2 / (4π)
@@ -4353,7 +4450,8 @@ function getCompositeForce(id) {
             if(kokabeInfo && kokabeInfo.data) {
                 // 壁幅比と残存率比で補正した耐力
                 let q_base = interpRadQ(kokabeInfo.data, rad);
-                let q_elem = q_base * k.correctionFactor * k.qty;
+                const rf = normalizeReductionFactor(k?.reductionFactor);
+                let q_elem = q_base * k.correctionFactor * rf * k.qty;
                 
                 // データ内に有効な heq が定義されているかチェック
                 const hasExplicitHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
@@ -4370,7 +4468,7 @@ function getCompositeForce(id) {
                     // 小壁の初期剛性 K0 (変位ベース: kN/m)
                     let K0_kokabe_rad = KOKABE_K0[k.name] || 10000;
                     // 補正係数を初期剛性にも適用
-                    K0_kokabe_rad = K0_kokabe_rad * k.correctionFactor;
+                    K0_kokabe_rad = K0_kokabe_rad * k.correctionFactor * rf;
                     let K0_kokabe = K0_kokabe_rad / h; // 変位ベースに変換
                     
                     // heq = (d - Q/K0) / d * 2 / (4π)
@@ -4526,7 +4624,8 @@ function updateInputGraph(id) {
         let data = WALL_DATA[w.name];
         if(data) {
             const wf = getWallWidthFactor(w);
-            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * w.qty }))];
+            const rf = normalizeReductionFactor(w?.reductionFactor);
+            let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * rf * w.qty }))];
             datasets.push({
                 label: `${w.name} ${w.qty}箇所 (壁幅=${getWallWidthM(w)}m)`,
                 data: wallData,
@@ -4545,7 +4644,8 @@ function updateInputGraph(id) {
     addedBraces[id].forEach((b, i) => {
         let braceInfo = BRACE_DATA[b.name];
         if(braceInfo && braceInfo.data) {
-            let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }))];
+            const rf = normalizeReductionFactor(b?.reductionFactor);
+            let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * rf * b.qty }))];
             datasets.push({
                 label: `${b.name}×${b.qty}`,
                 data: braceData,
@@ -4564,7 +4664,8 @@ function updateInputGraph(id) {
     addedNukis[id].forEach((n, i) => {
         let nukiInfo = NUKI_DATA[n.name];
         if(nukiInfo && nukiInfo.data) {
-            let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * n.qty }))];
+            const rf = normalizeReductionFactor(n?.reductionFactor);
+            let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * rf * n.qty }))];
             datasets.push({
                 label: `${n.name}×${n.qty}`,
                 data: nukiData,
@@ -4583,7 +4684,8 @@ function updateInputGraph(id) {
     addedKokabes[id].forEach((k, i) => {
         let kokabeInfo = KOKABE_DATA[k.name];
         if(kokabeInfo && kokabeInfo.data) {
-            let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * k.qty }))];
+            const rf = normalizeReductionFactor(k?.reductionFactor);
+            let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * rf * k.qty }))];
             datasets.push({
                 label: `${k.name}×${k.qty}`,
                 data: kokabeData,
@@ -8868,7 +8970,8 @@ function drawForceChart(containerId, dir) {
                 let data = WALL_DATA[w.name];
                 if(data) {
                     const wf = getWallWidthFactor(w);
-                    let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * w.qty }))];
+                    const rf = normalizeReductionFactor(w?.reductionFactor);
+                    let wallData = [{x: 0, y: 0}, ...data.map(d => ({ x: d.r, y: d.q * wf * rf * w.qty }))];
                     datasets.push({
                         label: `${w.name} ${w.qty}箇所 (壁幅=${getWallWidthM(w)}m)`,
                         data: wallData,
@@ -8889,7 +8992,8 @@ function drawForceChart(containerId, dir) {
             addedBraces[id].forEach((b, i) => {
                 let braceInfo = BRACE_DATA[b.name];
                 if(braceInfo && braceInfo.data) {
-                    let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * b.qty }))];
+                    const rf = normalizeReductionFactor(b?.reductionFactor);
+                    let braceData = [{x: 0, y: 0}, ...braceInfo.data.map(d => ({ x: d.r, y: d.q * b.correctionFactor * rf * b.qty }))];
                     datasets.push({
                         label: `${b.name}×${b.qty}`,
                         data: braceData,
@@ -8910,7 +9014,8 @@ function drawForceChart(containerId, dir) {
             addedNukis[id].forEach((n, i) => {
                 let nukiInfo = NUKI_DATA[n.name];
                 if(nukiInfo && nukiInfo.data) {
-                    let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * n.qty }))];
+                    const rf = normalizeReductionFactor(n?.reductionFactor);
+                    let nukiData = [{x: 0, y: 0}, ...nukiInfo.data.map(d => ({ x: d.r, y: d.q * n.correctionFactor * rf * n.qty }))];
                     datasets.push({
                         label: `${n.name}×${n.qty}`,
                         data: nukiData,
@@ -8931,7 +9036,8 @@ function drawForceChart(containerId, dir) {
             addedKokabes[id].forEach((k, i) => {
                 let kokabeInfo = KOKABE_DATA[k.name];
                 if(kokabeInfo && kokabeInfo.data) {
-                    let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * k.qty }))];
+                    const rf = normalizeReductionFactor(k?.reductionFactor);
+                    let kokabeData = [{x: 0, y: 0}, ...kokabeInfo.data.map(d => ({ x: d.r, y: d.q * k.correctionFactor * rf * k.qty }))];
                     datasets.push({
                         label: `${k.name}×${k.qty}`,
                         data: kokabeData,
@@ -10000,6 +10106,8 @@ function restoreAllInputData(data) {
                     (addedWalls[id] || []).forEach(w => {
                         const ww = Number(w?.width);
                         if (!(Number.isFinite(ww) && ww > 0)) w.width = WALL_BASE_WIDTH_M;
+                        const rf = Number(w?.reductionFactor);
+                        if (!(Number.isFinite(rf) && rf > 0)) w.reductionFactor = 1.0;
                     });
                 } catch (e) {}
                 const el = document.getElementById(`list-wall-${id}`);
@@ -10012,6 +10120,12 @@ function restoreAllInputData(data) {
             addedBraces = data.addedBraces;
             ALL_FLOOR_KEYS.forEach(id => {
                 if (!addedBraces[id]) addedBraces[id] = [];
+                try {
+                    (addedBraces[id] || []).forEach(b => {
+                        const rf = Number(b?.reductionFactor);
+                        if (!(Number.isFinite(rf) && rf > 0)) b.reductionFactor = 1.0;
+                    });
+                } catch (e) {}
                 const el = document.getElementById(`list-brace-${id}`);
                 if (el) renderBraceList(id);
             });
@@ -10022,6 +10136,12 @@ function restoreAllInputData(data) {
             addedNukis = data.addedNukis;
             ALL_FLOOR_KEYS.forEach(id => {
                 if (!addedNukis[id]) addedNukis[id] = [];
+                try {
+                    (addedNukis[id] || []).forEach(n => {
+                        const rf = Number(n?.reductionFactor);
+                        if (!(Number.isFinite(rf) && rf > 0)) n.reductionFactor = 1.0;
+                    });
+                } catch (e) {}
                 const el = document.getElementById(`list-nuki-${id}`);
                 if (el) renderNukiList(id);
             });
@@ -10032,6 +10152,12 @@ function restoreAllInputData(data) {
             addedKokabes = data.addedKokabes;
             ALL_FLOOR_KEYS.forEach(id => {
                 if (!addedKokabes[id]) addedKokabes[id] = [];
+                try {
+                    (addedKokabes[id] || []).forEach(k => {
+                        const rf = Number(k?.reductionFactor);
+                        if (!(Number.isFinite(rf) && rf > 0)) k.reductionFactor = 1.0;
+                    });
+                } catch (e) {}
                 const el = document.getElementById(`list-kokabe-${id}`);
                 if (el) renderKokabeList(id);
             });
@@ -10193,7 +10319,8 @@ function saveToCSV() {
         walls.forEach((w, i) => {
             const ww = Number(w?.width);
             const width = (Number.isFinite(ww) && ww > 0) ? ww : WALL_BASE_WIDTH_M;
-            csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "," + width + "\n";
+            const rf = normalizeReductionFactor(w?.reductionFactor);
+            csvContent += "Wall_" + id + "_" + i + "," + escapeCSV(w.name) + "," + w.qty + "," + width + "," + rf + "\n";
         });
     });
 
@@ -10202,7 +10329,8 @@ function saveToCSV() {
         const braces = data.addedBraces[id] || [];
         csvContent += "#Braces_" + id + ",count," + braces.length + "\n";
         braces.forEach((b, i) => {
-            csvContent += "Brace_" + id + "_" + i + "," + escapeCSV(b.name) + "," + b.width + "," + b.qty + "," + b.height + "," + b.correctionFactor + "\n";
+            const rf = normalizeReductionFactor(b?.reductionFactor);
+            csvContent += "Brace_" + id + "_" + i + "," + escapeCSV(b.name) + "," + b.width + "," + b.qty + "," + b.height + "," + b.correctionFactor + "," + rf + "\n";
         });
     });
 
@@ -10211,7 +10339,8 @@ function saveToCSV() {
         const nukis = data.addedNukis[id] || [];
         csvContent += "#Nukis_" + id + ",count," + nukis.length + "\n";
         nukis.forEach((n, i) => {
-            csvContent += "Nuki_" + id + "_" + i + "," + escapeCSV(n.name) + "," + n.qty + "," + n.height + "," + n.baseHeight + "," + n.correctionFactor + "\n";
+            const rf = normalizeReductionFactor(n?.reductionFactor);
+            csvContent += "Nuki_" + id + "_" + i + "," + escapeCSV(n.name) + "," + n.qty + "," + n.height + "," + n.baseHeight + "," + n.correctionFactor + "," + rf + "\n";
         });
     });
 
@@ -10220,7 +10349,8 @@ function saveToCSV() {
         const kokabes = data.addedKokabes[id] || [];
         csvContent += "#Kokabes_" + id + ",count," + kokabes.length + "\n";
         kokabes.forEach((k, i) => {
-            csvContent += "Kokabe_" + id + "_" + i + "," + escapeCSV(k.name) + "," + k.qty + "," + k.width + "," + k.zanzonPercent + "," + k.zanzon + "," + k.baseWidth + "," + k.baseZanzon + "," + k.widthRatio + "," + k.zanzonRatio + "," + k.correctionFactor + "\n";
+            const rf = normalizeReductionFactor(k?.reductionFactor);
+            csvContent += "Kokabe_" + id + "_" + i + "," + escapeCSV(k.name) + "," + k.qty + "," + k.width + "," + k.zanzonPercent + "," + k.zanzon + "," + k.baseWidth + "," + k.baseZanzon + "," + k.widthRatio + "," + k.zanzonRatio + "," + k.correctionFactor + "," + rf + "\n";
         });
     });
 
@@ -10420,11 +10550,13 @@ function parseCSVToData(content) {
                 const name = value;
                 const qty = parseFloat(parts[2]) || 1;
                 const width = parseFloat(parts[3]);
+                const reductionFactor = parseFloat(parts[4]);
                 if(!data.addedWalls[id]) data.addedWalls[id] = [];
                 data.addedWalls[id].push({
                     name: name,
                     qty: qty,
-                    width: (Number.isFinite(width) && width > 0) ? width : WALL_BASE_WIDTH_M
+                    width: (Number.isFinite(width) && width > 0) ? width : WALL_BASE_WIDTH_M,
+                    reductionFactor: (Number.isFinite(reductionFactor) && reductionFactor > 0) ? reductionFactor : 1.0
                 });
             }
         }
@@ -10439,13 +10571,15 @@ function parseCSVToData(content) {
                 const qty = parseInt(parts[3]);
                 const height = parseFloat(parts[4]);
                 const correctionFactor = parseFloat(parts[5]);
+                const reductionFactor = parseFloat(parts[6]);
                 if(!data.addedBraces[id]) data.addedBraces[id] = [];
                 data.addedBraces[id].push({
                     name,
                     width: isNaN(width) ? 0.91 : width,
                     qty: isNaN(qty) ? 1 : qty,
                     height: isNaN(height) ? 3.0 : height,
-                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor,
+                    reductionFactor: (Number.isFinite(reductionFactor) && reductionFactor > 0) ? reductionFactor : 1.0
                 });
             }
         }
@@ -10460,13 +10594,15 @@ function parseCSVToData(content) {
                 const height = parseFloat(parts[3]);
                 const baseHeight = parseFloat(parts[4]);
                 const correctionFactor = parseFloat(parts[5]);
+                const reductionFactor = parseFloat(parts[6]);
                 if(!data.addedNukis[id]) data.addedNukis[id] = [];
                 data.addedNukis[id].push({
                     name,
                     qty: isNaN(qty) ? 1 : qty,
                     height: isNaN(height) ? 3.0 : height,
                     baseHeight: isNaN(baseHeight) ? (isNaN(height) ? 2.73 : height) : baseHeight,
-                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor,
+                    reductionFactor: (Number.isFinite(reductionFactor) && reductionFactor > 0) ? reductionFactor : 1.0
                 });
             }
         }
@@ -10486,6 +10622,7 @@ function parseCSVToData(content) {
                 const widthRatio = parseFloat(parts[8]);
                 const zanzonRatio = parseFloat(parts[9]);
                 const correctionFactor = parseFloat(parts[10]);
+                const reductionFactor = parseFloat(parts[11]);
                 if(!data.addedKokabes[id]) data.addedKokabes[id] = [];
                 data.addedKokabes[id].push({
                     name,
@@ -10497,7 +10634,8 @@ function parseCSVToData(content) {
                     baseZanzon: isNaN(baseZanzon) ? 1.0 : baseZanzon,
                     widthRatio: isNaN(widthRatio) ? 1.0 : widthRatio,
                     zanzonRatio: isNaN(zanzonRatio) ? 1.0 : zanzonRatio,
-                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor
+                    correctionFactor: isNaN(correctionFactor) ? 1.0 : correctionFactor,
+                    reductionFactor: (Number.isFinite(reductionFactor) && reductionFactor > 0) ? reductionFactor : 1.0
                 });
             }
         }
