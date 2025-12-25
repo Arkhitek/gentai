@@ -343,20 +343,20 @@
         <h4 style="margin: 15px 0 5px 0; color: #333;">重量W <a href="#" onclick="window.open('./weight.png', '_blank', 'width=800,height=600'); return false;" style="font-size:0.8em; color:#007bff; text-decoration:underline; margin-left:10px;">各階重量の考え方</a></h4>
         <p style="font-size:0.9em; color:#666;">※重量Wは、当該階の地震力を負担する重量（積載荷重含む、多雪区域等は適切に割増）を入力してください。</p>
         <div class="input-grid" id="weight-input-grid" style="display:none;">
-            <div class="input-group"><label>1F 重量W1 (kN)</label><input type="number" id="inp_W1" value="100" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-2-only"><label>2F 重量W2 (kN)</label><input type="number" id="inp_W2" value="80" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-3-only"><label>3F 重量W3 (kN)</label><input type="number" id="inp_W3" value="70" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-4-only"><label>4F 重量W4 (kN)</label><input type="number" id="inp_W4" value="60" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-5-only"><label>5F 重量W5 (kN)</label><input type="number" id="inp_W5" value="50" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group"><label>1F 重量W1 (kN)</label><input type="number" id="inp_W1" value="100" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 重量W2 (kN)</label><input type="number" id="inp_W2" value="80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 重量W3 (kN)</label><input type="number" id="inp_W3" value="70" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 重量W4 (kN)</label><input type="number" id="inp_W4" value="60" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 重量W5 (kN)</label><input type="number" id="inp_W5" value="50" step="0.01" oninput="drawBuildingModel()"></div>
         </div>
         
         <h4 style="margin: 15px 0 5px 0; color: #333; display:none;">階高H</h4>
         <div class="input-grid" id="height-input-grid" style="display:none;">
-            <div class="input-group"><label>1F 階高H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-2-only"><label>2F 階高H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-3-only"><label>3F 階高H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-4-only"><label>4F 階高H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-5-only"><label>5F 階高H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group"><label>1F 階高H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.001" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 階高H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.001" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 階高H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.001" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 階高H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.001" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 階高H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.001" oninput="drawBuildingModel()"></div>
         </div>
         
         <!-- 串団子モデル図と重量イメージ -->
@@ -1522,8 +1522,16 @@
                         <input type="number" id="inp_Fes" value="1.0" step="0.1">
                     </div>
                     <div class="input-group">
-                        <label>木造固有周期係数 (T=kH)</label>
+                        <label>木造固有周期係数k (T=kH)</label>
                         <input type="number" id="inp_T_factor" value="0.03" step="0.01">
+                    </div>
+                    <div class="input-group">
+                        <label>H (高さと軒高の平均)</label>
+                        <input type="number" id="inp_T_H" step="0.001" oninput="this.dataset.userEdited='true';">
+                    </div>
+                    <div class="input-group">
+                        <label>T (自動計算値)</label>
+                        <input type="number" id="inp_T_value" step="0.001" oninput="this.dataset.userEdited='true';">
                     </div>
                 </div>
             </div>
@@ -2515,7 +2523,9 @@ function calcInitialStiffnessK0Rad(dataPoints) {
 }
 
 function getFloorHeightM(floor) {
-    return parseFloat(document.getElementById('inp_H' + floor)?.value) || 3.0;
+    const v = parseFloat(document.getElementById('inp_H' + floor)?.value);
+    if (!(Number.isFinite(v) && v > 0)) return 3.0;
+    return Math.round(v * 1000) / 1000;
 }
 
 function getFloorFromId(id) {
@@ -4787,10 +4797,12 @@ function drawBuildingModel() {
     const weights = [];
     const heights = [];
     for (let i = 1; i <= stories; i++) {
-        const w = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
-        const h = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        const wRaw = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
+        const hRaw = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        const w = Number.isFinite(wRaw) ? Math.round(wRaw * 100) / 100 : 0;
+        const h = (Number.isFinite(hRaw) && hRaw > 0) ? (Math.round(hRaw * 1000) / 1000) : 3.0;
         weights.push(w);
-        heights.push(Number.isFinite(h) && h > 0 ? h : 3.0);
+        heights.push(h);
     }
 
     // 階高→ピクセル（階ごと）
@@ -4928,8 +4940,8 @@ function drawBuildingModel() {
         // 団子の中央より少し右に配置して、単位を入れるスペースを作る
         const inputW = document.createElement('input');
         inputW.type = 'number';
-        inputW.step = '0.1';
-        inputW.value = w.toFixed(1);
+        inputW.step = '0.01';
+        inputW.value = w.toFixed(2);
         inputW.className = 'model-input';
         
         // 配置計算
@@ -4952,7 +4964,10 @@ function drawBuildingModel() {
             z-index: 10;
         `;
         inputW.onchange = function() {
-            document.getElementById(`inp_W${floorNum}`).value = this.value;
+            const v = parseFloat(this.value);
+            const fixed = Number.isFinite(v) ? (Math.round(v * 100) / 100).toFixed(2) : '0.00';
+            this.value = fixed;
+            document.getElementById(`inp_W${floorNum}`).value = fixed;
             drawBuildingModel();
         };
         container.appendChild(inputW);
@@ -5010,8 +5025,8 @@ function drawBuildingModel() {
         // --- 階高入力ボックス ---
         const inputH = document.createElement('input');
         inputH.type = 'number';
-        inputH.step = '0.01';
-        inputH.value = h.toFixed(2);
+        inputH.step = '0.001';
+        inputH.value = h.toFixed(3);
         inputH.className = 'model-input';
         
         // 配置計算 (寸法線の少し右側、バネの左側)
@@ -5034,7 +5049,10 @@ function drawBuildingModel() {
             z-index: 10;
         `;
         inputH.onchange = function() {
-            document.getElementById(`inp_H${floorNum}`).value = this.value;
+            const v = parseFloat(this.value);
+            const fixed = (Number.isFinite(v) && v > 0) ? (Math.round(v * 1000) / 1000).toFixed(3) : '3.000';
+            this.value = fixed;
+            document.getElementById(`inp_H${floorNum}`).value = fixed;
             drawBuildingModel();
         };
         container.appendChild(inputH);
@@ -5055,6 +5073,13 @@ function drawBuildingModel() {
         
         currentY = nextY;
     }
+
+    // 階高が変わったら、せん断力比較のH/T自動値も追従（ユーザー未編集の場合のみ）
+    try {
+        if (document.getElementById('chk_calc_shear_force')?.checked) {
+            initShearKHFieldsIfNeeded();
+        }
+    } catch (e) {}
 }
 
 function toggleSkipY() {
@@ -5900,6 +5925,45 @@ function applySheetData(){
 }
 
 // --- Logic Helpers ---
+function roundTo(value, decimals) {
+    const v = Number(value);
+    const d = Number(decimals);
+    if (!Number.isFinite(v) || !Number.isFinite(d) || d < 0) return NaN;
+    const p = 10 ** d;
+    return Math.round(v * p) / p;
+}
+
+function calcShearHautoFromCurrentInputs() {
+    const stories = parseInt(document.getElementById('inp_Stories')?.value || '1', 10) || 1;
+    let sumH = 0;
+    for (let i = 1; i <= stories; i++) {
+        const h = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        sumH += (Number.isFinite(h) && h > 0) ? h : 0;
+    }
+    // 現状は階高合計を自動値とする（軒高が別入力で無いため）
+    return roundTo(sumH, 3);
+}
+
+function initShearKHFieldsIfNeeded() {
+    const hEl = document.getElementById('inp_T_H');
+    const tEl = document.getElementById('inp_T_value');
+    const kEl = document.getElementById('inp_T_factor');
+    if (!hEl || !tEl || !kEl) return;
+
+    const hAuto = calcShearHautoFromCurrentInputs();
+    const k = parseFloat(kEl.value);
+
+    if (hEl.dataset.userEdited !== 'true') {
+        if (Number.isFinite(hAuto)) hEl.value = hAuto.toFixed(3);
+    }
+    const hUsed = parseFloat(hEl.value);
+
+    const tAuto = (Number.isFinite(k) && Number.isFinite(hUsed)) ? roundTo(k * hUsed, 3) : NaN;
+    if (tEl.dataset.userEdited !== 'true') {
+        if (Number.isFinite(tAuto)) tEl.value = tAuto.toFixed(3);
+    }
+}
+
 function getBldg() {
     let stories = parseInt(document.getElementById('inp_Stories').value);
     let tcMode = document.getElementById('inp_Tc_mode').value;
@@ -5934,8 +5998,10 @@ function getBldg() {
     // 配列として取得 [dummy, 1F, 2F, 3F, 4F, 5F]
     let W = [0], H = [0];
     for(let i = 1; i <= stories; i++) {
-        W[i] = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
-        H[i] = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        const w = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
+        const h = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
+        W[i] = Number.isFinite(w) ? roundTo(w, 2) : 0;
+        H[i] = (Number.isFinite(h) && h > 0) ? roundTo(h, 3) : 0;
     }
     
     let b = {
@@ -5960,7 +6026,8 @@ function getForce(id) {
     // Convert rad to displacement (m) for the engine
     // idは "x1", "x2", "y3" などの形式
     let floor = id.replace(/[xy]/g, '');
-    let h = parseFloat(document.getElementById('inp_H'+floor)?.value) || 3.0;
+    let h = parseFloat(document.getElementById('inp_H'+floor)?.value);
+    h = (Number.isFinite(h) && h > 0) ? roundTo(h, 3) : 3.0;
     
     // heq情報も含めて変換
     let u = composite.map(p => ({ d: p.r * h, q: p.q, heq: p.heq || 0 }));
@@ -9358,6 +9425,11 @@ function toggleShearInput() {
         optChk.checked = false; // 非表示ならチェックを外す
     }
 
+    // 入力欄に自動計算値を反映（未編集の場合のみ）
+    if (chk) {
+        try { initShearKHFieldsIfNeeded(); } catch (e) {}
+    }
+
     // 計算実行済みならタブを戻す等のUX
     if(!chk) {
         // もし現在「層せん断力の比較」タブを開いていたら入力タブに戻す
@@ -9372,12 +9444,32 @@ function toggleShearInput() {
 function calcStandardShear(b) {
     const N = b.stories;
     
-    // 建物全高
+    // 建物全高（参考）
     let H_total = 0;
-    for(let i = 1; i <= N; i++) H_total += b.H[i];
-    
-    const k = parseFloat(document.getElementById('inp_T_factor').value) || 0.03;
-    const T = k * H_total; // 固有周期 T = 0.03 * H
+    for(let i = 1; i <= N; i++) H_total += (b.H[i] || 0);
+    H_total = roundTo(H_total, 3);
+
+    // 木造固有周期係数 k と、H(高さと軒高の平均)・T の入力/自動値
+    const k = parseFloat(document.getElementById('inp_T_factor')?.value);
+    const kUsed = Number.isFinite(k) ? k : 0.03;
+
+    const hEl = document.getElementById('inp_T_H');
+    const tEl = document.getElementById('inp_T_value');
+    const H_auto = Number.isFinite(H_total) ? H_total : calcShearHautoFromCurrentInputs();
+
+    // 未編集なら自動値をセット
+    if (hEl && hEl.dataset.userEdited !== 'true' && Number.isFinite(H_auto)) {
+        hEl.value = H_auto.toFixed(3);
+    }
+    const H_kH = (hEl && Number.isFinite(parseFloat(hEl.value))) ? roundTo(parseFloat(hEl.value), 3) : H_auto;
+
+    const T_auto = roundTo(kUsed * H_kH, 3);
+    if (tEl && tEl.dataset.userEdited !== 'true' && Number.isFinite(T_auto)) {
+        tEl.value = T_auto.toFixed(3);
+    }
+    const T_used = (tEl && Number.isFinite(parseFloat(tEl.value))) ? roundTo(parseFloat(tEl.value), 3) : T_auto;
+
+    const T = T_used;
     
     // Rt (振動特性係数) の計算
     let Tc = 0.6; // デフォルト第2種
@@ -9423,7 +9515,10 @@ function calcStandardShear(b) {
     const Ds = parseFloat(document.getElementById('inp_Ds').value) || 0.4;
     const Fes = parseFloat(document.getElementById('inp_Fes').value) || 1.0;
     
-    // 各階の必要層せん断力 Qd[], Qs[] を計算
+    // 各階の層せん断力係数 Ci と 必要層せん断力 Qd[], Qs[] を計算
+    // 表示用に Ci は小数点以下3桁、Q は小数点以下2桁で丸める
+    let CiD = [null]; // 1次設計（損傷限界）
+    let CiS = [null]; // 2次設計（安全限界）
     let Qd = [null]; // Qd[1], Qd[2], ...
     let Qs = [null]; // Qs[1], Qs[2], ...
     
@@ -9433,16 +9528,19 @@ function calcStandardShear(b) {
         for(let j = i; j <= N; j++) weightAbove += b.W[j];
         
         // 損傷限界 Qi = Z * Rt * Ai * C0 * W
-        Qd[i] = b.Z * Rt * Ai[i] * C0_D * weightAbove;
+        CiD[i] = roundTo(b.Z * Rt * Ai[i] * C0_D, 3);
+        Qd[i] = roundTo(CiD[i] * weightAbove, 2);
         
         // 安全限界 Qi = Ds * Fes * Z * Rt * Ai * C0 * W
-        Qs[i] = Ds * Fes * b.Z * Rt * Ai[i] * C0_S * weightAbove;
+        CiS[i] = roundTo(Ds * Fes * b.Z * Rt * Ai[i] * C0_S, 3);
+        Qs[i] = roundTo(CiS[i] * weightAbove, 2);
     }
     
     return {
+        k: kUsed, H_kH, H_auto, T_auto,
         T, Tc, Rt, Ai, alpha,
         C0_D, C0_S, Ds, Fes,
-        Qd, Qs, W_total, H_total
+        CiD, CiS, Qd, Qs, W_total, H_total
     };
 }
 
@@ -9527,14 +9625,18 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
     
     // 諸元
     html2 += `<h4>7.2-1. 振動特性係数 \\( R_t \\) の算定</h4>`;
-    html2 += `<p>建物全高 \\( H = ${f2(stdShear.H_total)} \\, \\text{m} \\)</p>`;
-    html2 += `<p>設計用一次固有周期 \\( T = 0.03 H = ${f3(stdShear.T)} \\, \\text{s} \\) (Rt=${f3(stdShear.Rt)})</p>`;
+    html2 += `<p>階高合計 \\( H_{total} = ${f2(stdShear.H_total)} \\, \\text{m} \\)</p>`;
+    html2 += `<p>木造固有周期係数 \\( k = ${f3(stdShear.k)} \\)</p>`;
+    html2 += `<p>\\( H \\)（高さと軒高の平均）: \\( H = ${f3(stdShear.H_kH)} \\, \\text{m} \\)</p>`;
+    html2 += `<p>設計用一次固有周期 \\( T = ${f3(stdShear.T)} \\, \\text{s} \\) (Rt=${f3(stdShear.Rt)})</p>`;
     
     // Ai表
     html2 += `<h4>7.2-2. 地震層せん断力分布係数 \\( A_i \\) の算定</h4>`;
     html2 += `<table style="width:100%; border-collapse:collapse; margin-top:10px;"><thead><tr>
         <th style="${thStyle}">階</th><th style="${thStyle}">重量Wi</th><th style="${thStyle}">ΣW</th>
-        <th style="${thStyle}">αi</th><th style="${thStyle}">Ai</th><th style="${thStyle}">1次設計必要耐力(kN)</th><th style="${thStyle}">2次設計必要耐力(kN)</th>
+        <th style="${thStyle}">αi</th><th style="${thStyle}">Ai</th>
+        <th style="${thStyle}">Ci(1次)</th><th style="${thStyle}">Ci(2次)</th>
+        <th style="${thStyle}">1次設計必要耐力(kN)</th><th style="${thStyle}">2次設計必要耐力(kN)</th>
     </tr></thead><tbody>`;
     
     for(let i = N; i >= 1; i--) {
@@ -9543,12 +9645,14 @@ function renderShearComparison(b, stdShear, resX, resY, ptXd, ptXs, ptYd, ptYs) 
         
         html2 += `<tr>
             <td style="${tdStyle}">${i}F</td>
-            <td style="${tdStyle}">${b.W[i].toFixed(1)}</td>
-            <td style="${tdStyle}">${weightAbove.toFixed(1)}</td>
+            <td style="${tdStyle}">${b.W[i].toFixed(2)}</td>
+            <td style="${tdStyle}">${weightAbove.toFixed(2)}</td>
             <td style="${tdStyle}">${stdShear.alpha[i].toFixed(3)}</td>
             <td style="${tdStyle}">${stdShear.Ai[i].toFixed(3)}</td>
-            <td style="${tdStyle}">${stdShear.Qd[i].toFixed(1)}</td>
-            <td style="${tdStyle}">${stdShear.Qs[i].toFixed(1)}</td>
+            <td style="${tdStyle}">${Number.isFinite(stdShear.CiD?.[i]) ? stdShear.CiD[i].toFixed(3) : '-'}</td>
+            <td style="${tdStyle}">${Number.isFinite(stdShear.CiS?.[i]) ? stdShear.CiS[i].toFixed(3) : '-'}</td>
+            <td style="${tdStyle}">${Number.isFinite(stdShear.Qd?.[i]) ? stdShear.Qd[i].toFixed(2) : '-'}</td>
+            <td style="${tdStyle}">${Number.isFinite(stdShear.Qs?.[i]) ? stdShear.Qs[i].toFixed(2) : '-'}</td>
         </tr>`;
     }
     html2 += `</tbody></table>`;
@@ -9664,6 +9768,10 @@ function collectAllInputData() {
         Ds: document.getElementById('inp_Ds').value,
         Fes: document.getElementById('inp_Fes').value,
         T_factor: document.getElementById('inp_T_factor').value,
+        T_H: document.getElementById('inp_T_H')?.value,
+        T_H_userEdited: document.getElementById('inp_T_H')?.dataset?.userEdited === 'true',
+        T_value: document.getElementById('inp_T_value')?.value,
+        T_value_userEdited: document.getElementById('inp_T_value')?.dataset?.userEdited === 'true',
         // 階データ (5階対応)
         W1: document.getElementById('inp_W1').value,
         W2: document.getElementById('inp_W2').value,
@@ -9763,6 +9871,24 @@ function restoreAllInputData(data) {
         if(data.Ds !== undefined) document.getElementById('inp_Ds').value = data.Ds;
         if(data.Fes !== undefined) document.getElementById('inp_Fes').value = data.Fes;
         if(data.T_factor !== undefined) document.getElementById('inp_T_factor').value = data.T_factor;
+
+        // kHのH/T（自動値表示 + 任意入力）
+        if (data.T_H !== undefined) {
+            const el = document.getElementById('inp_T_H');
+            if (el) el.value = data.T_H;
+        }
+        if (data.T_H_userEdited !== undefined) {
+            const el = document.getElementById('inp_T_H');
+            if (el) el.dataset.userEdited = data.T_H_userEdited ? 'true' : 'false';
+        }
+        if (data.T_value !== undefined) {
+            const el = document.getElementById('inp_T_value');
+            if (el) el.value = data.T_value;
+        }
+        if (data.T_value_userEdited !== undefined) {
+            const el = document.getElementById('inp_T_value');
+            if (el) el.dataset.userEdited = data.T_value_userEdited ? 'true' : 'false';
+        }
         
         // 階データ (5階対応)
         if(data.W1 !== undefined) document.getElementById('inp_W1').value = data.W1;
@@ -9775,6 +9901,26 @@ function restoreAllInputData(data) {
         if(data.H3 !== undefined) document.getElementById('inp_H3').value = data.H3;
         if(data.H4 !== undefined) document.getElementById('inp_H4').value = data.H4;
         if(data.H5 !== undefined) document.getElementById('inp_H5').value = data.H5;
+
+        // 重量W(2桁)・階高H(3桁)の表示/計算用に正規化
+        try {
+            const stories = parseInt(document.getElementById('inp_Stories')?.value || '1', 10) || 1;
+            for (let i = 1; i <= stories; i++) {
+                const wEl = document.getElementById(`inp_W${i}`);
+                const hEl = document.getElementById(`inp_H${i}`);
+                if (wEl) {
+                    const v = parseFloat(wEl.value);
+                    wEl.value = Number.isFinite(v) ? (Math.round(v * 100) / 100).toFixed(2) : '0.00';
+                }
+                if (hEl) {
+                    const v = parseFloat(hEl.value);
+                    hEl.value = (Number.isFinite(v) && v > 0) ? (Math.round(v * 1000) / 1000).toFixed(3) : '3.000';
+                }
+            }
+        } catch (e) {}
+
+        // せん断力比較がONなら、未編集の場合のみ自動値を再反映
+        try { initShearKHFieldsIfNeeded(); } catch (e) {}
         
         // 判定基準
         if(data.limit_d !== undefined) document.getElementById('inp_limit_d').value = data.limit_d;
@@ -9911,6 +10057,10 @@ function saveToCSV() {
     csvContent += "Ds," + data.Ds + "\n";
     csvContent += "Fes," + data.Fes + "\n";
     csvContent += "T_factor," + data.T_factor + "\n";
+    csvContent += "T_H," + (data.T_H ?? '') + "\n";
+    csvContent += "T_H_userEdited," + (data.T_H_userEdited ? 'true' : 'false') + "\n";
+    csvContent += "T_value," + (data.T_value ?? '') + "\n";
+    csvContent += "T_value_userEdited," + (data.T_value_userEdited ? 'true' : 'false') + "\n";
     
     // 表紙データ (追加)
     csvContent += "#表紙データ\n";
@@ -10152,6 +10302,10 @@ function parseCSVToData(content) {
         else if(key === 'Ds') data.Ds = value;
         else if(key === 'Fes') data.Fes = value;
         else if(key === 'T_factor') data.T_factor = value;
+        else if(key === 'T_H') data.T_H = value;
+        else if(key === 'T_H_userEdited') data.T_H_userEdited = (value === 'true');
+        else if(key === 'T_value') data.T_value = value;
+        else if(key === 'T_value_userEdited') data.T_value_userEdited = (value === 'true');
         
         // 表紙データ (追加)
         else if(key === 'cover_checked') data.cover_checked = (value === 'true');
