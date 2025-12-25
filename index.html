@@ -340,23 +340,23 @@
             </div>
         </div>
         
-        <h4 style="margin: 15px 0 5px 0; color: #333;">重量 <a href="#" onclick="window.open('./weight.png', '_blank', 'width=800,height=600'); return false;" style="font-size:0.8em; color:#007bff; text-decoration:underline; margin-left:10px;">各階重量の考え方</a></h4>
+        <h4 style="margin: 15px 0 5px 0; color: #333;">重量W <a href="#" onclick="window.open('./weight.png', '_blank', 'width=800,height=600'); return false;" style="font-size:0.8em; color:#007bff; text-decoration:underline; margin-left:10px;">各階重量の考え方</a></h4>
         <p style="font-size:0.9em; color:#666;">※重量Wは、当該階の地震力を負担する重量（積載荷重含む、多雪区域等は適切に割増）を入力してください。</p>
-        <div class="input-grid" id="weight-input-grid">
-            <div class="input-group"><label>1F 重量 W1 (kN)</label><input type="number" id="inp_W1" value="100" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-2-only"><label>2F 重量 W2 (kN)</label><input type="number" id="inp_W2" value="80" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-3-only"><label>3F 重量 W3 (kN)</label><input type="number" id="inp_W3" value="70" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-4-only"><label>4F 重量 W4 (kN)</label><input type="number" id="inp_W4" value="60" step="0.1" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-5-only"><label>5F 重量 W5 (kN)</label><input type="number" id="inp_W5" value="50" step="0.1" oninput="drawBuildingModel()"></div>
+        <div class="input-grid" id="weight-input-grid" style="display:none;">
+            <div class="input-group"><label>1F 重量W1 (kN)</label><input type="number" id="inp_W1" value="100" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 重量W2 (kN)</label><input type="number" id="inp_W2" value="80" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 重量W3 (kN)</label><input type="number" id="inp_W3" value="70" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 重量W4 (kN)</label><input type="number" id="inp_W4" value="60" step="0.1" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 重量W5 (kN)</label><input type="number" id="inp_W5" value="50" step="0.1" oninput="drawBuildingModel()"></div>
         </div>
         
-        <h4 style="margin: 15px 0 5px 0; color: #333;">階高</h4>
-        <div class="input-grid" id="height-input-grid">
-            <div class="input-group"><label>1F 階高 H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-2-only"><label>2F 階高 H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-3-only"><label>3F 階高 H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-4-only"><label>4F 階高 H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
-            <div class="input-group story-5-only"><label>5F 階高 H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+        <h4 style="margin: 15px 0 5px 0; color: #333; display:none;">階高H</h4>
+        <div class="input-grid" id="height-input-grid" style="display:none;">
+            <div class="input-group"><label>1F 階高H1 (m)</label><input type="number" id="inp_H1" value="2.98" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-2-only"><label>2F 階高H2 (m)</label><input type="number" id="inp_H2" value="2.85" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-3-only"><label>3F 階高H3 (m)</label><input type="number" id="inp_H3" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-4-only"><label>4F 階高H4 (m)</label><input type="number" id="inp_H4" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
+            <div class="input-group story-5-only"><label>5F 階高H5 (m)</label><input type="number" id="inp_H5" value="2.80" step="0.01" oninput="drawBuildingModel()"></div>
         </div>
         
         <!-- 串団子モデル図と重量イメージ -->
@@ -4773,20 +4773,12 @@ function drawBuildingModel() {
     const stories = parseInt(document.getElementById('inp_Stories').value);
     
     // --- 1. キャンバスサイズの自動調整 ---
-    // 1階あたりの固定ピクセル高さを設定（見やすくするため）
-    const pixelsPerFloor = 140; 
+    // 階高(m)に応じてバネの長さ（=階間ピクセル）を変える
+    // 既存の見やすさ（約3.0m→約140px）を踏襲
+    const pixelsPerMeter = 46;
     const topMargin = 60;
     const bottomMargin = 60;
-    const newHeight = (stories * pixelsPerFloor) + topMargin + bottomMargin;
-    
-    // キャンバスの高さを変更（幅は固定）
-    canvas.height = newHeight;
-    // スタイルも合わせる（高解像度ディスプレイ対応の際はdpr考慮が必要ですが、今回は等倍とします）
-    canvas.style.height = newHeight + "px";
 
-    // クリア
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     // 既存の入力ボックス・単位ラベルをクリア
     const existingInputs = container.querySelectorAll('.model-input, .model-unit');
     existingInputs.forEach(el => el.remove());
@@ -4798,11 +4790,36 @@ function drawBuildingModel() {
         const w = parseFloat(document.getElementById(`inp_W${i}`)?.value || 0);
         const h = parseFloat(document.getElementById(`inp_H${i}`)?.value || 0);
         weights.push(w);
-        heights.push(h);
+        heights.push(Number.isFinite(h) && h > 0 ? h : 3.0);
     }
+
+    // 階高→ピクセル（階ごと）
+    const floorPixels = heights.map(h => h * pixelsPerMeter);
+    const newHeight = Math.round(floorPixels.reduce((a, b) => a + b, 0) + topMargin + bottomMargin);
+
+    // キャンバスの高さを変更（幅は固定）
+    canvas.height = newHeight;
+    // スタイルも合わせる（高解像度ディスプレイ対応の際はdpr考慮が必要ですが、今回は等倍とします）
+    canvas.style.height = newHeight + "px";
+
+    // クリア
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // 描画設定
-    const massRadius = 30; // 団子の半径
+    // - 1Fの団子は入力値に関わらず固定サイズ
+    // - 2F以降は「各階重量 / 1F重量」の比率で直径（=半径）をスケール
+    const refMassRadius = 30; // 1F固定半径（直径=60px）
+    const minMassRadius = 12;
+    const maxMassRadius = 60;
+    const w1 = (Number.isFinite(weights[0]) && weights[0] > 0) ? weights[0] : NaN;
+    const massRadii = weights.map((w, idx) => {
+        if (idx === 0) return refMassRadius;
+        const ww = (Number.isFinite(w) && w > 0) ? w : 0;
+        const ratio = (Number.isFinite(w1) && w1 > 0) ? (ww / w1) : 1;
+        const r = refMassRadius * ratio;
+        if (!Number.isFinite(r) || r <= 0) return minMassRadius;
+        return Math.max(minMassRadius, Math.min(maxMassRadius, r));
+    });
     const centerX = canvas.width / 2;
     const baseY = canvas.height - bottomMargin; // 地面の位置
     const leftMargin = 70; // 寸法線の位置
@@ -4826,18 +4843,23 @@ function drawBuildingModel() {
         const h = heights[i];
         const w = weights[i];
         const floorNum = i + 1;
+        const massRadius = massRadii[i];
         
-        // 階高に応じたY座標（ここでは視覚的なバランスのため固定ピクセル間隔を使用）
-        // 実際のhの値は入力欄に表示されます
-        const nextY = currentY - pixelsPerFloor;
+        // 階高に応じたY座標（バネの長さが変化）
+        const nextY = currentY - floorPixels[i];
         
         // --- バネの描画（画像に合わせたジグザグ形状） ---
-        const springStartY = (i === 0) ? baseY : currentY - massRadius; // 下端（地面または下の団子の上）
+        const lowerRadius = (i === 0) ? 0 : massRadii[i - 1];
+        const springStartY = (i === 0) ? baseY : currentY - lowerRadius; // 下端（地面または下の団子の上）
         const springEndY = nextY + massRadius; // 上端（上の団子の下）
         
         // バネの設定
         const springLength = springStartY - springEndY;
-        const zigzagHeight = 60; // ジグザグ部分の高さ固定
+        const minStraight = 8;
+        let zigzagHeight = 60;
+        if (springLength <= zigzagHeight + 2 * minStraight) {
+            zigzagHeight = Math.max(20, springLength - 2 * minStraight);
+        }
         const zigzagWidth = 20;  // ジグザグの振幅
         const coils = 4;         // 山の数
         
@@ -4890,13 +4912,13 @@ function drawBuildingModel() {
         // --- 重量ラベル W1, W2... ---
         const labelW = document.createElement('div');
         labelW.className = 'model-unit';
-        labelW.innerText = `W${floorNum}`;
+        labelW.innerText = `重量W${floorNum}`;
         labelW.style.cssText = `
             position: absolute;
             left: ${offsetX + centerX - 15}px;
-            top: ${offsetY + nextY - 25}px;
+            top: ${offsetY + nextY - (massRadius + 5)}px;
             font-size: 12px;
-            color: #c92a2a;
+            color: #000;
             font-weight: bold;
             pointer-events: none;
         `;
@@ -4978,12 +5000,12 @@ function drawBuildingModel() {
         ctx.lineTo(dimX + dimLineOffset, nextY);    // 上
         ctx.stroke();
         
-        // 階高ラベル H1, H2...
+        // 階高ラベル 階高H1, 階高H2...
         ctx.fillStyle = '#005a9c';
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`H${floorNum}`, dimX - 15, (currentY + nextY) / 2);
+        ctx.fillText(`階高H${floorNum}`, dimX - 15, (currentY + nextY) / 2);
         
         // --- 階高入力ボックス ---
         const inputH = document.createElement('input');
