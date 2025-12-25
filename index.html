@@ -2579,9 +2579,9 @@ const limitLinePlugin = {
                 if (xText + textW > area.right - pad) xText = area.right - pad - textW;
                 if (xText < area.left + pad) xText = area.left + pad;
 
-                // 横軸（数値軸）の真下に配置
-                const yBase = (xScale && Number.isFinite(xScale.bottom)) ? xScale.bottom : area.bottom;
-                const yText = Math.min(yBase + 2, chart.height - 12);
+                // 横軸目盛りの「上」に配置（チャート枠内・下端付近）
+                // 目盛りラベルは枠外（下側）に出るため、chartArea.bottom を基準にする
+                const yText = Math.max(area.top + 2, area.bottom - 12);
                 ctx.fillText(label, xText, yText);
             }
         });
@@ -2757,7 +2757,11 @@ function buildResultLimitLinesFromSteps(steps) {
 
 function applyLimitLinesToChart(ch) {
     if (!ch) return;
-    ch.options.plugins = ch.options.plugins || {};
+    // Chart.js の options は内部で Proxy を使う場合があるため、
+    // 既存オブジェクトを「同じ参照のまま再代入」しない（無限再帰の原因になり得る）
+    if (!ch.options.plugins || typeof ch.options.plugins !== 'object') {
+        ch.options.plugins = {};
+    }
     if (!ch.options.plugins.limitLinePlugin || typeof ch.options.plugins.limitLinePlugin !== 'object') {
         ch.options.plugins.limitLinePlugin = { lines: [] };
     }
@@ -2825,8 +2829,12 @@ function updateAllInputGraphs() {
         if (!ch) return;
         const steps = map[cid];
         if (Array.isArray(steps) && steps.length > 0) {
-            ch.options.plugins = ch.options.plugins || {};
-            ch.options.plugins.limitLinePlugin = ch.options.plugins.limitLinePlugin || { lines: [] };
+            if (!ch.options.plugins || typeof ch.options.plugins !== 'object') {
+                ch.options.plugins = {};
+            }
+            if (!ch.options.plugins.limitLinePlugin || typeof ch.options.plugins.limitLinePlugin !== 'object') {
+                ch.options.plugins.limitLinePlugin = { lines: [] };
+            }
             ch.options.plugins.limitLinePlugin.lines = buildResultLimitLinesFromSteps(steps);
         } else {
             applyLimitLinesToChart(ch);
