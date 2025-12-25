@@ -8342,8 +8342,8 @@ async function executePDFGeneration(reportView) {
         const safeProject = rawProjectName.replace(/[\\/:*?"<>|]/g, '_');
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const filename = rawProjectName
-            ? `${dateStr}${safeProject}限界耐力計算.pdf`
-            : `${dateStr}限界耐力計算.pdf`;
+            ? `${dateStr}_${safeProject}_限界耐力計算.pdf`
+            : `${dateStr}_限界耐力計算.pdf`;
         
         pdf.save(filename);
         
@@ -10440,8 +10440,8 @@ function saveToCSV() {
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const safeProject = projectName.replace(/[\\/:*?"<>|]/g, '_');
     link.download = projectName
-        ? `${dateStr}${safeProject}限界耐力計算.csv`
-        : `${dateStr}限界耐力計算.csv`;
+        ? `${dateStr}_${safeProject}_限界耐力計算.csv`
+        : `${dateStr}_限界耐力計算.csv`;
     
     document.body.appendChild(link);
     link.click();
