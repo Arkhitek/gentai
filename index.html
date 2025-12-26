@@ -1607,6 +1607,7 @@
         
         <div id="result-summary" style="display:none;">
             <div style="display:flex; justify-content:flex-end; margin:0 0 10px;">
+                <button class="btn-sm" style="background:#0b5ed7; color:white; margin-right:8px;" onclick="exportMainResultsToExcel()">主要結果をExcel出力</button>
                 <button class="btn-sm" style="background:#28a745; color:white;" onclick="exportResultChartsToExcel()">グラフをExcel出力</button>
             </div>
             <div class="result-box">
@@ -8398,6 +8399,455 @@ function exportResultChartsToExcel() {
             ? `${dateStr}${safeName(rawProjectName)}計算結果グラフ.xlsx`
             : `${dateStr}計算結果グラフ.xlsx`;
 
+        XLSX.writeFile(wb, filename);
+    } catch (e) {
+        console.error(e);
+        alert('Excel出力中にエラーが発生しました: ' + (e?.message || e));
+    }
+}
+
+function exportMainResultsToExcel() {
+    try {
+        if (!window.XLSX) {
+            alert('Excel出力ライブラリの読み込みに失敗しました（xlsx）。インターネット接続を確認してください。');
+            return;
+        }
+        if (typeof calcRes === 'undefined' || !calcRes || !calcRes.b || !calcRes.resX) {
+            alert('計算結果が見つかりません。先に「計算実行」を行ってください。');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        const rawProjectName = (document.getElementById('inp_cover_project_name')?.value || '').trim();
+        const projectName = rawProjectName || (calcRes?.b?.name || '').trim() || '（物件名未入力）';
+        const now = new Date();
+        const iso = now.toISOString();
+        const dateStr = iso.slice(0, 10).replace(/-/g, '');
+
+        const safeName = (name) => String(name || '').replace(/[\\/:*?"<>|]/g, '_');
+        const safeSheetName = (name) => {
+            const s = String(name || 'Sheet').replace(/[\\/:*?\[\]]/g, '_');
+            return (s.length <= 31) ? s : s.slice(0, 31);
+        };
+
+        const appendSheetAoa = (sheetName, aoa) => {
+            const sheet = XLSX.utils.aoa_to_sheet(aoa);
+            sheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+            XLSX.utils.book_append_sheet(wb, sheet, safeSheetName(sheetName));
+        };
+
+        const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+        const nz = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+        const fmt = (v, d = 3) => (Number.isFinite(Number(v)) ? Number(v).toFixed(d) : '');
+
+        const limitD = parseFloat(document.getElementById('inp_limit_d')?.value);
+        const limitS = parseFloat(document.getElementById('inp_limit_s')?.value);
+        const considerDrop80 = getConsiderDrop80Safety();
+        const safetyLimitRadUsed = calcSafetyLimitRad(calcRes.resX.steps, limitS, considerDrop80);
+
+        // --- 概要 ---
+        appendSheetAoa('概要', [
+            ['出力日時', iso],
+            ['物件名', projectName],
+            ['階数', nz(calcRes.b.stories)],
+            ['Y方向計算', (calcRes.skipY ? 'なし（Xのみ）' : 'あり')],
+            ['地域係数Z', fmt(calcRes.b.Z, 3)],
+            ['地盤種別(Tcモード)', String(calcRes.b.tcMode || '')],
+            ['Saモード', String(calcRes.b.saMode || '')],
+            ['Gsモード', String(calcRes.b.gsMode || '')],
+            ['p,q補正', String(calcRes.b.pqMode || '')],
+            ['損傷限界(入力)', Number.isFinite(limitD) && limitD > 0 ? `1/${limitD}` : ''],
+            ['安全限界(入力)', Number.isFinite(limitS) && limitS > 0 ? `1/${limitS}` : ''],
+            ['安全限界(採用;80%低下考慮)', Number.isFinite(safetyLimitRadUsed) && safetyLimitRadUsed > 0 ? `1/${formatInvFromRad(safetyLimitRadUsed)} (${fmt(safetyLimitRadUsed, 6)} rad)` : '']
+        ]);
+
+        // --- 建物（階別） ---
+        {
+            const N = nz(calcRes.b.stories);
+            const rows = [['階', '階高H(m)', '重量W(kN)', '累計重量ΣW(kN)', '初期剛性K0_X(kN/m)', '初期剛性K0_Y(kN/m)']];
+            for (let i = N; i >= 1; i--) {
+                let sumW = 0;
+                for (let j = i; j <= N; j++) sumW += nz(calcRes.b.W?.[j]);
+                const k0x = (calcRes.resX?.K0?.[i] != null) ? nz(calcRes.resX.K0[i]) : nz(i === 1 ? calcRes.resX.K10 : calcRes.resX.K20);
+                const k0y = (!calcRes.skipY && calcRes.resY)
+                    ? ((calcRes.resY?.K0?.[i] != null) ? nz(calcRes.resY.K0[i]) : nz(i === 1 ? calcRes.resY.K10 : calcRes.resY.K20))
+                    : null;
+                rows.push([
+                    `${i}F`,
+                    n(calcRes.b.H?.[i]),
+                    n(calcRes.b.W?.[i]),
+                    sumW,
+                    n(k0x),
+                    (k0y == null ? '' : n(k0y))
+                ]);
+            }
+            appendSheetAoa('建物', rows);
+        }
+
+        const collectJudgementRows = (dir) => {
+            const res = (dir === 'x') ? calcRes.resX : calcRes.resY;
+            const ptD = (dir === 'x') ? calcRes.ptXd : calcRes.ptYd;
+            const ptS = (dir === 'x') ? calcRes.ptXs : calcRes.ptYs;
+            if (!res) return null;
+
+            const limitDLocal = Number.isFinite(limitD) && limitD > 0 ? limitD : 120;
+            const limitSLocal = Number.isFinite(limitS) && limitS > 0 ? limitS : 20;
+            const safetyLimitRad = calcSafetyLimitRad(res.steps, limitSLocal, considerDrop80);
+            const safetyLimitInvLabel = (formatInvFromRad(safetyLimitRad) === '-')
+                ? String(Math.round(limitSLocal))
+                : formatInvFromRad(safetyLimitRad);
+
+            let evalStep = interpolateStep(res.steps, safetyLimitRad);
+            if (!evalStep) evalStep = res.steps[res.steps.length - 1];
+            let Qsi = Number(evalStep?.QA);
+            let Qsni = Number(evalStep?.Qns);
+            if (!Number.isFinite(Qsi)) Qsi = 0;
+            if (!Number.isFinite(Qsni)) Qsni = 0;
+            let ratio = (Qsni > 0) ? (Qsi / Qsni) : 0;
+            if (!Number.isFinite(ratio) || ratio < 0) ratio = 0;
+
+            const rows = [];
+            rows.push(['方向', dir.toUpperCase()]);
+            rows.push(['安全限界変形角(採用)', Number.isFinite(safetyLimitRad) && safetyLimitRad > 0 ? `${fmt(safetyLimitRad, 6)} rad` : '']);
+            rows.push(['安全限界変形角(採用 1/..)', safetyLimitInvLabel]);
+            rows.push(['安全限界変位時の保有耐力Qsi(kN)', Qsi]);
+            rows.push(['安全限界変位時の必要耐力Qsni(kN)', Qsni]);
+            rows.push(['評点(=Qsi/Qsni)', ratio]);
+            rows.push(['備考', '評点はPDF 6.4節の評価点と同じ考え方（安全限界採用変形角での比）']);
+
+            rows.push([]);
+            rows.push(['交点サマリー', '損傷限界', '安全限界']);
+            rows.push(['交点の有無', ptD ? 'あり' : 'なし', ptS ? 'あり' : 'なし']);
+            rows.push(['交点Te(s)', ptD ? n(ptD.Te) : '', ptS ? n(ptS.Te) : '']);
+            rows.push(['交点QA(kN)', ptD ? n(ptD.QA) : '', ptS ? n(ptS.QA) : '']);
+            rows.push(['交点Qnd/Qns(kN)', ptD ? n(ptD.Qnd) : '', ptS ? n(ptS.Qns) : '']);
+            rows.push(['交点SDd/SDs(m)', ptD ? n(ptD.SDd) : '', ptS ? n(ptS.SDs) : '']);
+            rows.push(['交点(Δ/He)(rad)', ptD ? (ptD.H > 0 ? n(ptD.D / ptD.H) : '') : '', ptS ? (ptS.H > 0 ? n(ptS.D / ptS.H) : '') : '']);
+            return rows;
+        };
+
+        const collectIntersectionDetailAoa = (dir) => {
+            const res = (dir === 'x') ? calcRes.resX : calcRes.resY;
+            const ptD = (dir === 'x') ? calcRes.ptXd : calcRes.ptYd;
+            const ptS = (dir === 'x') ? calcRes.ptXs : calcRes.ptYs;
+            if (!res) return null;
+
+            const N = nz(calcRes.b.stories);
+            const mkBlock = (pt, title) => {
+                const out = [];
+                out.push([title]);
+                if (!pt) {
+                    out.push(['交点なし']);
+                    out.push([]);
+                    return out;
+                }
+                out.push(['Te(s)', n(pt.Te), 'MU(t)', n(pt.MU), 'Δ(m)', n(pt.D), 'He(m)', n(pt.H)]);
+                out.push(['QA(kN)', n(pt.QA), 'Ke(kN/m)', n(pt.Ke), 'h', n(pt.h), 'Fh', n(pt.Fh)]);
+                out.push(['S0d', n(pt.S0d), 'GsD', (typeof pt.GsD === 'number' ? n(pt.GsD) : ''), 'SAd', n(pt.SAd), 'Qnd', n(pt.Qnd)]);
+                out.push(['S0s', n(pt.S0s), 'GsS', (typeof pt.GsS === 'number' ? n(pt.GsS) : ''), 'SAs', n(pt.SAs), 'Qns', n(pt.Qns)]);
+                out.push([]);
+
+                out.push(['階', 'δ(m)', 'R(rad)', 'Q(kN)', 'K(kN/m)', 'heq']);
+                for (let i = 1; i <= N; i++) {
+                    const d = (pt.rel_d && typeof pt.rel_d[i] === 'number') ? pt.rel_d[i] : 0;
+                    const H = nz(calcRes.b.H?.[i]);
+                    const R = (H > 0) ? d / H : 0;
+                    const Q = (pt.Q && typeof pt.Q[i] === 'number') ? pt.Q[i] : 0;
+                    const K = (pt.K && typeof pt.K[i] === 'number') ? pt.K[i] : 0;
+                    const heq = (pt.heq && typeof pt.heq[i] === 'number') ? pt.heq[i] : 0;
+                    out.push([`${i}F`, n(d), n(R), n(Q), n(K), n(heq)]);
+                }
+                out.push([]);
+                return out;
+            };
+
+            const aoa = [];
+            mkBlock(ptD, '損傷限界 交点（代表値と階別）').forEach(r => aoa.push(r));
+            mkBlock(ptS, '安全限界 交点（代表値と階別）').forEach(r => aoa.push(r));
+            return aoa;
+        };
+
+        const collectForceElements = (dir) => {
+            const N = nz(calcRes.b.stories);
+            const rows = [['階', '種別', '要素名', '数量', 'K0(kN/m)', '最大Q(kN)', 'heq入力']];
+
+            const fmtQty = (v, decimals = 2) => {
+                const num = Number(v);
+                if (!Number.isFinite(num)) return '';
+                const s = num.toFixed(decimals);
+                const z = '.' + '0'.repeat(decimals);
+                return s.endsWith(z) ? s.slice(0, -z.length) : s;
+            };
+            const fmtNumTrim = (v, decimals = 3) => {
+                const num = Number(v);
+                if (!Number.isFinite(num)) return '';
+                return num.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
+            };
+            const rfSuffix = (rf) => {
+                const num = Number(rf);
+                if (!Number.isFinite(num)) return '';
+                if (Math.abs(num - 1) < 1e-10) return '';
+                return `（低減係数=${fmtNumTrim(num, 3)}）`;
+            };
+
+            for (let floor = 1; floor <= N; floor++) {
+                const id = `${dir}${floor}`;
+                const floorLabel = `${floor}F`;
+                const h = getFloorHeightM(floor);
+
+                if (addedWalls?.[id]) {
+                    addedWalls[id].forEach(w => {
+                        const data = WALL_DATA[w.name];
+                        if (!data) return;
+                        const wf = getWallWidthFactor(w);
+                        const rf = normalizeReductionFactor(w?.reductionFactor);
+                        const K0_rad_perUnit = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
+                        const K0 = (K0_rad_perUnit * wf * rf * (w.qty || 0)) / h;
+                        const maxQ = Math.max(...data.map(d => d.q)) * wf * rf * (w.qty || 0);
+                        rows.push([floorLabel, '耐力壁', `${w.name} 壁幅=${getWallWidthM(w)}m${rfSuffix(rf)}`, `${fmtQty(w.qty, 2)}箇所`, n(K0), n(maxQ), '自動']);
+                    });
+                }
+
+                if (addedBraces?.[id]) {
+                    addedBraces[id].forEach(bc => {
+                        const braceInfo = BRACE_DATA[bc.name];
+                        if (!braceInfo || !braceInfo.data) return;
+                        const rf = normalizeReductionFactor(bc?.reductionFactor);
+                        const K0_rad_perUnit = BRACE_K0[bc.name] || calcInitialStiffnessK0Rad(braceInfo.data);
+                        const K0 = (K0_rad_perUnit * (bc.correctionFactor || 1) * rf * (bc.qty || 0)) / h;
+                        const maxQ = Math.max(...braceInfo.data.map(d => d.q)) * (bc.correctionFactor || 1) * rf * (bc.qty || 0);
+                        const hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                        rows.push([floorLabel, '筋交い', `${bc.name} W=${bc.width}m${rfSuffix(rf)}`, `${fmtQty(bc.qty, 2)}箇所`, n(K0), n(maxQ), (hasInputHeq ? '直接' : '自動')]);
+                    });
+                }
+
+                if (addedNukis?.[id]) {
+                    addedNukis[id].forEach(nk => {
+                        const nukiInfo = NUKI_DATA[nk.name];
+                        if (!nukiInfo || !nukiInfo.data) return;
+                        const rf = normalizeReductionFactor(nk?.reductionFactor);
+                        const K0_rad_perUnit = NUKI_K0[nk.name] || calcInitialStiffnessK0Rad(nukiInfo.data);
+                        const K0 = (K0_rad_perUnit * (nk.correctionFactor || 1) * rf * (nk.qty || 0)) / h;
+                        const maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * (nk.correctionFactor || 1) * rf * (nk.qty || 0);
+                        const hasInputHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                        rows.push([floorLabel, '貫/ほぞ', `${nk.name}${rfSuffix(rf)}`, `${fmtQty(nk.qty, 2)}箇所`, n(K0), n(maxQ), (hasInputHeq ? '直接' : '自動')]);
+                    });
+                }
+
+                if (addedKokabes?.[id]) {
+                    addedKokabes[id].forEach(kb => {
+                        const kokabeInfo = KOKABE_DATA[kb.name];
+                        if (!kokabeInfo || !kokabeInfo.data) return;
+                        const rf = normalizeReductionFactor(kb?.reductionFactor);
+                        const K0_rad_perUnit = KOKABE_K0[kb.name] || calcInitialStiffnessK0Rad(kokabeInfo.data);
+                        const K0 = (K0_rad_perUnit * (kb.correctionFactor || 1) * rf * (kb.qty || 0)) / h;
+                        const maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * (kb.correctionFactor || 1) * rf * (kb.qty || 0);
+                        const hasInputHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
+                        rows.push([floorLabel, '小壁', `${kb.name} W=${kb.width}m 1/${kb.zanzonDenom}${rfSuffix(rf)}`, `${fmtQty(kb.qty, 2)}箇所`, n(K0), n(maxQ), (hasInputHeq ? '直接' : '自動')]);
+                    });
+                }
+
+                if (addedRockings?.[id]) {
+                    addedRockings[id].forEach(rk => {
+                        const qmax1 = calcRockingQmaxKN(rk, h);
+                        const maxQ = qmax1 * (rk.qty || 1);
+                        const K0 = calcRockingK0KNm(rk, h);
+                        rows.push([floorLabel, 'ロッキング柱', `${rk.name} D=${rk.D}mm N=${rk.N}kN`, `${fmtQty(rk.qty, 2)}本`, n(K0), n(maxQ), '0']);
+                    });
+                }
+
+                if (freeInputData?.[id]) {
+                    freeInputData[id].forEach(item => {
+                        if (!item?.data || item.data.length <= 0) return;
+                        const K0_rad_perUnit = calcInitialStiffnessK0Rad(item.data);
+                        const K0 = (K0_rad_perUnit * (item.qty || 0)) / h;
+                        const maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
+                        const hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
+                        rows.push([floorLabel, '自由入力', `${item.name}`, fmtQty((item.qty || 1), 2), n(K0), n(maxQ), (hasInputHeq ? '直接' : '自動')]);
+                    });
+                }
+            }
+
+            return rows;
+        };
+
+        const collectForceKeyRads = (dir) => {
+            const N = nz(calcRes.b.stories);
+            const keyRads = [1/480, 1/240, 1/120, 1/60, 1/45, 1/30, 1/20, 1/15];
+            const composites = [];
+            for (let i = 1; i <= N; i++) composites[i] = getCompositeForce(`${dir}${i}`);
+            const rows = [['変形角', ...Array.from({ length: N }, (_, idx) => `${N - idx}F Q(kN)`).flatMap((lbl, i) => [lbl, `${N - i}F heq`])]];
+
+            keyRads.forEach(r => {
+                const row = [`1/${Math.round(1 / r)}`];
+                for (let i = N; i >= 1; i--) {
+                    const c = composites[i].find(c => Math.abs(c.r - r) < 0.0001) || interpComposite(composites[i], r);
+                    row.push(c ? n(c.q) : '');
+                    row.push(c ? n(c.heq) : '');
+                }
+                rows.push(row);
+            });
+            return rows;
+        };
+
+        const collectSteps = (dir) => {
+            const res = (dir === 'x') ? calcRes.resX : calcRes.resY;
+            if (!res) return null;
+            const steps = Array.isArray(res.steps) ? res.steps : [];
+            const rows = [[
+                'index',
+                'R1(rad)',
+                'Δ/He(rad)',
+                'QA(kN)',
+                'Qnd(kN)',
+                'Qns(kN)',
+                'Te(s)',
+                'h',
+                'Fh',
+                'p',
+                'q',
+                'SAd',
+                'SDd(m)',
+                'SAs',
+                'SDs(m)',
+                'MU(t)',
+                'Δ(m)',
+                'He(m)'
+            ]];
+            steps.forEach((s, idx) => {
+                const he = nz(s.H);
+                rows.push([
+                    idx,
+                    n(s.R),
+                    (he > 0 ? n(s.D / he) : ''),
+                    n(s.QA),
+                    n(s.Qnd),
+                    n(s.Qns),
+                    n(s.Te),
+                    n(s.h),
+                    n(s.Fh),
+                    n(s.p),
+                    n(s.q),
+                    n(s.SAd),
+                    n(s.SDd),
+                    n(s.SAs),
+                    n(s.SDs),
+                    n(s.MU),
+                    n(s.D),
+                    n(s.H)
+                ]);
+            });
+            return rows;
+        };
+
+        // --- 各方向シート群 ---
+        const dirs = (calcRes.skipY || !calcRes.resY) ? ['x'] : ['x', 'y'];
+        dirs.forEach(dir => {
+            const jr = collectJudgementRows(dir);
+            if (jr) appendSheetAoa(`判定_${dir.toUpperCase()}`, jr);
+            const ir = collectIntersectionDetailAoa(dir);
+            if (ir) appendSheetAoa(`交点_${dir.toUpperCase()}`, ir);
+            const fe = collectForceElements(dir);
+            appendSheetAoa(`復元力要素_${dir.toUpperCase()}`, fe);
+            const fk = collectForceKeyRads(dir);
+            appendSheetAoa(`復元力主要角_${dir.toUpperCase()}`, fk);
+            const st = collectSteps(dir);
+            if (st) appendSheetAoa(`ステップ_${dir.toUpperCase()}`, st);
+        });
+
+        // --- 地震層せん断力(1次/2次)との比較（オプション計算時のみ） ---
+        const doShear = Boolean(document.getElementById('chk_calc_shear_force')?.checked);
+        if (doShear) {
+            const b = calcRes.b;
+            const stdShear = calcStandardShear(b);
+            const N = nz(b.stories);
+            const dirsShear = (calcRes.skipY || !calcRes.resY) ? ['x'] : ['x', 'y'];
+
+            const judgeText = (lim, req) => {
+                if (!(Number.isFinite(lim) && lim > 0) || !(Number.isFinite(req) && req > 0)) return '';
+                return (lim >= req) ? '限界耐力大' : '限界耐力小';
+            };
+            const ratioVal = (lim, req) => {
+                if (!(Number.isFinite(lim) && lim > 0) || !(Number.isFinite(req) && req > 0)) return '';
+                return lim / req;
+            };
+
+            // サマリー（比較判定結果）
+            {
+                const rows = [[
+                    '方向', '階',
+                    `損傷限界:限界耐力(kN)`, `損傷限界:必要耐力(kN)`, '損傷限界:比', '損傷限界:結果',
+                    `安全限界:限界耐力(kN)`, `安全限界:必要耐力(kN)`, '安全限界:比', '安全限界:結果'
+                ]];
+
+                dirsShear.forEach(dir => {
+                    const ptD = (dir === 'x') ? calcRes.ptXd : calcRes.ptYd;
+                    const ptS = (dir === 'x') ? calcRes.ptXs : calcRes.ptYs;
+                    const dirLabel = (dir === 'x') ? 'X方向' : 'Y方向';
+                    for (let i = N; i >= 1; i--) {
+                        const qLimD = (ptD && ptD.Q && Number.isFinite(ptD.Q[i])) ? ptD.Q[i] : 0;
+                        const qLimS = (ptS && ptS.Q && Number.isFinite(ptS.Q[i])) ? ptS.Q[i] : 0;
+                        const qReqD = Number.isFinite(stdShear.Qd?.[i]) ? stdShear.Qd[i] : 0;
+                        const qReqS = Number.isFinite(stdShear.Qs?.[i]) ? stdShear.Qs[i] : 0;
+                        rows.push([
+                            dirLabel,
+                            `${i}F`,
+                            n(qLimD),
+                            n(qReqD),
+                            ratioVal(qLimD, qReqD),
+                            judgeText(qLimD, qReqD),
+                            n(qLimS),
+                            n(qReqS),
+                            ratioVal(qLimS, qReqS),
+                            judgeText(qLimS, qReqS)
+                        ]);
+                    }
+                });
+                appendSheetAoa('層せん断力_比較', rows);
+            }
+
+            // 詳細（Ai, Ci, Q の算定）
+            {
+                const rows = [];
+                rows.push(['入力/算定値']);
+                rows.push(['k(T=kH)', n(stdShear.k)]);
+                rows.push(['H(kH用)', n(stdShear.H_kH)]);
+                rows.push(['T(設計用一次固有周期)', n(stdShear.T)]);
+                rows.push(['Tc', n(stdShear.Tc)]);
+                rows.push(['Rt', n(stdShear.Rt)]);
+                rows.push(['全高H_total', n(stdShear.H_total)]);
+                rows.push(['全重量W_total', n(stdShear.W_total)]);
+                rows.push(['C0(損傷)', n(stdShear.C0_D)]);
+                rows.push(['C0(安全)', n(stdShear.C0_S)]);
+                rows.push(['Ds', n(stdShear.Ds)]);
+                rows.push(['Fes', n(stdShear.Fes)]);
+                rows.push([]);
+                rows.push(['階', 'Wi(kN)', 'ΣW(kN)', 'αi', 'Ai', 'Ci(1次)', 'Ci(2次)', '必要耐力Qd(kN)', '必要耐力Qs(kN)']);
+
+                for (let i = N; i >= 1; i--) {
+                    let weightAbove = 0;
+                    for (let j = i; j <= N; j++) weightAbove += nz(b.W?.[j]);
+                    rows.push([
+                        `${i}F`,
+                        n(b.W?.[i]),
+                        n(weightAbove),
+                        n(stdShear.alpha?.[i]),
+                        n(stdShear.Ai?.[i]),
+                        n(stdShear.CiD?.[i]),
+                        n(stdShear.CiS?.[i]),
+                        n(stdShear.Qd?.[i]),
+                        n(stdShear.Qs?.[i])
+                    ]);
+                }
+
+                appendSheetAoa('層せん断力_詳細', rows);
+            }
+        }
+
+        const filename = rawProjectName
+            ? `${dateStr}${safeName(rawProjectName)}主要計算結果.xlsx`
+            : `${dateStr}主要計算結果.xlsx`;
         XLSX.writeFile(wb, filename);
     } catch (e) {
         console.error(e);
