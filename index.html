@@ -6774,20 +6774,13 @@ function calc(b, forceArr) {
             return { T: T, u: [1.0] };
         }
         if (N === 2) {
+            // 2階建ても3階建て以上と同じJacobi法で一般化固有値問題を解く
+            //（従来は解析解で処理していたが、計算法を統一する）
             if (k1 < 0.1) k1 = 0.1;
             if (k2 < 0.1) k2 = 0.1;
-            const A = m[1] * m[2];
-            const B = -(m[1] * k2 + m[2] * k1 + m[2] * k2);
-            const C = k1 * k2;
-            const det = B*B - 4*A*C;
-            if (det < 0) return { T: 0, u: [1.0, 1.0] };
-            const w2 = (-B - Math.sqrt(det)) / (2*A);
-            const T = (w2 > 0) ? 2 * Math.PI / Math.sqrt(w2) : 0;
-            let u2 = 1.0;
-            if (k2 > 1e-4) {
-                u2 = (k1 + k2 - m[1] * w2) / k2;
-            }
-            return { T: T, u: [1.0, u2] };
+            const { K: K_mat, M: M_vec } = buildMatrices({ 1: k1, 2: k2 });
+            const results = LinearAlgebra.solveEigen(K_mat, M_vec);
+            return { T: results[0].T, u: results[0].u };
         }
         return null; // 3階以上はJacobi法を使用
     };
