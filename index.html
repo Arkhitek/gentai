@@ -2457,6 +2457,66 @@
     </div>
 </div>
 
+<!-- 復元力特性：耐力要素の編集モーダル -->
+<div id="force-item-edit-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:560px; height:auto;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
+            <h3 style="margin:0;">復元力特性：耐力要素の編集</h3>
+            <button onclick="closeForceItemEditModal()" style="cursor:pointer; padding:5px 15px;">閉じる</button>
+        </div>
+
+        <!-- 種類セレクト（最優先で表示） -->
+        <div class="input-grid" style="grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div class="input-group">
+                <label for="edit-force-type">種類</label>
+                <select id="edit-force-type" onchange="onForceItemEditTypeChanged()">
+                    <option value="wall">耐力壁</option>
+                    <option value="brace">筋交い/ブレース</option>
+                    <option value="nuki">貫/ほぞ等</option>
+                    <option value="kokabe">小壁</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="edit-force-name">名称</label>
+                <select id="edit-force-name"></select>
+            </div>
+        </div>
+
+        <div class="input-grid" style="grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:8px;">
+            <div class="input-group" id="edit-force-width-group">
+                <label for="edit-force-width">壁幅(m)</label>
+                <input type="number" id="edit-force-width" step="0.01" value="0.91">
+            </div>
+            <div class="input-group" id="edit-force-zanzon-group" style="display:none;">
+                <label for="edit-force-zanzon">残存率(%)</label>
+                <input type="number" id="edit-force-zanzon" step="1" min="1" max="100" value="33">
+            </div>
+            <div class="input-group">
+                <label for="edit-force-qty">箇所数</label>
+                <input type="number" id="edit-force-qty" step="1" min="1" value="1">
+            </div>
+        </div>
+
+        <div class="input-grid" style="grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div class="input-group">
+                <label for="edit-force-rf">低減係数</label>
+                <input type="number" id="edit-force-rf" step="0.01" min="0" value="1">
+            </div>
+            <div class="input-group" id="edit-force-height-group" style="display:none;">
+                <label for="edit-force-height">配置階高H(m)</label>
+                <input type="number" id="edit-force-height" step="0.01" value="3.00" disabled>
+            </div>
+        </div>
+
+        <div id="edit-force-info" style="font-size:0.85em; color:#666; margin-bottom:10px;"></div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeForceItemEditModal()" style="cursor:pointer; padding:6px 14px;">キャンセル</button>
+            <button class="btn-calc" style="font-size:1em; width:auto; margin:0;" onclick="applyForceItemEditModal()">反映</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // --- Global Constants & State ---
 const G_ACC = 9.80665; 
@@ -3658,39 +3718,9 @@ function renderWallList(id) {
     });
 }
 
-// 耐力壁の編集ダイアログ
+// 耐力壁の編集ダイアログ（モーダル）
 function editWall(id, idx) {
-    const wall = addedWalls[id][idx];
-    const currWidth = getWallWidthM(wall);
-    const newQty = prompt(`「${wall.name}」の箇所数を入力してください（現在: ${wall.qty}）:`, wall.qty);
-    if(newQty === null) return;
-    const qty = parseFloat(newQty);
-    if(!(Number.isFinite(qty) && qty > 0)) {
-        alert('有効な箇所数を入力してください。');
-        return;
-    }
-    const newWidth = prompt(`「${wall.name}」の壁幅(m)を入力してください（現在: ${currWidth}m）:`, currWidth);
-    if(newWidth === null) return;
-    const width = parseFloat(newWidth);
-    if(!(Number.isFinite(width) && width > 0)) {
-        alert('有効な壁幅(m)を入力してください。');
-        return;
-    }
-
-    const currRf = normalizeReductionFactor(wall?.reductionFactor);
-    const newRf = prompt(`「${wall.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
-    if(newRf === null) return;
-    const rf = parseFloat(newRf);
-    if(!(Number.isFinite(rf) && rf > 0)) {
-        alert('有効な低減係数(0より大)を入力してください。');
-        return;
-    }
-
-    addedWalls[id][idx].qty = qty;
-    addedWalls[id][idx].width = width;
-    addedWalls[id][idx].reductionFactor = rf;
-    renderWallList(id);
-    updateInputGraph(id);
+    openForceItemEditModal(id, 'wall', idx);
 }
 
 // --- Brace Management (筋交い/ブレース) ---
@@ -3786,53 +3816,9 @@ function renderBraceList(id) {
     });
 }
 
-// 筋交い/ブレースの編集ダイアログ
+// 筋交い/ブレースの編集ダイアログ（モーダル）
 function editBrace(id, idx) {
-    const brace = addedBraces[id][idx];
-    const newWidth = prompt(`「${brace.name}」の壁幅(m)を入力してください（現在: ${brace.width}m）:`, brace.width);
-    if(newWidth === null) return;
-    
-    const width = parseFloat(newWidth);
-    if(isNaN(width) || width <= 0) {
-        alert('有効な壁幅を入力してください。');
-        return;
-    }
-    
-    const newQty = prompt(`「${brace.name}」の箇所数を入力してください（現在: ${brace.qty}箇所）:`, brace.qty);
-    if(newQty === null) return;
-    
-    const qty = parseInt(newQty);
-    if(isNaN(qty) || qty <= 0) {
-        alert('有効な箇所数を入力してください。');
-        return;
-    }
-
-    const currRf = normalizeReductionFactor(brace?.reductionFactor);
-    const newRf = prompt(`「${brace.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
-    if(newRf === null) return;
-    const rf = parseFloat(newRf);
-    if(!(Number.isFinite(rf) && rf > 0)) {
-        alert('有効な低減係数(0より大)を入力してください。');
-        return;
-    }
-    
-    // 補正率を再計算
-    const braceInfo = BRACE_DATA[brace.name];
-    if(braceInfo) {
-        const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
-        const baseCos = Math.cos(baseTheta);
-        const actualTheta = Math.atan2(brace.height, width);
-        const actualCos = Math.cos(actualTheta);
-        const correctionFactor = actualCos / baseCos;
-        
-        addedBraces[id][idx].width = width;
-        addedBraces[id][idx].qty = qty;
-        addedBraces[id][idx].correctionFactor = correctionFactor;
-        addedBraces[id][idx].reductionFactor = rf;
-        
-        renderBraceList(id);
-        updateInputGraph(id);
-    }
+    openForceItemEditModal(id, 'brace', idx);
 }
 
 // --- Nuki Management (貫/ほぞ等) ---
@@ -3916,33 +3902,9 @@ function renderNukiList(id) {
     });
 }
 
-// 貫/ほぞの編集ダイアログ
+// 貫/ほぞの編集ダイアログ（モーダル）
 function editNuki(id, idx) {
-    const nuki = addedNukis[id][idx];
-    
-    const newQty = prompt(`「${nuki.name}」の箇所数を入力してください（現在: ${nuki.qty}箇所）:`, nuki.qty);
-    if(newQty === null) return;
-    
-    const qty = parseInt(newQty);
-    if(isNaN(qty) || qty <= 0) {
-        alert('有効な箇所数を入力してください。');
-        return;
-    }
-
-    const currRf = normalizeReductionFactor(nuki?.reductionFactor);
-    const newRf = prompt(`「${nuki.name}」の低減係数を入力してください（現在: ${currRf}）:`, currRf);
-    if(newRf === null) return;
-    const rf = parseFloat(newRf);
-    if(!(Number.isFinite(rf) && rf > 0)) {
-        alert('有効な低減係数(0より大)を入力してください。');
-        return;
-    }
-    
-    addedNukis[id][idx].qty = qty;
-    addedNukis[id][idx].reductionFactor = rf;
-    
-    renderNukiList(id);
-    updateInputGraph(id);
+    openForceItemEditModal(id, 'nuki', idx);
 }
 
 // --- Kokabe Management (小壁) ---
@@ -4045,64 +4007,341 @@ function renderKokabeList(id) {
     });
 }
 
-// 小壁の編集ダイアログ
+// 小壁の編集ダイアログ（モーダル）
 function editKokabe(id, idx) {
-    const kokabe = addedKokabes[id][idx];
-    
-    const newWidth = prompt(`「${kokabe.name}」の壁幅(m)を入力してください（現在: ${kokabe.width}m）:`, kokabe.width);
-    if(newWidth === null) return;
-    
-    const width = parseFloat(newWidth);
-    if(isNaN(width) || width <= 0) {
-        alert('有効な壁幅を入力してください。');
-        return;
+    openForceItemEditModal(id, 'kokabe', idx);
+}
+
+// ========================================
+// 復元力特性：耐力要素編集モーダル
+// - 種類セレクトを先頭に表示
+// - 種類変更時のみ名称選択を有効化
+// ========================================
+let currentForceItemEditContext = null; // { id, fromType, idx }
+
+function getStoryHeightFromId(id) {
+    const m = String(id).match(/(\d)$/);
+    const floor = m ? m[1] : '1';
+    const el = document.getElementById('inp_H' + floor);
+    const h = parseFloat(el ? el.value : NaN);
+    return Number.isFinite(h) && h > 0 ? h : 3.0;
+}
+
+function getForceDataDictByType(type) {
+    if (type === 'wall') return (typeof WALL_DATA !== 'undefined') ? WALL_DATA : {};
+    if (type === 'brace') return (typeof BRACE_DATA !== 'undefined') ? BRACE_DATA : {};
+    if (type === 'nuki') return (typeof NUKI_DATA !== 'undefined') ? NUKI_DATA : {};
+    if (type === 'kokabe') return (typeof KOKABE_DATA !== 'undefined') ? KOKABE_DATA : {};
+    return {};
+}
+
+function getForceItemArrayByType(type, id) {
+    if (type === 'wall') return addedWalls[id];
+    if (type === 'brace') return addedBraces[id];
+    if (type === 'nuki') return addedNukis[id];
+    if (type === 'kokabe') return addedKokabes[id];
+    return null;
+}
+
+function setForceItemArrayByType(type, id, arr) {
+    if (type === 'wall') addedWalls[id] = arr;
+    else if (type === 'brace') addedBraces[id] = arr;
+    else if (type === 'nuki') addedNukis[id] = arr;
+    else if (type === 'kokabe') addedKokabes[id] = arr;
+}
+
+function renderAllForceLists(id) {
+    if (document.getElementById(`list-wall-${id}`)) renderWallList(id);
+    if (document.getElementById(`list-brace-${id}`)) renderBraceList(id);
+    if (document.getElementById(`list-nuki-${id}`)) renderNukiList(id);
+    if (document.getElementById(`list-kokabe-${id}`)) renderKokabeList(id);
+}
+
+function populateForceEditNameOptions(type, selectedName, enabled) {
+    const sel = document.getElementById('edit-force-name');
+    if (!sel) return;
+
+    const dict = getForceDataDictByType(type);
+    const names = Object.keys(dict || {}).slice().sort();
+
+    sel.innerHTML = '';
+    const optBlank = document.createElement('option');
+    optBlank.value = '';
+    optBlank.textContent = '（選択してください）';
+    sel.appendChild(optBlank);
+
+    names.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+    });
+
+    // 現在値がデータ辞書に無い場合でも表示できるように追加
+    if (selectedName && !names.includes(selectedName)) {
+        const opt = document.createElement('option');
+        opt.value = selectedName;
+        opt.textContent = selectedName + '（現在値）';
+        sel.appendChild(opt);
     }
-    
-    const newZanzon = prompt(`残存率(%)を入力してください（現在: ${kokabe.zanzonPercent}%）:`, kokabe.zanzonPercent);
-    if(newZanzon === null) return;
-    
-    const zanzonPercent = parseFloat(newZanzon);
-    if(isNaN(zanzonPercent) || zanzonPercent < 1 || zanzonPercent > 100) {
-        alert('有効な残存率（1～100%）を入力してください。');
-        return;
+
+    sel.value = selectedName || '';
+    sel.disabled = !enabled;
+}
+
+function updateForceItemEditVisibility(type) {
+    const widthGroup = document.getElementById('edit-force-width-group');
+    const zanzonGroup = document.getElementById('edit-force-zanzon-group');
+    const heightGroup = document.getElementById('edit-force-height-group');
+    const info = document.getElementById('edit-force-info');
+
+    const needsWidth = (type === 'wall' || type === 'brace' || type === 'kokabe');
+    const needsZanzon = (type === 'kokabe');
+    const needsHeight = (type === 'brace' || type === 'nuki');
+
+    if (widthGroup) widthGroup.style.display = needsWidth ? '' : 'none';
+    if (zanzonGroup) zanzonGroup.style.display = needsZanzon ? '' : 'none';
+    if (heightGroup) heightGroup.style.display = needsHeight ? '' : 'none';
+
+    if (info) {
+        if (type === 'wall') info.textContent = '※耐力壁は壁長W(m)により耐力値が補正されます。';
+        else if (type === 'brace') info.textContent = '※筋交い/ブレースは角度θのcosθで自動補正されます。';
+        else if (type === 'nuki') info.textContent = '※貫/ほぞ等は（基準壁高/配置階高）で自動補正されます。';
+        else if (type === 'kokabe') info.textContent = '※小壁は壁幅比と残存率比で自動補正されます。';
+        else info.textContent = '';
     }
-    
-    const newQty = prompt(`箇所数を入力してください（現在: ${kokabe.qty}箇所）:`, kokabe.qty);
-    if(newQty === null) return;
-    
-    const qty = parseInt(newQty);
-    if(isNaN(qty) || qty <= 0) {
+}
+
+function openForceItemEditModal(id, fromType, idx) {
+    const arr = getForceItemArrayByType(fromType, id);
+    if (!arr || !arr[idx]) return;
+
+    currentForceItemEditContext = { id, fromType, idx };
+    const item = arr[idx];
+
+    const typeEl = document.getElementById('edit-force-type');
+    const widthEl = document.getElementById('edit-force-width');
+    const zanzonEl = document.getElementById('edit-force-zanzon');
+    const qtyEl = document.getElementById('edit-force-qty');
+    const rfEl = document.getElementById('edit-force-rf');
+    const heightEl = document.getElementById('edit-force-height');
+
+    if (typeEl) typeEl.value = fromType;
+
+    // 初期表示：名称も編集可能
+    populateForceEditNameOptions(fromType, item.name, true);
+
+    if (qtyEl) qtyEl.value = Number.isFinite(parseFloat(item.qty)) ? item.qty : 1;
+    if (rfEl) rfEl.value = normalizeReductionFactor(item?.reductionFactor);
+
+    if (widthEl) {
+        const w = (fromType === 'wall') ? getWallWidthM(item)
+              : (fromType === 'brace') ? parseFloat(item.width)
+              : (fromType === 'kokabe') ? parseFloat(item.width)
+              : NaN;
+        widthEl.value = Number.isFinite(w) && w > 0 ? w : 0.91;
+    }
+
+    if (zanzonEl) {
+        const z = parseFloat(item?.zanzonPercent);
+        zanzonEl.value = Number.isFinite(z) ? z : 33;
+    }
+
+    if (heightEl) {
+        const h = parseFloat(item?.height);
+        heightEl.value = (Number.isFinite(h) && h > 0) ? h.toFixed(2) : getStoryHeightFromId(id).toFixed(2);
+    }
+
+    updateForceItemEditVisibility(fromType);
+
+    const modal = document.getElementById('force-item-edit-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeForceItemEditModal() {
+    const modal = document.getElementById('force-item-edit-modal');
+    if (modal) modal.style.display = 'none';
+    currentForceItemEditContext = null;
+}
+
+function onForceItemEditTypeChanged() {
+    const typeEl = document.getElementById('edit-force-type');
+    const type = typeEl ? typeEl.value : 'wall';
+    updateForceItemEditVisibility(type);
+
+    // 名称選択は常に有効
+    const ctx = currentForceItemEditContext;
+    let selectedName = '';
+    if (ctx && type === ctx.fromType) {
+        const arr = getForceItemArrayByType(ctx.fromType, ctx.id);
+        const item = arr && arr[ctx.idx] ? arr[ctx.idx] : null;
+        selectedName = item ? item.name : '';
+    }
+    populateForceEditNameOptions(type, selectedName, true);
+
+    // 階高表示（brace/nukiのみ）
+    const heightEl = document.getElementById('edit-force-height');
+    if (heightEl) heightEl.value = getStoryHeightFromId(ctx ? ctx.id : '').toFixed(2);
+}
+
+function applyForceItemEditModal() {
+    const ctx = currentForceItemEditContext;
+    if (!ctx) return;
+
+    const id = ctx.id;
+    const fromType = ctx.fromType;
+    const fromIdx = ctx.idx;
+
+    const type = document.getElementById('edit-force-type')?.value || fromType;
+    const nameSel = document.getElementById('edit-force-name');
+    const name = nameSel ? nameSel.value : '';
+    const qty = parseInt(document.getElementById('edit-force-qty')?.value || '0', 10);
+    const width = parseFloat(document.getElementById('edit-force-width')?.value || '0');
+    const zanzonPercent = parseFloat(document.getElementById('edit-force-zanzon')?.value || '0');
+    const rf = normalizeReductionFactor(document.getElementById('edit-force-rf')?.value);
+
+    if (!(Number.isFinite(qty) && qty > 0)) {
         alert('有効な箇所数を入力してください。');
         return;
     }
-
-    const currRf = normalizeReductionFactor(kokabe?.reductionFactor);
-    const newRf = prompt(`低減係数を入力してください（現在: ${currRf}）:`, currRf);
-    if(newRf === null) return;
-    const rf = parseFloat(newRf);
-    if(!(Number.isFinite(rf) && rf > 0)) {
+    if (!(Number.isFinite(rf) && rf > 0)) {
         alert('有効な低減係数(0より大)を入力してください。');
         return;
     }
-    
-    // 補正率を再計算
-    const kokabeInfo = KOKABE_DATA[kokabe.name];
-    const widthRatio = width / kokabeInfo.baseWidth;
-    const zanzon = zanzonPercent / 100;
-    const zanzonRatio = zanzon / kokabeInfo.baseZanzon;
-    const correctionFactor = widthRatio * zanzonRatio;
-    
-    addedKokabes[id][idx].width = width;
-    addedKokabes[id][idx].zanzonPercent = zanzonPercent;
-    addedKokabes[id][idx].zanzon = zanzon;
-    addedKokabes[id][idx].widthRatio = widthRatio;
-    addedKokabes[id][idx].zanzonRatio = zanzonRatio;
-    addedKokabes[id][idx].correctionFactor = correctionFactor;
-    addedKokabes[id][idx].qty = qty;
-    addedKokabes[id][idx].reductionFactor = rf;
-    
-    renderKokabeList(id);
+
+    const fromArr = getForceItemArrayByType(fromType, id);
+    if (!fromArr || !fromArr[fromIdx]) return;
+    const oldItem = fromArr[fromIdx];
+    const effectiveName = name || oldItem.name;
+    if (!effectiveName) {
+        alert('名称を選択してください。');
+        return;
+    }
+
+    // 同種編集（名称は変更不可のまま）
+    if (type === fromType) {
+        if (type === 'wall') {
+            if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+            oldItem.name = effectiveName;
+            oldItem.qty = qty;
+            oldItem.width = width;
+            oldItem.reductionFactor = rf;
+        } else if (type === 'brace') {
+            if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+            const braceInfo = BRACE_DATA[effectiveName];
+            if (!braceInfo) { alert('筋交い/ブレースのデータが見つかりません。'); return; }
+            const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
+            const baseCos = Math.cos(baseTheta);
+            const actualTheta = Math.atan2(oldItem.height, width);
+            const actualCos = Math.cos(actualTheta);
+            oldItem.name = effectiveName;
+            oldItem.width = width;
+            oldItem.qty = qty;
+            oldItem.correctionFactor = actualCos / baseCos;
+            oldItem.reductionFactor = rf;
+        } else if (type === 'nuki') {
+            const nukiInfo = NUKI_DATA[effectiveName];
+            if (!nukiInfo) { alert('貫/ほぞ等のデータが見つかりません。'); return; }
+            const correctionFactor = nukiInfo.baseHeight / oldItem.height;
+            oldItem.name = effectiveName;
+            oldItem.baseHeight = nukiInfo.baseHeight;
+            oldItem.correctionFactor = correctionFactor;
+            oldItem.qty = qty;
+            oldItem.reductionFactor = rf;
+        } else if (type === 'kokabe') {
+            if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+            if (!(Number.isFinite(zanzonPercent) && zanzonPercent >= 1 && zanzonPercent <= 100)) { alert('有効な残存率（1～100%）を入力してください。'); return; }
+            const kokabeInfo = KOKABE_DATA[effectiveName];
+            if (!kokabeInfo) { alert('小壁のデータが見つかりません。'); return; }
+            const widthRatio = width / kokabeInfo.baseWidth;
+            const zanzon = zanzonPercent / 100;
+            const zanzonRatio = zanzon / kokabeInfo.baseZanzon;
+            oldItem.name = effectiveName;
+            oldItem.baseWidth = kokabeInfo.baseWidth;
+            oldItem.baseZanzon = kokabeInfo.baseZanzon;
+            oldItem.width = width;
+            oldItem.zanzonPercent = zanzonPercent;
+            oldItem.zanzon = zanzon;
+            oldItem.widthRatio = widthRatio;
+            oldItem.zanzonRatio = zanzonRatio;
+            oldItem.correctionFactor = widthRatio * zanzonRatio;
+            oldItem.qty = qty;
+            oldItem.reductionFactor = rf;
+        }
+
+        renderAllForceLists(id);
+        updateInputGraph(id);
+        closeForceItemEditModal();
+        return;
+    }
+
+    // 種類変更：名称選択が必要
+    if (!name) {
+        alert('名称を選択してください。');
+        return;
+    }
+
+    const height = getStoryHeightFromId(id);
+
+    // 新しい要素を生成（先に検証してから、最後に配列を書き換える）
+    let newItem = null;
+    if (type === 'wall') {
+        if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+        newItem = { name: name, qty: qty, width: width, reductionFactor: rf };
+    } else if (type === 'brace') {
+        if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+        const braceInfo = BRACE_DATA[name];
+        if (!braceInfo) { alert('筋交い/ブレースのデータが見つかりません。'); return; }
+        const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
+        const baseCos = Math.cos(baseTheta);
+        const actualTheta = Math.atan2(height, width);
+        const actualCos = Math.cos(actualTheta);
+        const correctionFactor = actualCos / baseCos;
+        newItem = { name: name, width: width, qty: qty, height: height, correctionFactor: correctionFactor, reductionFactor: rf };
+    } else if (type === 'nuki') {
+        const nukiInfo = NUKI_DATA[name];
+        if (!nukiInfo) { alert('貫/ほぞ等のデータが見つかりません。'); return; }
+        const correctionFactor = nukiInfo.baseHeight / height;
+        newItem = { name: name, qty: qty, height: height, baseHeight: nukiInfo.baseHeight, correctionFactor: correctionFactor, reductionFactor: rf };
+    } else if (type === 'kokabe') {
+        if (!(Number.isFinite(width) && width > 0)) { alert('有効な壁幅(m)を入力してください。'); return; }
+        if (!(Number.isFinite(zanzonPercent) && zanzonPercent >= 1 && zanzonPercent <= 100)) { alert('有効な残存率（1～100%）を入力してください。'); return; }
+        const kokabeInfo = KOKABE_DATA[name];
+        if (!kokabeInfo) { alert('小壁のデータが見つかりません。'); return; }
+        const widthRatio = width / kokabeInfo.baseWidth;
+        const zanzon = zanzonPercent / 100;
+        const zanzonRatio = zanzon / kokabeInfo.baseZanzon;
+        const correctionFactor = widthRatio * zanzonRatio;
+        newItem = {
+            name: name,
+            qty: qty,
+            width: width,
+            zanzonPercent: zanzonPercent,
+            zanzon: zanzon,
+            baseWidth: kokabeInfo.baseWidth,
+            baseZanzon: kokabeInfo.baseZanzon,
+            widthRatio: widthRatio,
+            zanzonRatio: zanzonRatio,
+            correctionFactor: correctionFactor,
+            reductionFactor: rf
+        };
+    }
+
+    if (!newItem) return;
+
+    // 古い要素を削除して、新しい種別へ追加
+    fromArr.splice(fromIdx, 1);
+
+    let targetArr = getForceItemArrayByType(type, id);
+    if (!Array.isArray(targetArr)) {
+        targetArr = [];
+        setForceItemArrayByType(type, id, targetArr);
+    }
+    targetArr.push(newItem);
+
+    renderAllForceLists(id);
     updateInputGraph(id);
+    closeForceItemEditModal();
 }
 
 // --- Rocking Column Management (柱の傾斜復元力特性) ---
