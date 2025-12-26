@@ -6485,10 +6485,11 @@ function interpQ(pts, d) {
     if(d <= 0) return 0;
     let n = pts.length;
     if(n===0) return 0;
+    if(n===1) return pts[0].q || 0;
     if(d >= pts[n-1].d) {
-        let denom = pts[n-1].d - pts[n-2].d;
-        let s = (denom !== 0) ? (pts[n-1].q - pts[n-2].q) / denom : 0;
-        return pts[n-1].q + (d - pts[n-1].d) * s;
+        // 範囲外は線形外挿しない（外挿で負になるのがQ2破綻の主因）
+        // データ未定義域では最後の点を据え置きとして扱う
+        return pts[n-1].q || 0;
     }
     for(let i=0; i<n-1; i++) {
         if(d >= pts[i].d && d <= pts[i+1].d) {
@@ -6794,6 +6795,15 @@ function calc(b, forceArr) {
     let steps = [];
     const maxR = 0.1;
     const rStep = 0.0001;
+
+    // 各階の復元力曲線が定義されている最大変位（m）
+    // 定義域を超えた変位で剛性が極小化→モード比が暴走し、Q2等が破綻するのを防ぐ
+    const maxDispByFloor = [0];
+    for (let i = 1; i <= N; i++) {
+        const pts = forceArr?.[i];
+        const lastD = Array.isArray(pts) && pts.length > 0 ? Number(pts[pts.length - 1]?.d) : NaN;
+        maxDispByFloor[i] = (Number.isFinite(lastD) && lastD > 0) ? lastD : Infinity;
+    }
     
     // 初期固有値解析
     let eigenInit;
@@ -6833,9 +6843,11 @@ function calc(b, forceArr) {
             for (let i = 1; i <= N; i++) {
                 rel_d[i] = abs_d[i] - (abs_d[i-1] || 0);
                 if (rel_d[i] < 0) rel_d[i] = 0;
-                
-                Q[i] = interpQ(forceArr[i], rel_d[i]);
-                K[i] = (rel_d[i] > 0) ? Q[i] / rel_d[i] : K0[i];
+
+                // 定義域外の変位を使わない（定義外での計算は不安定化の主因）
+                const relEff = Math.min(rel_d[i], maxDispByFloor[i]);
+                Q[i] = interpQ(forceArr[i], relEff);
+                K[i] = (relEff > 0) ? Q[i] / relEff : K0[i];
                 if (K[i] < 0.1) K[i] = 0.1;
             }
             
@@ -6869,12 +6881,14 @@ function calc(b, forceArr) {
         let abs_d_final = [0], rel_d_final = [0];
         abs_d_final[1] = d[1];
         rel_d_final[1] = d[1];
+        rel_d_final[1] = Math.min(rel_d_final[1], maxDispByFloor[1]);
         Q[1] = interpQ(forceArr[1], rel_d_final[1]);
         
         for (let i = 2; i <= N; i++) {
             abs_d_final[i] = d[1] * (currentU[i-1] || 1.0);
             rel_d_final[i] = abs_d_final[i] - abs_d_final[i-1];
             if (rel_d_final[i] < 0) rel_d_final[i] = 0;
+            rel_d_final[i] = Math.min(rel_d_final[i], maxDispByFloor[i]);
             Q[i] = interpQ(forceArr[i], rel_d_final[i]);
         }
         
@@ -7900,11 +7914,14 @@ function updateView(dir, resObj, ptD, ptS, limitD, limitS) {
     // 4. 評点計算 (PDF 6.4節 (6-9), (6-10)式準拠)
     // 評点 = 安全限界変位時の保有耐力(As) / 安全限界変位時の必要耐力(Saf)
     // ※ プログラム上はせん断力Qで計算しても、質量Mが共通のため比率は同じになります (Q=M*A)
-    let Qsi = evalStep.QA;   // 安全限界変位時の保有耐力
-    let Qsni = evalStep.Qns; // 安全限界変位時の必要耐力 (その周期Teにおける要求値)
+    let Qsi = Number(evalStep?.QA);   // 安全限界変位時の保有耐力
+    let Qsni = Number(evalStep?.Qns); // 安全限界変位時の必要耐力 (その周期Teにおける要求値)
+    if (!Number.isFinite(Qsi)) Qsi = 0;
+    if (!Number.isFinite(Qsni)) Qsni = 0;
     
     // 評点算出
-    let ratio = (Qsni > 0) ? Qsi / Qsni : 0;
+    let ratio = (Qsni > 0) ? (Qsi / Qsni) : 0;
+    if (!Number.isFinite(ratio) || ratio < 0) ratio = 0;
     
     // --- 【修正部分終了】 ---
 
@@ -8073,7 +8090,9 @@ function renderLog(dir, steps) {
         // u比 (u_i/u_1) - N > 1のとき
         if(N > 1) {
             for(let i = N; i >= 2; i--) {
-                const uRatVal = (s.uRat && s.uRat[i]) ? s.uRat[i].toFixed(3) : '1.000';
+                const uRatVal = (s.u && typeof s.u[i-1] === 'number' && typeof s.u[0] === 'number' && s.u[0] !== 0)
+                    ? (s.u[i-1] / s.u[0]).toFixed(3)
+                    : '1.000';
                 h += `<td>${uRatVal}</td>`;
             }
         }
@@ -8143,7 +8162,14 @@ function drawChart(id, steps, ptD, ptS) {
     // 軸の最大値を決定（保有耐力曲線を基準にする）
     let maxX = 0, maxY = 0;
     cap.forEach(p => { if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y; });
-    const xMax = maxX * 1.1; 
+    // 横軸(変形角)の最大は「安全限界変形角(採用値)×1.1」程度まで
+    // （安全限界が未設定/不正な場合のみ、従来どおりデータ最大×1.1）
+    const { limitS } = getLimitRads();
+    const considerDrop80 = getConsiderDrop80Safety();
+    const safetyLimitRadUsed = calcSafetyLimitRad(steps, limitS, considerDrop80);
+    const xMax = (Number.isFinite(safetyLimitRadUsed) && safetyLimitRadUsed > 0)
+        ? (safetyLimitRadUsed * 1.1)
+        : (maxX * 1.1);
     const yMax = maxY * 1.1;
 
     // 交点ポイントの作成
