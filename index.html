@@ -252,6 +252,47 @@
         .report-chart-img {
             border: 1px solid #000 !important;
         }
+
+        /* 計算書：第2章 復元力特性グラフ（凡例を下に配置して文字切れ防止） */
+        .rep-force-chart-wrapper {
+            border: 1px solid #ccc;
+            margin-top: 5px;
+            background: #fff;
+        }
+        .rep-force-chart-title {
+            font-size: 9pt;
+            font-weight: bold;
+            padding: 2px 5px;
+            background: #f0f0f0;
+        }
+        .rep-force-canvas-box {
+            height: 150px;
+        }
+        .rep-force-legend {
+            padding: 2px 4px 4px;
+            font-size: 6pt;
+            line-height: 1.2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px 8px;
+        }
+        .rep-force-legend-item {
+            display: inline-flex;
+            align-items: flex-start;
+            gap: 3px;
+            max-width: 100%;
+        }
+        .rep-force-legend-color {
+            width: 8px;
+            height: 8px;
+            margin-top: 2px;
+            border: 1px solid #333;
+            flex: 0 0 auto;
+        }
+        .rep-force-legend-text {
+            white-space: normal;
+            word-break: break-word;
+        }
         
         /* キャンバスをPDF用に高解像度化 */
         canvas {
@@ -2102,10 +2143,21 @@
             <div class="report-section">
                 <h3>2.1 X方向の復元力特性</h3>
             <div id="rep-force-x-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
-            <!-- 各階個別グラフ用コンテナ -->
-            <div id="rep-force-x-charts-container"></div>
             </div>
             <div class="page-number">- 3 -</div>
+        </div>
+
+        <!-- 第2章: 復元力特性 X方向（グラフ） -->
+        <div class="report-page" id="rep-page-force-x-graph" data-chapter="2" data-section="1" data-title="復元力特性：X方向（グラフ）">
+            <div class="report-header">
+                <h1>第2章 復元力特性</h1>
+            </div>
+            <div class="report-section">
+                <h3>2.1 X方向の復元力特性（グラフ）</h3>
+                <!-- 各階個別グラフ用コンテナ -->
+                <div id="rep-force-x-charts-container"></div>
+            </div>
+            <div class="page-number">- 4 -</div>
         </div>
         
         <!-- 第2章: 復元力特性 Y方向 -->
@@ -2116,10 +2168,21 @@
             <div class="report-section">
                 <h3>2.2 Y方向の復元力特性</h3>
             <div id="rep-force-y-detail" style="font-size:7pt; border:1px solid #ccc; padding:5px;"></div>
-            <!-- 各階個別グラフ用コンテナ -->
-            <div id="rep-force-y-charts-container"></div>
             </div>
             <div class="page-number">- 4 -</div>
+        </div>
+
+        <!-- 第2章: 復元力特性 Y方向（グラフ） -->
+        <div class="report-page" id="rep-page-force-y-graph" data-chapter="2" data-section="2" data-title="復元力特性：Y方向（グラフ）">
+            <div class="report-header">
+                <h1>第2章 復元力特性</h1>
+            </div>
+            <div class="report-section">
+                <h3>2.2 Y方向の復元力特性（グラフ）</h3>
+                <!-- 各階個別グラフ用コンテナ -->
+                <div id="rep-force-y-charts-container"></div>
+            </div>
+            <div class="page-number">- 5 -</div>
         </div>
 
         <!-- 第3章: 判定結果 X方向 -->
@@ -8412,6 +8475,8 @@ function generatePDF() {
     document.getElementById('rep-page-overview-2').style.display = showOverview ? 'block' : 'none';
     document.getElementById('rep-page-force-x').style.display = showForce ? 'block' : 'none';
     document.getElementById('rep-page-force-y').style.display = (showForce && !skipY) ? 'block' : 'none';
+    document.getElementById('rep-page-force-x-graph').style.display = showForce ? 'block' : 'none';
+    document.getElementById('rep-page-force-y-graph').style.display = (showForce && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-result-x').style.display = showResult ? 'block' : 'none';
     document.getElementById('rep-page-result-y').style.display = (showResult && !skipY) ? 'block' : 'none';
     document.getElementById('rep-page-logic').style.display = showLogic ? 'block' : 'none';
@@ -8463,9 +8528,23 @@ function generatePDF() {
             if(!skipY) drawForceChart('rep-force-y-charts-container', 'y');
         }
         
+        // 表示されているページのみ連番でページ番号を付け直す
+        try { updateReportPageNumbers(reportView); } catch (e) {}
+
         // PDF生成を実行
         executePDFGeneration(reportView);
     }, 300);
+}
+
+// 計算書のページ番号を、表示されているページの順で付け直す
+function updateReportPageNumbers(reportView) {
+    const excluded = new Set(['rep-page-cover', 'rep-page-toc']);
+    const pages = Array.from(reportView.querySelectorAll('.report-page'))
+        .filter(p => p && p.style.display !== 'none' && !excluded.has(String(p.id || '')));
+    pages.forEach((pageEl, idx) => {
+        const numEl = pageEl.querySelector('.page-number');
+        if (numEl) numEl.textContent = `- ${idx + 1} -`;
+    });
 }
 
 // PDF生成実行関数（高画質・レイアウト改善版）
@@ -8633,10 +8712,10 @@ function generateTableOfContents(showOverview, showForce, showResult, showLogic,
     if (showForce) {
         html += `<div style="display:flex; justify-content:space-between; padding:5px 10px; border-bottom:1px dotted #ccc;"><span>第2章　復元力特性</span></div>`;
         html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>2.1　X方向の復元力特性</span><span>${pageNum}</span></div>`;
-        pageNum++;
+        pageNum += 2; // 明細ページ＋グラフページ
         if (!skipY) {
             html += `<div style="display:flex; justify-content:space-between; padding:5px 10px 5px 30px; border-bottom:1px dotted #ccc;"><span>2.2　Y方向の復元力特性</span><span>${pageNum}</span></div>`;
-            pageNum++;
+            pageNum += 2; // 明細ページ＋グラフページ
         }
     }
     
@@ -9084,6 +9163,26 @@ function renderPqReport() {
 
 // 復元力特性の詳細をテーブル化（各変形角でのQ, heq付き・N階対応版）
 function renderForceDetails() {
+    const fmtQty = (v, decimals = 2) => {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '';
+        const s = n.toFixed(decimals);
+        const zeroTail = '.' + '0'.repeat(decimals);
+        if (s.endsWith(zeroTail)) return s.slice(0, -zeroTail.length);
+        return s;
+    };
+    const fmtNumTrim = (v, decimals = 3) => {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '';
+        return n.toFixed(decimals).replace(/0+$/,'').replace(/\.$/,'');
+    };
+    const rfSuffix = (rf) => {
+        const n = Number(rf);
+        if (!Number.isFinite(n)) return '';
+        if (Math.abs(n - 1) < 1e-10) return '';
+        return `（低減係数=${fmtNumTrim(n, 3)}）`;
+    };
+
     const skipY = calcRes.skipY || false;
     const dirs = skipY ? ['x'] : ['x', 'y'];
     const N = calcRes.b.stories;
@@ -9106,11 +9205,12 @@ function renderForceDetails() {
                     let data = WALL_DATA[w.name];
                     if(data) {
                         const wf = getWallWidthFactor(w);
+                        const rf = normalizeReductionFactor(w?.reductionFactor);
                         // K0はkN/m表示： (kN/rad) / (m) = kN/m
                         const K0_rad_perUnit = WALL_K0[w.name] || calcInitialStiffnessK0Rad(data);
-                        const K0 = (K0_rad_perUnit * wf * (w.qty || 0)) / h;
-                        let maxQ = Math.max(...data.map(d => d.q)) * wf * (w.qty || 0);
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name} 壁幅=${getWallWidthM(w)}m</td><td style="${cellStyle}">${w.qty.toFixed(2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
+                        const K0 = (K0_rad_perUnit * wf * rf * (w.qty || 0)) / h;
+                        let maxQ = Math.max(...data.map(d => d.q)) * wf * rf * (w.qty || 0);
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">耐力壁</td><td style="${cellStyle}">${w.name} 壁幅=${getWallWidthM(w)}m${rfSuffix(rf)}</td><td style="${cellStyle}">${fmtQty(w.qty, 2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">自動</td></tr>`;
                     }
                 });
             }
@@ -9120,11 +9220,12 @@ function renderForceDetails() {
                 addedBraces[id].forEach(b => {
                     let braceInfo = BRACE_DATA[b.name];
                     if(braceInfo && braceInfo.data) {
+                        const rf = normalizeReductionFactor(b?.reductionFactor);
                         const K0_rad_perUnit = BRACE_K0[b.name] || calcInitialStiffnessK0Rad(braceInfo.data);
-                        const K0 = (K0_rad_perUnit * (b.correctionFactor || 1) * (b.qty || 0)) / h;
-                        let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * b.qty;
+                        const K0 = (K0_rad_perUnit * (b.correctionFactor || 1) * rf * (b.qty || 0)) / h;
+                        let maxQ = Math.max(...braceInfo.data.map(d => d.q)) * b.correctionFactor * rf * b.qty;
                         let hasInputHeq = braceInfo.data.some(p => p.heq !== undefined && p.heq !== null);
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m</td><td style="${cellStyle}">${b.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">筋交い</td><td style="${cellStyle}">${b.name} W=${b.width}m${rfSuffix(rf)}</td><td style="${cellStyle}">${fmtQty(b.qty, 2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                     }
                 });
             }
@@ -9134,11 +9235,12 @@ function renderForceDetails() {
                 addedNukis[id].forEach(n => {
                     let nukiInfo = NUKI_DATA[n.name];
                     if(nukiInfo && nukiInfo.data) {
+                        const rf = normalizeReductionFactor(n?.reductionFactor);
                         const K0_rad_perUnit = NUKI_K0[n.name] || calcInitialStiffnessK0Rad(nukiInfo.data);
-                        const K0 = (K0_rad_perUnit * (n.correctionFactor || 1) * (n.qty || 0)) / h;
-                        let maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * n.correctionFactor * n.qty;
+                        const K0 = (K0_rad_perUnit * (n.correctionFactor || 1) * rf * (n.qty || 0)) / h;
+                        let maxQ = Math.max(...nukiInfo.data.map(d => d.q)) * n.correctionFactor * rf * n.qty;
                         let hasInputHeq = nukiInfo.data.some(p => p.heq !== undefined && p.heq !== null);
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">貫/ほぞ</td><td style="${cellStyle}">${n.name}</td><td style="${cellStyle}">${n.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">貫/ほぞ</td><td style="${cellStyle}">${n.name}${rfSuffix(rf)}</td><td style="${cellStyle}">${fmtQty(n.qty, 2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                     }
                 });
             }
@@ -9148,11 +9250,12 @@ function renderForceDetails() {
                 addedKokabes[id].forEach(k => {
                     let kokabeInfo = KOKABE_DATA[k.name];
                     if(kokabeInfo && kokabeInfo.data) {
+                        const rf = normalizeReductionFactor(k?.reductionFactor);
                         const K0_rad_perUnit = KOKABE_K0[k.name] || calcInitialStiffnessK0Rad(kokabeInfo.data);
-                        const K0 = (K0_rad_perUnit * (k.correctionFactor || 1) * (k.qty || 0)) / h;
-                        let maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * k.correctionFactor * k.qty;
+                        const K0 = (K0_rad_perUnit * (k.correctionFactor || 1) * rf * (k.qty || 0)) / h;
+                        let maxQ = Math.max(...kokabeInfo.data.map(d => d.q)) * k.correctionFactor * rf * k.qty;
                         let hasInputHeq = kokabeInfo.data.some(p => p.heq !== undefined && p.heq !== null);
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">小壁</td><td style="${cellStyle}">${k.name} W=${k.width}m 1/${k.zanzonDenom}</td><td style="${cellStyle}">${k.qty}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">小壁</td><td style="${cellStyle}">${k.name} W=${k.width}m 1/${k.zanzonDenom}${rfSuffix(rf)}</td><td style="${cellStyle}">${fmtQty(k.qty, 2)}箇所</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                     }
                 });
             }
@@ -9163,7 +9266,7 @@ function renderForceDetails() {
                     const qmax1 = calcRockingQmaxKN(r, h);
                     const maxQ = qmax1 * (r.qty || 1);
                     const K0 = calcRockingK0KNm(r, h);
-                    html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">ロッキング柱</td><td style="${cellStyle}">${r.name} D=${r.D}mm N=${r.N}kN</td><td style="${cellStyle}">${r.qty}本</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">0</td></tr>`;
+                    html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">ロッキング柱</td><td style="${cellStyle}">${r.name} D=${r.D}mm N=${r.N}kN</td><td style="${cellStyle}">${fmtQty(r.qty, 2)}本</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">0</td></tr>`;
                 });
             }
             
@@ -9175,7 +9278,7 @@ function renderForceDetails() {
                         const K0 = (K0_rad_perUnit * (item.qty || 0)) / h;
                         let maxQ = Math.max(...item.data.map(d => d.q)) * (item.qty || 1);
                         let hasInputHeq = item.data.some(p => p.heq !== undefined && p.heq !== null);
-                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">自由入力</td><td style="${cellStyle}">${item.name}</td><td style="${cellStyle}">${(item.qty||1).toFixed(2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
+                        html += `<tr><td style="${cellStyle}">${floorLabel}</td><td style="${cellStyle}">自由入力</td><td style="${cellStyle}">${item.name}</td><td style="${cellStyle}">${fmtQty((item.qty||1), 2)}</td><td style="${cellStyle}">${K0.toFixed(0)}</td><td style="${cellStyle}">${maxQ.toFixed(1)}</td><td style="${cellStyle}">${hasInputHeq ? '直接' : '自動'}</td></tr>`;
                     }
                 });
             }
@@ -9237,6 +9340,35 @@ function interpComposite(composite, r) {
 // 復元力特性グラフを計算書用に描画（N階対応版・各階個別グラフ）
 let repForceCharts = {};
 function drawForceChart(containerId, dir) {
+    // Chart.js: グラフ下にHTML凡例を表示する（PDF出力で文字切れを防ぐ）
+    const htmlLegendPlugin = {
+        id: 'htmlLegend',
+        afterUpdate(chart, args, options) {
+            const legendContainer = document.getElementById(options.containerID);
+            if (!legendContainer) return;
+            while (legendContainer.firstChild) legendContainer.firstChild.remove();
+
+            const items = chart.options.plugins.legend.labels.generateLabels(chart);
+            items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'rep-force-legend-item';
+
+                const box = document.createElement('span');
+                box.className = 'rep-force-legend-color';
+                box.style.background = item.fillStyle;
+                box.style.borderColor = item.strokeStyle;
+
+                const text = document.createElement('span');
+                text.className = 'rep-force-legend-text';
+                text.textContent = item.text;
+
+                el.appendChild(box);
+                el.appendChild(text);
+                legendContainer.appendChild(el);
+            });
+        }
+    };
+
     const container = document.getElementById(containerId);
     if(!container) return;
     
@@ -9255,7 +9387,7 @@ function drawForceChart(containerId, dir) {
     const floorColors = ['#005a9c', '#28a745', '#dc3545', '#ffc107', '#17a2b8']; // 各階の合計用色
     
     // 階数によってグラフの高さを調整
-    const chartHeight = N <= 2 ? 200 : (N <= 3 ? 160 : 130);
+    const chartHeight = N <= 2 ? 190 : (N <= 3 ? 170 : 150);
     
     // 各階を個別にグラフ化（上から下へ：N階から1階の順）
     for(let floor = N; floor >= 1; floor--) {
@@ -9392,21 +9524,29 @@ function drawForceChart(containerId, dir) {
         
         // 各階用のdivとcanvasを作成
         const chartWrapper = document.createElement('div');
-        chartWrapper.style.cssText = `height:${chartHeight}px; border:1px solid #ccc; margin-top:5px;`;
-        
+        chartWrapper.className = 'rep-force-chart-wrapper';
+
         const chartTitle = document.createElement('div');
-        chartTitle.style.cssText = 'font-size:9pt; font-weight:bold; padding:2px 5px; background:#f0f0f0;';
+        chartTitle.className = 'rep-force-chart-title';
         chartTitle.textContent = `${floor}階 復元力特性`;
         chartWrapper.appendChild(chartTitle);
         
         const canvasWrapper = document.createElement('div');
-        canvasWrapper.style.cssText = `height:${chartHeight - 20}px;`;
+        canvasWrapper.className = 'rep-force-canvas-box';
+        canvasWrapper.style.height = `${chartHeight}px`;
         
         const canvas = document.createElement('canvas');
         const canvasId = `${containerId}-floor${floor}`;
         canvas.id = canvasId;
         canvasWrapper.appendChild(canvas);
         chartWrapper.appendChild(canvasWrapper);
+
+        const legendDiv = document.createElement('div');
+        legendDiv.className = 'rep-force-legend';
+        const legendId = `${canvasId}-legend`;
+        legendDiv.id = legendId;
+        chartWrapper.appendChild(legendDiv);
+
         container.appendChild(chartWrapper);
         
         // 軸範囲の計算
@@ -9426,10 +9566,12 @@ function drawForceChart(containerId, dir) {
                     y: { title: { display: true, text: 'せん断力 Q (kN)', font: { size: 8 } }, max: maxY, beginAtZero: true }
                 },
                 plugins: {
-                    legend: { display: true, position: 'right', labels: { font: { size: 6 }, boxWidth: 10, padding: 2 } },
+                    legend: { display: false },
+                    htmlLegend: { containerID: legendId },
                     title: { display: false }
                 }
-            }
+            },
+            plugins: [htmlLegendPlugin]
         });
     }
 }
