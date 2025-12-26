@@ -39,8 +39,9 @@
         .input-group input, .input-group select { width: 95%; padding: 4px; border: 1px solid #999; text-align: right; }
         .input-group select { text-align: left; }
 
-        .force-editor { display: flex; gap: 10px; flex-wrap: wrap; }
-        .force-column { flex: 0 0 calc(50% - 10px); max-width: calc(50% - 10px); min-width: 300px; box-sizing: border-box; border: 1px solid var(--border); padding: 10px; border-radius: 3px; background: #fafafa; }
+        /* 復元力特性入力：各階を縦並び（1列）で表示 */
+        .force-editor { display: flex; flex-direction: column; gap: 10px; flex-wrap: nowrap; }
+        .force-column { flex: 0 0 100%; max-width: 100%; width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); padding: 10px; border-radius: 3px; background: #fafafa; }
         .force-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-weight: bold; color: var(--secondary); }
         
         /* 計算結果画面：3階以上で縦並びにするためのクラス */
