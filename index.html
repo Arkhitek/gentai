@@ -3714,6 +3714,35 @@ function checkAndRemoveDefault(id) {
 }
 
 // --- Wall Management ---
+function createInlineNameSelect(type, id, idx, currentName) {
+    const sel = document.createElement('select');
+    sel.style.flex = '1';
+    sel.style.minWidth = '120px';
+    sel.style.padding = '2px 4px';
+    sel.style.fontSize = '0.95em';
+
+    const dict = (typeof getForceDataDictByType === 'function') ? getForceDataDictByType(type) : {};
+    const names = Object.keys(dict || {}).slice().sort();
+
+    // 現在値が辞書に無い場合でも選択肢として残す
+    if (currentName && !names.includes(currentName)) {
+        names.unshift(currentName);
+    }
+
+    names.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+    });
+
+    sel.value = currentName || (names[0] || '');
+    sel.onchange = function() {
+        onForceItemInlineChanged(type, id, idx, 'name', this.value);
+    };
+    return sel;
+}
+
 function onForceItemInlineChanged(type, id, idx, field, rawValue) {
     const arr = (type === 'wall') ? addedWalls[id]
               : (type === 'brace') ? addedBraces[id]
@@ -3728,7 +3757,11 @@ function onForceItemInlineChanged(type, id, idx, field, rawValue) {
     const str = String(rawValue);
     if (str.trim() === '') return;
 
-    if (field === 'qty') {
+    if (field === 'name') {
+        const newName = String(rawValue || '').trim();
+        if (!newName) return;
+        item.name = newName;
+    } else if (field === 'qty') {
         const q = parseFloat(str);
         if (!(Number.isFinite(q) && q > 0)) return;
         item.qty = (type === 'wall') ? q : parseInt(String(q), 10);
@@ -3865,9 +3898,7 @@ function renderWallList(id) {
         left.style.minWidth = '0';
         left.style.flexWrap = 'wrap';
 
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = w.name;
-        left.appendChild(nameSpan);
+        left.appendChild(createInlineNameSelect('wall', id, i, w.name));
 
         const qtyInput = document.createElement('input');
         qtyInput.type = 'number';
@@ -3916,7 +3947,7 @@ function renderWallList(id) {
 
         const rfInput = document.createElement('input');
         rfInput.type = 'number';
-        rfInput.value = String(normalizeReductionFactor(w?.reductionFactor));
+        rfInput.value = String(normalizeReductionFactor(w && w.reductionFactor));
         rfInput.step = '0.01';
         rfInput.min = '0';
         rfInput.title = '低減係数';
@@ -4035,9 +4066,7 @@ function renderBraceList(id) {
         left.style.minWidth = '0';
         left.style.flexWrap = 'wrap';
 
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = b.name;
-        left.appendChild(nameSpan);
+        left.appendChild(createInlineNameSelect('brace', id, i, b.name));
 
         const widthLbl = document.createElement('span');
         widthLbl.style.fontSize = '0.75em';
@@ -4099,7 +4128,7 @@ function renderBraceList(id) {
 
         const rfInput = document.createElement('input');
         rfInput.type = 'number';
-        rfInput.value = String(normalizeReductionFactor(b?.reductionFactor));
+        rfInput.value = String(normalizeReductionFactor(b && b.reductionFactor));
         rfInput.step = '0.01';
         rfInput.min = '0';
         rfInput.title = '低減係数';
@@ -4212,9 +4241,7 @@ function renderNukiList(id) {
         left.style.minWidth = '0';
         left.style.flexWrap = 'wrap';
 
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = n.name;
-        left.appendChild(nameSpan);
+        left.appendChild(createInlineNameSelect('nuki', id, i, n.name));
 
         const hSpan = document.createElement('span');
         hSpan.id = `inline-height-nuki-${id}-${i}`;
@@ -4250,7 +4277,7 @@ function renderNukiList(id) {
 
         const rfInput = document.createElement('input');
         rfInput.type = 'number';
-        rfInput.value = String(normalizeReductionFactor(n?.reductionFactor));
+        rfInput.value = String(normalizeReductionFactor(n && n.reductionFactor));
         rfInput.step = '0.01';
         rfInput.min = '0';
         rfInput.title = '低減係数';
@@ -4382,9 +4409,7 @@ function renderKokabeList(id) {
         left.style.minWidth = '0';
         left.style.flexWrap = 'wrap';
 
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = k.name;
-        left.appendChild(nameSpan);
+        left.appendChild(createInlineNameSelect('kokabe', id, i, k.name));
 
         const widthLbl = document.createElement('span');
         widthLbl.style.fontSize = '0.75em';
@@ -4467,7 +4492,7 @@ function renderKokabeList(id) {
 
         const rfInput = document.createElement('input');
         rfInput.type = 'number';
-        rfInput.value = String(normalizeReductionFactor(k?.reductionFactor));
+        rfInput.value = String(normalizeReductionFactor(k && k.reductionFactor));
         rfInput.step = '0.01';
         rfInput.min = '0';
         rfInput.title = '低減係数';
