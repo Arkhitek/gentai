@@ -3111,8 +3111,11 @@ const DEFAULT_FREE_DATA_2F = [
 window.onload = async function() {
     toggleStories(); 
 
-    // 低減係数入力欄を追加（qty入力欄の直下）
+    // 低減係数入力欄を追加（箇所数入力欄と追加ボタンの間）
     try { initReductionFactorInputs(); } catch (e) { console.warn('initReductionFactorInputs failed:', e); }
+
+    // 小壁・柱(傾斜復元)の入力欄を1行にまとめる
+    try { compactKokabeAndRockingRows(); } catch (e) { console.warn('compactKokabeAndRockingRows failed:', e); }
     
     // ▼▼▼ 変更: CSVデータを並列ロードして初期化を高速化 ▼▼▼
     await Promise.all([
@@ -3208,16 +3211,91 @@ function initReductionFactorInputs() {
             const row = qtyEl.closest('.wall-selector-row');
             if (!row) return;
 
-            const redRow = document.createElement('div');
-            redRow.className = 'wall-selector-row';
-            redRow.style.marginTop = '3px';
-            redRow.innerHTML = `
-                <span style="font-size:0.75em; color:#666; white-space:nowrap;">低減係数</span>
-                <input type="number" id="${redId}" value="1" step="${spec.step}" min="0" placeholder="1" title="低減係数" style="width:60px; text-align:right; padding:4px;">
-            `;
+            // 行内（箇所数と追加ボタンの間）に挿入する
+            const addBtn = row.querySelector('button');
+            if (!addBtn) return;
 
-            row.insertAdjacentElement('afterend', redRow);
+            const label = document.createElement('span');
+            label.style.fontSize = '0.75em';
+            label.style.color = '#666';
+            label.style.whiteSpace = 'nowrap';
+            label.textContent = '低減';
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = redId;
+            input.value = '1';
+            input.step = spec.step;
+            input.min = '0';
+            input.placeholder = '1';
+            input.title = '低減係数';
+            input.style.width = '60px';
+            input.style.textAlign = 'right';
+            input.style.padding = '4px';
+
+            addBtn.insertAdjacentElement('beforebegin', label);
+            addBtn.insertAdjacentElement('beforebegin', input);
         });
+    });
+}
+
+// 小壁（壁幅・残存率補正あり）と柱の傾斜復元力の入力欄を、名称〜追加まで1行に統合
+function compactKokabeAndRockingRows() {
+    // --- 小壁 ---
+    const kokabeSels = document.querySelectorAll('select[id^="sel-kokabe-"]');
+    kokabeSels.forEach(sel => {
+        const id = sel.id.substring('sel-kokabe-'.length);
+        const widthEl = document.getElementById(`width-kokabe-${id}`);
+        const zEl = document.getElementById(`zanzon-kokabe-${id}`);
+        const qtyEl = document.getElementById(`qty-kokabe-${id}`);
+        if (!widthEl || !zEl || !qtyEl) return;
+
+        const firstRow = sel.closest('.wall-selector-row');
+        const secondRow = qtyEl.closest('.wall-selector-row');
+        if (!firstRow || !secondRow) return;
+        if (firstRow === secondRow) {
+            // 既に1行
+            secondRow.style.flexWrap = 'wrap';
+            return;
+        }
+
+        // firstRowの中身（名称/壁幅/m）をsecondRowの先頭へ移動
+        const frag = document.createDocumentFragment();
+        Array.from(firstRow.childNodes).forEach(n => frag.appendChild(n));
+        secondRow.insertBefore(frag, secondRow.firstChild);
+
+        // 行間用のマージントップを解除し、折り返し可能に
+        secondRow.style.marginTop = '';
+        secondRow.style.flexWrap = 'wrap';
+
+        // 旧firstRowを削除
+        if (firstRow.parentNode) firstRow.parentNode.removeChild(firstRow);
+    });
+
+    // --- 柱の傾斜復元力特性 ---
+    const rockNameInputs = document.querySelectorAll('input[id^="name-rock-"]');
+    rockNameInputs.forEach(nameEl => {
+        const id = nameEl.id.substring('name-rock-'.length);
+        const qtyEl = document.getElementById(`qty-rock-${id}`);
+        if (!qtyEl) return;
+
+        const firstRow = nameEl.closest('.wall-selector-row');
+        const secondRow = qtyEl.closest('.wall-selector-row');
+        if (!firstRow || !secondRow) return;
+        if (firstRow === secondRow) {
+            firstRow.style.flexWrap = 'wrap';
+            return;
+        }
+
+        // secondRowの中身（本数/本/追加ボタン）をfirstRowの末尾へ移動
+        const frag = document.createDocumentFragment();
+        Array.from(secondRow.childNodes).forEach(n => frag.appendChild(n));
+        firstRow.appendChild(frag);
+
+        firstRow.style.flexWrap = 'wrap';
+
+        // 旧secondRowを削除
+        if (secondRow.parentNode) secondRow.parentNode.removeChild(secondRow);
     });
 }
 
@@ -3636,6 +3714,92 @@ function checkAndRemoveDefault(id) {
 }
 
 // --- Wall Management ---
+function onForceItemInlineChanged(type, id, idx, field, rawValue) {
+    const arr = (type === 'wall') ? addedWalls[id]
+              : (type === 'brace') ? addedBraces[id]
+              : (type === 'nuki') ? addedNukis[id]
+              : (type === 'kokabe') ? addedKokabes[id]
+              : null;
+    if (!arr || !arr[idx]) return;
+
+    const item = arr[idx];
+
+    // 入力途中の一時的な空/不正値では警告せず、反映もしない
+    const str = String(rawValue);
+    if (str.trim() === '') return;
+
+    if (field === 'qty') {
+        const q = parseFloat(str);
+        if (!(Number.isFinite(q) && q > 0)) return;
+        item.qty = (type === 'wall') ? q : parseInt(String(q), 10);
+    } else if (field === 'width') {
+        const w = parseFloat(str);
+        if (!(Number.isFinite(w) && w > 0)) return;
+        item.width = w;
+    } else if (field === 'rf') {
+        const rf = normalizeReductionFactor(str);
+        if (!(Number.isFinite(rf) && rf > 0)) return;
+        item.reductionFactor = rf;
+    } else if (field === 'zanzonPercent') {
+        const z = parseFloat(str);
+        if (!(Number.isFinite(z) && z >= 1 && z <= 100)) return;
+        item.zanzonPercent = z;
+    }
+
+    // 変更に応じて補正率を再計算（即時反映）
+    if (type === 'brace') {
+        const braceInfo = (typeof BRACE_DATA !== 'undefined') ? BRACE_DATA[item.name] : null;
+        if (braceInfo) {
+            const height = getStoryHeightFromId(id);
+            item.height = height;
+            const baseTheta = Math.atan2(braceInfo.baseHeight, braceInfo.baseWidth);
+            const baseCos = Math.cos(baseTheta);
+            const actualTheta = Math.atan2(height, parseFloat(item.width));
+            const actualCos = Math.cos(actualTheta);
+            item.correctionFactor = actualCos / baseCos;
+
+            const infoEl = document.getElementById(`inline-info-brace-${id}-${idx}`);
+            if (infoEl) infoEl.textContent = `補正率:${(item.correctionFactor * 100).toFixed(1)}%`;
+
+            const hEl = document.getElementById(`inline-height-brace-${id}-${idx}`);
+            if (hEl) hEl.textContent = `H=${height.toFixed(2)}m`;
+        }
+    } else if (type === 'nuki') {
+        const nukiInfo = (typeof NUKI_DATA !== 'undefined') ? NUKI_DATA[item.name] : null;
+        if (nukiInfo) {
+            const height = getStoryHeightFromId(id);
+            item.height = height;
+            item.baseHeight = nukiInfo.baseHeight;
+            item.correctionFactor = nukiInfo.baseHeight / height;
+
+            const infoEl = document.getElementById(`inline-info-nuki-${id}-${idx}`);
+            if (infoEl) infoEl.textContent = `補正率:${(item.correctionFactor * 100).toFixed(1)}%`;
+
+            const hEl = document.getElementById(`inline-height-nuki-${id}-${idx}`);
+            if (hEl) hEl.textContent = `H=${height.toFixed(2)}m`;
+        }
+    } else if (type === 'kokabe') {
+        const kokabeInfo = (typeof KOKABE_DATA !== 'undefined') ? KOKABE_DATA[item.name] : null;
+        if (kokabeInfo) {
+            const width = parseFloat(item.width);
+            const zanzonPercent = parseFloat(item.zanzonPercent);
+            const zanzon = (Number.isFinite(zanzonPercent) ? zanzonPercent : 33) / 100;
+
+            item.baseWidth = kokabeInfo.baseWidth;
+            item.baseZanzon = kokabeInfo.baseZanzon;
+            item.zanzon = zanzon;
+            item.widthRatio = width / kokabeInfo.baseWidth;
+            item.zanzonRatio = zanzon / kokabeInfo.baseZanzon;
+            item.correctionFactor = item.widthRatio * item.zanzonRatio;
+
+            const infoEl = document.getElementById(`inline-info-kokabe-${id}-${idx}`);
+            if (infoEl) infoEl.textContent = `補正率:${(item.correctionFactor * 100).toFixed(1)}%`;
+        }
+    }
+
+    updateInputGraph(id);
+}
+
 function addWall(id) {
     // ▼▼▼ 追加部分: デフォルト値があれば削除 ▼▼▼
     checkAndRemoveDefault(id);
@@ -3692,14 +3856,86 @@ function renderWallList(id) {
     addedWalls[id].forEach((w, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        const wWidth = getWallWidthM(w);
-        const rf = normalizeReductionFactor(w?.reductionFactor);
-        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
-        div.innerHTML = `<span>${w.name} ${w.qty}箇所 (壁幅=${wWidth}m)${rfStr}</span>
-            <span>
-                <button class="btn-sm" onclick="editWall('${id}', ${i})">編集</button>
-                <button class="btn-sm" style="color:red;" onclick="removeWall('${id}', ${i})">削除</button>
-            </span>`;
+
+        const left = document.createElement('div');
+        left.style.display = 'flex';
+        left.style.alignItems = 'center';
+        left.style.gap = '4px';
+        left.style.flex = '1';
+        left.style.minWidth = '0';
+        left.style.flexWrap = 'wrap';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = w.name;
+        left.appendChild(nameSpan);
+
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.value = Number.isFinite(parseFloat(w.qty)) ? String(w.qty) : '1';
+        qtyInput.step = '1';
+        qtyInput.min = '0';
+        qtyInput.title = '箇所数';
+        qtyInput.style.width = '50px';
+        qtyInput.style.textAlign = 'right';
+        qtyInput.style.padding = '2px 4px';
+        qtyInput.oninput = function() { onForceItemInlineChanged('wall', id, i, 'qty', this.value); };
+        left.appendChild(qtyInput);
+
+        const qtyLbl = document.createElement('span');
+        qtyLbl.style.fontSize = '0.75em';
+        qtyLbl.style.color = '#666';
+        qtyLbl.style.whiteSpace = 'nowrap';
+        qtyLbl.textContent = '箇所';
+        left.appendChild(qtyLbl);
+
+        const widthInput = document.createElement('input');
+        widthInput.type = 'number';
+        widthInput.value = String(getWallWidthM(w));
+        widthInput.step = '0.01';
+        widthInput.min = '0';
+        widthInput.title = '壁幅(m)';
+        widthInput.style.width = '60px';
+        widthInput.style.textAlign = 'right';
+        widthInput.style.padding = '2px 4px';
+        widthInput.oninput = function() { onForceItemInlineChanged('wall', id, i, 'width', this.value); };
+        left.appendChild(widthInput);
+
+        const wLbl = document.createElement('span');
+        wLbl.style.fontSize = '0.75em';
+        wLbl.style.color = '#666';
+        wLbl.style.whiteSpace = 'nowrap';
+        wLbl.textContent = 'm';
+        left.appendChild(wLbl);
+
+        const rfLbl = document.createElement('span');
+        rfLbl.style.fontSize = '0.75em';
+        rfLbl.style.color = '#666';
+        rfLbl.style.whiteSpace = 'nowrap';
+        rfLbl.textContent = '低減';
+        left.appendChild(rfLbl);
+
+        const rfInput = document.createElement('input');
+        rfInput.type = 'number';
+        rfInput.value = String(normalizeReductionFactor(w?.reductionFactor));
+        rfInput.step = '0.01';
+        rfInput.min = '0';
+        rfInput.title = '低減係数';
+        rfInput.style.width = '60px';
+        rfInput.style.textAlign = 'right';
+        rfInput.style.padding = '2px 4px';
+        rfInput.oninput = function() { onForceItemInlineChanged('wall', id, i, 'rf', this.value); };
+        left.appendChild(rfInput);
+
+        const right = document.createElement('span');
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm';
+        delBtn.style.color = 'red';
+        delBtn.textContent = '削除';
+        delBtn.onclick = function() { removeWall(id, i); };
+        right.appendChild(delBtn);
+
+        div.appendChild(left);
+        div.appendChild(right);
         list.appendChild(div);
     });
 }
@@ -3790,14 +4026,105 @@ function renderBraceList(id) {
     addedBraces[id].forEach((b, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        const factor = (b.correctionFactor * 100).toFixed(1);
-        const rf = normalizeReductionFactor(b?.reductionFactor);
-        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
-        div.innerHTML = `<span>${b.name} W=${b.width}m H=${b.height.toFixed(2)}m × ${b.qty}箇所 (補正率:${factor}%)${rfStr}</span>
-            <span>
-                <button class="btn-sm" onclick="editBrace('${id}', ${i})">編集</button>
-                <button class="btn-sm" style="color:red;" onclick="removeBrace('${id}', ${i})">削除</button>
-            </span>`;
+
+        const left = document.createElement('div');
+        left.style.display = 'flex';
+        left.style.alignItems = 'center';
+        left.style.gap = '4px';
+        left.style.flex = '1';
+        left.style.minWidth = '0';
+        left.style.flexWrap = 'wrap';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = b.name;
+        left.appendChild(nameSpan);
+
+        const widthLbl = document.createElement('span');
+        widthLbl.style.fontSize = '0.75em';
+        widthLbl.style.color = '#666';
+        widthLbl.style.whiteSpace = 'nowrap';
+        widthLbl.textContent = 'W';
+        left.appendChild(widthLbl);
+
+        const widthInput = document.createElement('input');
+        widthInput.type = 'number';
+        widthInput.value = Number.isFinite(parseFloat(b.width)) ? String(b.width) : '0.91';
+        widthInput.step = '0.01';
+        widthInput.min = '0';
+        widthInput.title = '壁幅(m)';
+        widthInput.style.width = '60px';
+        widthInput.style.textAlign = 'right';
+        widthInput.style.padding = '2px 4px';
+        widthInput.oninput = function() { onForceItemInlineChanged('brace', id, i, 'width', this.value); };
+        left.appendChild(widthInput);
+
+        const mLbl = document.createElement('span');
+        mLbl.style.fontSize = '0.75em';
+        mLbl.style.color = '#666';
+        mLbl.style.whiteSpace = 'nowrap';
+        mLbl.textContent = 'm';
+        left.appendChild(mLbl);
+
+        const hSpan = document.createElement('span');
+        hSpan.id = `inline-height-brace-${id}-${i}`;
+        const hVal = Number.isFinite(parseFloat(b.height)) ? parseFloat(b.height) : getStoryHeightFromId(id);
+        hSpan.textContent = `H=${hVal.toFixed(2)}m`;
+        left.appendChild(hSpan);
+
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.value = Number.isFinite(parseFloat(b.qty)) ? String(b.qty) : '1';
+        qtyInput.step = '1';
+        qtyInput.min = '0';
+        qtyInput.title = '箇所数';
+        qtyInput.style.width = '50px';
+        qtyInput.style.textAlign = 'right';
+        qtyInput.style.padding = '2px 4px';
+        qtyInput.oninput = function() { onForceItemInlineChanged('brace', id, i, 'qty', this.value); };
+        left.appendChild(qtyInput);
+
+        const qtyLbl = document.createElement('span');
+        qtyLbl.style.fontSize = '0.75em';
+        qtyLbl.style.color = '#666';
+        qtyLbl.style.whiteSpace = 'nowrap';
+        qtyLbl.textContent = '箇所';
+        left.appendChild(qtyLbl);
+
+        const rfLbl = document.createElement('span');
+        rfLbl.style.fontSize = '0.75em';
+        rfLbl.style.color = '#666';
+        rfLbl.style.whiteSpace = 'nowrap';
+        rfLbl.textContent = '低減';
+        left.appendChild(rfLbl);
+
+        const rfInput = document.createElement('input');
+        rfInput.type = 'number';
+        rfInput.value = String(normalizeReductionFactor(b?.reductionFactor));
+        rfInput.step = '0.01';
+        rfInput.min = '0';
+        rfInput.title = '低減係数';
+        rfInput.style.width = '60px';
+        rfInput.style.textAlign = 'right';
+        rfInput.style.padding = '2px 4px';
+        rfInput.oninput = function() { onForceItemInlineChanged('brace', id, i, 'rf', this.value); };
+        left.appendChild(rfInput);
+
+        const infoSpan = document.createElement('span');
+        infoSpan.id = `inline-info-brace-${id}-${i}`;
+        const factor = Number.isFinite(parseFloat(b.correctionFactor)) ? (b.correctionFactor * 100).toFixed(1) : '0.0';
+        infoSpan.textContent = `補正率:${factor}%`;
+        left.appendChild(infoSpan);
+
+        const right = document.createElement('span');
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm';
+        delBtn.style.color = 'red';
+        delBtn.textContent = '削除';
+        delBtn.onclick = function() { removeBrace(id, i); };
+        right.appendChild(delBtn);
+
+        div.appendChild(left);
+        div.appendChild(right);
         list.appendChild(div);
     });
 }
@@ -3876,14 +4203,79 @@ function renderNukiList(id) {
     addedNukis[id].forEach((n, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        const factor = (n.correctionFactor * 100).toFixed(1);
-        const rf = normalizeReductionFactor(n?.reductionFactor);
-        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
-        div.innerHTML = `<span>${n.name} H=${n.height.toFixed(2)}m × ${n.qty}箇所 (補正率:${factor}%)${rfStr}</span>
-            <span>
-                <button class="btn-sm" onclick="editNuki('${id}', ${i})">編集</button>
-                <button class="btn-sm" style="color:red;" onclick="removeNuki('${id}', ${i})">削除</button>
-            </span>`;
+
+        const left = document.createElement('div');
+        left.style.display = 'flex';
+        left.style.alignItems = 'center';
+        left.style.gap = '4px';
+        left.style.flex = '1';
+        left.style.minWidth = '0';
+        left.style.flexWrap = 'wrap';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = n.name;
+        left.appendChild(nameSpan);
+
+        const hSpan = document.createElement('span');
+        hSpan.id = `inline-height-nuki-${id}-${i}`;
+        const hVal = Number.isFinite(parseFloat(n.height)) ? parseFloat(n.height) : getStoryHeightFromId(id);
+        hSpan.textContent = `H=${hVal.toFixed(2)}m`;
+        left.appendChild(hSpan);
+
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.value = Number.isFinite(parseFloat(n.qty)) ? String(n.qty) : '1';
+        qtyInput.step = '1';
+        qtyInput.min = '0';
+        qtyInput.title = '箇所数';
+        qtyInput.style.width = '50px';
+        qtyInput.style.textAlign = 'right';
+        qtyInput.style.padding = '2px 4px';
+        qtyInput.oninput = function() { onForceItemInlineChanged('nuki', id, i, 'qty', this.value); };
+        left.appendChild(qtyInput);
+
+        const qtyLbl = document.createElement('span');
+        qtyLbl.style.fontSize = '0.75em';
+        qtyLbl.style.color = '#666';
+        qtyLbl.style.whiteSpace = 'nowrap';
+        qtyLbl.textContent = '箇所';
+        left.appendChild(qtyLbl);
+
+        const rfLbl = document.createElement('span');
+        rfLbl.style.fontSize = '0.75em';
+        rfLbl.style.color = '#666';
+        rfLbl.style.whiteSpace = 'nowrap';
+        rfLbl.textContent = '低減';
+        left.appendChild(rfLbl);
+
+        const rfInput = document.createElement('input');
+        rfInput.type = 'number';
+        rfInput.value = String(normalizeReductionFactor(n?.reductionFactor));
+        rfInput.step = '0.01';
+        rfInput.min = '0';
+        rfInput.title = '低減係数';
+        rfInput.style.width = '60px';
+        rfInput.style.textAlign = 'right';
+        rfInput.style.padding = '2px 4px';
+        rfInput.oninput = function() { onForceItemInlineChanged('nuki', id, i, 'rf', this.value); };
+        left.appendChild(rfInput);
+
+        const infoSpan = document.createElement('span');
+        infoSpan.id = `inline-info-nuki-${id}-${i}`;
+        const factor = Number.isFinite(parseFloat(n.correctionFactor)) ? (n.correctionFactor * 100).toFixed(1) : '0.0';
+        infoSpan.textContent = `補正率:${factor}%`;
+        left.appendChild(infoSpan);
+
+        const right = document.createElement('span');
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm';
+        delBtn.style.color = 'red';
+        delBtn.textContent = '削除';
+        delBtn.onclick = function() { removeNuki(id, i); };
+        right.appendChild(delBtn);
+
+        div.appendChild(left);
+        div.appendChild(right);
         list.appendChild(div);
     });
 }
@@ -3981,14 +4373,126 @@ function renderKokabeList(id) {
     addedKokabes[id].forEach((k, i) => {
         const div = document.createElement('div');
         div.className = 'wall-item';
-        const factor = (k.correctionFactor * 100).toFixed(1);
-        const rf = normalizeReductionFactor(k?.reductionFactor);
-        const rfStr = (rf !== 1) ? ` 低減=${rf}` : '';
-        div.innerHTML = `<span>${k.name} W=${k.width}m ${k.zanzonPercent}% × ${k.qty}箇所 (補正率:${factor}%)${rfStr}</span>
-            <span>
-                <button class="btn-sm" onclick="editKokabe('${id}', ${i})">編集</button>
-                <button class="btn-sm" style="color:red;" onclick="removeKokabe('${id}', ${i})">削除</button>
-            </span>`;
+
+        const left = document.createElement('div');
+        left.style.display = 'flex';
+        left.style.alignItems = 'center';
+        left.style.gap = '4px';
+        left.style.flex = '1';
+        left.style.minWidth = '0';
+        left.style.flexWrap = 'wrap';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = k.name;
+        left.appendChild(nameSpan);
+
+        const widthLbl = document.createElement('span');
+        widthLbl.style.fontSize = '0.75em';
+        widthLbl.style.color = '#666';
+        widthLbl.style.whiteSpace = 'nowrap';
+        widthLbl.textContent = 'W';
+        left.appendChild(widthLbl);
+
+        const widthInput = document.createElement('input');
+        widthInput.type = 'number';
+        widthInput.value = Number.isFinite(parseFloat(k.width)) ? String(k.width) : '1.82';
+        widthInput.step = '0.01';
+        widthInput.min = '0';
+        widthInput.title = '壁幅(m)';
+        widthInput.style.width = '60px';
+        widthInput.style.textAlign = 'right';
+        widthInput.style.padding = '2px 4px';
+        widthInput.oninput = function() { onForceItemInlineChanged('kokabe', id, i, 'width', this.value); };
+        left.appendChild(widthInput);
+
+        const mLbl = document.createElement('span');
+        mLbl.style.fontSize = '0.75em';
+        mLbl.style.color = '#666';
+        mLbl.style.whiteSpace = 'nowrap';
+        mLbl.textContent = 'm';
+        left.appendChild(mLbl);
+
+        const zLbl = document.createElement('span');
+        zLbl.style.fontSize = '0.75em';
+        zLbl.style.color = '#666';
+        zLbl.style.whiteSpace = 'nowrap';
+        zLbl.textContent = '残存';
+        left.appendChild(zLbl);
+
+        const zInput = document.createElement('input');
+        zInput.type = 'number';
+        zInput.value = Number.isFinite(parseFloat(k.zanzonPercent)) ? String(k.zanzonPercent) : '33';
+        zInput.step = '1';
+        zInput.min = '1';
+        zInput.max = '100';
+        zInput.title = '残存率(%)';
+        zInput.style.width = '50px';
+        zInput.style.textAlign = 'right';
+        zInput.style.padding = '2px 4px';
+        zInput.oninput = function() { onForceItemInlineChanged('kokabe', id, i, 'zanzonPercent', this.value); };
+        left.appendChild(zInput);
+
+        const pctLbl = document.createElement('span');
+        pctLbl.style.fontSize = '0.75em';
+        pctLbl.style.color = '#666';
+        pctLbl.style.whiteSpace = 'nowrap';
+        pctLbl.textContent = '%';
+        left.appendChild(pctLbl);
+
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.value = Number.isFinite(parseFloat(k.qty)) ? String(k.qty) : '1';
+        qtyInput.step = '1';
+        qtyInput.min = '0';
+        qtyInput.title = '箇所数';
+        qtyInput.style.width = '50px';
+        qtyInput.style.textAlign = 'right';
+        qtyInput.style.padding = '2px 4px';
+        qtyInput.oninput = function() { onForceItemInlineChanged('kokabe', id, i, 'qty', this.value); };
+        left.appendChild(qtyInput);
+
+        const qtyLbl = document.createElement('span');
+        qtyLbl.style.fontSize = '0.75em';
+        qtyLbl.style.color = '#666';
+        qtyLbl.style.whiteSpace = 'nowrap';
+        qtyLbl.textContent = '箇所';
+        left.appendChild(qtyLbl);
+
+        const rfLbl = document.createElement('span');
+        rfLbl.style.fontSize = '0.75em';
+        rfLbl.style.color = '#666';
+        rfLbl.style.whiteSpace = 'nowrap';
+        rfLbl.textContent = '低減';
+        left.appendChild(rfLbl);
+
+        const rfInput = document.createElement('input');
+        rfInput.type = 'number';
+        rfInput.value = String(normalizeReductionFactor(k?.reductionFactor));
+        rfInput.step = '0.01';
+        rfInput.min = '0';
+        rfInput.title = '低減係数';
+        rfInput.style.width = '60px';
+        rfInput.style.textAlign = 'right';
+        rfInput.style.padding = '2px 4px';
+        rfInput.oninput = function() { onForceItemInlineChanged('kokabe', id, i, 'rf', this.value); };
+        left.appendChild(rfInput);
+
+        const infoSpan = document.createElement('span');
+        infoSpan.id = `inline-info-kokabe-${id}-${i}`;
+        const factor = Number.isFinite(parseFloat(k.correctionFactor)) ? (k.correctionFactor * 100).toFixed(1) : '0.0';
+        infoSpan.textContent = `補正率:${factor}%`;
+        left.appendChild(infoSpan);
+
+        const right = document.createElement('span');
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-sm';
+        delBtn.style.color = 'red';
+        delBtn.textContent = '削除';
+        delBtn.onclick = function() { removeKokabe(id, i); };
+        right.appendChild(delBtn);
+
+        div.appendChild(left);
+        div.appendChild(right);
         list.appendChild(div);
     });
 }
